@@ -24,6 +24,13 @@ pnpm dlx pnpm-settings-migrator
 
 Current working directory.
 
+### `--sort-keys`
+
+- **Type**: `boolean`
+- **Default**: `false`
+
+Sort keys when write `pnpm-workspace.yaml`.
+
 ### `--no-clean-npmrc`
 
 - **Type**: `boolean`

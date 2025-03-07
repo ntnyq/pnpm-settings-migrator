@@ -23,6 +23,13 @@ export interface Options {
   cwd?: string
 
   /**
+   * Sort keys when write `pnpm-workspace.yaml`
+   *
+   * @default false
+   */
+  sortKeys?: boolean
+
+  /**
    * Strategy to handle conflicts
    */
   strategy?: 'discard' | 'merge' | 'overwrite'
@@ -33,6 +40,7 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     cleanNpmrc: options.cleanNpmrc ?? true,
     cleanPackageJson: options.cleanPackageJson ?? true,
     cwd: options.cwd ?? process.cwd(),
+    sortKeys: options.sortKeys ?? false,
     strategy: options.strategy ?? 'merge',
   }
 }

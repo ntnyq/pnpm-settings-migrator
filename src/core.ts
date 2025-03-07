@@ -89,6 +89,7 @@ export async function migratePnpmSettings(
     pnpmWorkspaceYamlPath,
     dump(pnpmWorkspaceResult, {
       indent: pnpmWorkspaceYamlIndent,
+      sortKeys: options.sortKeys,
     }),
   )
 
