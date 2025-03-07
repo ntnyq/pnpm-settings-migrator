@@ -9,6 +9,8 @@ import {
 import { resolveOptions } from './options'
 import {
   fsExists,
+  pruneNpmrc,
+  prunePackageJson,
   readNpmrc,
   readPackageJson,
   readPnpmWorkspace,
@@ -42,4 +44,12 @@ export async function migratePnpmSettings(
   }
 
   await writePnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceContent)
+
+  if (isNpmrcExist && options.cleanNpmrc) {
+    await pruneNpmrc(npmrcPath)
+  }
+
+  if (isPackageJsonExist && options.cleanNpmrc) {
+    await prunePackageJson(packageJsonPath)
+  }
 }

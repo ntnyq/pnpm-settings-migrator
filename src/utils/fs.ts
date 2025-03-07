@@ -1,4 +1,4 @@
-import { access, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, readFile, writeFile } from 'node:fs/promises'
 import type { PathLike } from 'node:fs'
 
 /**
@@ -22,14 +22,6 @@ export async function fsReadFile(path: PathLike): Promise<string> {
 }
 
 /**
- * Remove file by given path
- * @param path - given file path
- */
-export async function fsRemoveFile(path: PathLike): Promise<void> {
-  await rm(path, { force: true }).catch(() => {})
-}
-
-/**
  * Write file
  * @param path - file path
  * @param content - file content
@@ -38,5 +30,5 @@ export async function fsWriteFile(
   path: PathLike,
   content: string,
 ): Promise<void> {
-  await writeFile(path, content, 'utf-8')
+  await writeFile(path, `${content.trimEnd()}\n`, 'utf-8')
 }

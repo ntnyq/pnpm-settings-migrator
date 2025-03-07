@@ -2,7 +2,7 @@ import process from 'node:process'
 
 export interface Options {
   /**
-   * Whether to remove `.npmrc` file
+   * Whether to remove pnpm settings in `.npmrc` file
    *
    * @default true
    */

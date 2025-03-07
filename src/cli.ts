@@ -16,9 +16,12 @@ const cli = cac(name)
 
 cli
   .version(version)
-  // .option('--debug', 'Enable debug mode')
   .option('--cwd [cwd]', 'Current working directory')
-  // .option('--dry', 'Dry run')
+  .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
+  .option(
+    '--no-clean-package-json',
+    'Disable removing pnpm field in package.json',
+  )
   .help()
 
 cli.command('').action(async (options: Options) => {

@@ -17,9 +17,11 @@ pnpm dlx pnpm-settings-migrator
 
 ## CLI Options
 
-| Option |   Type   |     Default     |        Description        |
-| :----: | :------: | :-------------: | :-----------------------: |
-| `cwd`  | `string` | `process.cwd()` | Current working directory |
+| Option                     |   Type    |     Default     | Description                                   |
+| :------------------------- | :-------: | :-------------: | :-------------------------------------------- |
+| `--cwd`                    | `string`  | `process.cwd()` | Current working directory                     |
+| `--no-clean-npmrc`         | `boolean` |     `false`     | Disable removing pnpm settings in .npmrc file |
+| `---no-clean-package-json` | `boolean` |     `false`     | Disable removing pnpm field in package.json   |
 
 ## Context
 
