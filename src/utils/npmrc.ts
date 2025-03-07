@@ -24,5 +24,5 @@ export async function pruneNpmrc(path: string): Promise<void> {
 
 export async function readNpmrc(path: string): Promise<NpmRC> {
   const content = await readIniFile(path)
-  return camelcaseKeys(content as Record<string, any>) as NpmRC
+  return camelcaseKeys(content as NpmRC)
 }

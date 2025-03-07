@@ -1,6 +1,9 @@
 import { pick } from '@ntnyq/utils'
+import detectIndent from 'detect-indent'
+import { dump, load } from 'js-yaml'
 import { resolve } from 'pathe'
 import {
+  DEFAULT_INDENT,
   NPMRC,
   PACKAGE_JSON,
   PNPM_SETTINGS_FIELDS,
@@ -9,14 +12,13 @@ import {
 import { resolveOptions } from './options'
 import {
   fsExists,
+  fsReadFile,
+  fsWriteFile,
   pruneNpmrc,
-  prunePackageJson,
   readNpmrc,
-  readPackageJson,
-  readPnpmWorkspace,
-  writePnpmWorkspace,
 } from './utils'
 import type { Options } from './options'
+import type { PackageJson, PnpmWorkspace } from './types'
 
 export async function migratePnpmSettings(
   rawOptions: Options = {},
@@ -31,25 +33,51 @@ export async function migratePnpmSettings(
   const isPackageJsonExist = await fsExists(packageJsonPath)
   const isPnpmWorkspaceExist = await fsExists(pnpmWorkspaceYamlPath)
 
-  const pnpmWorkspaceContent = {
-    ...(isNpmrcExist
-      ? pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS)
-      : {}),
-    ...(isPackageJsonExist
-      ? (await readPackageJson(packageJsonPath)).pnpm
-      : {}),
-    ...(isPnpmWorkspaceExist
-      ? await readPnpmWorkspace(pnpmWorkspaceYamlPath)
-      : {}),
+  let packageJsonIndent: number | string = DEFAULT_INDENT
+  let packageJsonObject: PackageJson = {}
+
+  let pnpmWorkspaceYamlIndent: number = DEFAULT_INDENT
+  let pnpmWorkspaceYamlObject: PnpmWorkspace = {}
+
+  if (isPackageJsonExist) {
+    const content = await fsReadFile(packageJsonPath)
+
+    packageJsonIndent = detectIndent(content).indent
+    packageJsonObject = JSON.parse(content) as PackageJson
   }
 
-  await writePnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceContent)
+  if (isPnpmWorkspaceExist) {
+    const content = await fsReadFile(pnpmWorkspaceYamlPath)
+
+    pnpmWorkspaceYamlIndent = detectIndent(content).amount
+    pnpmWorkspaceYamlObject = load(content) as PnpmWorkspace
+  }
+
+  const npmrcObject = isNpmrcExist ? await readNpmrc(npmrcPath) : {}
+
+  const pnpmWorkspaceResult: PnpmWorkspace = {
+    ...pick(npmrcObject, PNPM_SETTINGS_FIELDS),
+    ...packageJsonObject.pnpm,
+    ...pnpmWorkspaceYamlObject,
+  }
+
+  await fsWriteFile(
+    pnpmWorkspaceYamlPath,
+    dump(pnpmWorkspaceResult, {
+      indent: pnpmWorkspaceYamlIndent,
+    }),
+  )
 
   if (isNpmrcExist && options.cleanNpmrc) {
     await pruneNpmrc(npmrcPath)
   }
 
   if (isPackageJsonExist && options.cleanNpmrc) {
-    await prunePackageJson(packageJsonPath)
+    delete packageJsonObject.pnpm
+
+    await fsWriteFile(
+      packageJsonPath,
+      JSON.stringify(packageJsonObject, null, packageJsonIndent),
+    )
   }
 }

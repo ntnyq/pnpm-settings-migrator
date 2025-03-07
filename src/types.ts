@@ -10,7 +10,7 @@ export type PnpmWorkspaceLegacy = {
 }
 
 /**
- * `package-json`
+ * `package-json` types
  * @pg
  */
 export interface PackageJson {
@@ -18,7 +18,7 @@ export interface PackageJson {
 }
 
 /**
- * `.npmrc`
+ * `.npmrc` types
  * @pg
  */
 export type NpmRC = Record<string, any>
