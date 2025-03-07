@@ -1,16 +1,10 @@
 import process from 'node:process'
 import { cac } from 'cac'
 import { consola } from 'consola'
-import { getColor } from 'consola/utils'
 import { name, version } from '../package.json'
 import { migratePnpmSettings } from './core'
+import { bold, dim, green, magenta, red } from './utils'
 import type { Options } from './options'
-
-const dim = getColor('dim')
-const green = getColor('green')
-const red = getColor('red')
-const bold = getColor('bold')
-const magenta = getColor('magenta')
 
 const cli = cac(name)
 
@@ -31,7 +25,7 @@ cli.command('').action(async (options: Options) => {
 
     await migratePnpmSettings(options)
 
-    consola.success(green('pnpm settings migrate successfully!'))
+    consola.success(green('pnpm settings migrate has finished'))
   } catch (err) {
     consola.fail(red(String(err)))
 
