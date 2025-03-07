@@ -8,9 +8,9 @@
     "types": ["node"],
     "resolveJsonModule": true,
     "declaration": true,
+    "isolatedDeclarations": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "isolatedDeclarations": true,
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true
