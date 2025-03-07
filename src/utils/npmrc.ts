@@ -8,16 +8,9 @@ import type { NpmRC } from '../types'
 export async function pruneNpmrc(path: string): Promise<void> {
   const pnpmSettingsFields = PNPM_SETTINGS_FIELDS.map(v => kebabCase(v))
   const content = await fsReadFile(path)
-  const lines = content.split(/\r?\n/).filter(line => {
-    const trimedLine = line.trim()
-    if (
-      !trimedLine.length
-      || pnpmSettingsFields.some(v => trimedLine.startsWith(v))
-    ) {
-      return false
-    }
-    return true
-  })
+  const lines = content
+    .split(/\r?\n/)
+    .filter(line => !pnpmSettingsFields.some(v => line.trim().startsWith(v)))
 
   await fsWriteFile(path, lines.join('\n'))
 }
