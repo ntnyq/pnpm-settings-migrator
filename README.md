@@ -31,6 +31,13 @@ Current working directory.
 
 Sort keys when write `pnpm-workspace.yaml`.
 
+### `--no-yarn-resolutions`
+
+- **Type**: `boolean`
+- **Default**: `false`
+
+Disable migrating `resolutions` field in `package.json`.
+
 ### `--no-clean-npmrc`
 
 - **Type**: `boolean`

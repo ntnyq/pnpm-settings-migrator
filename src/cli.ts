@@ -12,6 +12,10 @@ cli
   .version(version)
   .option('--cwd [cwd]', 'Current working directory')
   .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
+  .option(
+    '--no-yarn-resolutions',
+    'Disable migrating resolutions field in package.json',
+  )
   .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
   .option(
     '--no-clean-package-json',

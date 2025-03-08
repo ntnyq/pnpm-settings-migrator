@@ -14,7 +14,24 @@ export type PnpmWorkspaceLegacy = {
  * @pg
  */
 export interface PackageJson {
+  /**
+   * same as `pnpm.overrides`
+   *
+   * @compatibility npm, bun
+   */
+  overrides?: Record<string, string>
+
+  /**
+   * pnpm settings
+   */
   pnpm?: PnpmSettings
+
+  /**
+   * same as `pnpm.overrides`
+   *
+   * @compatibility yarn, bun
+   */
+  resolutions?: Record<string, string>
 }
 
 /**

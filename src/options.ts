@@ -33,6 +33,13 @@ export interface Options {
    * Strategy to handle conflicts
    */
   strategy?: 'discard' | 'merge' | 'overwrite'
+
+  /**
+   * Whether to migrate `resolutions` filed in `package.json`
+   *
+   * @default true
+   */
+  yarnResolutions?: boolean
 }
 
 export function resolveOptions(options: Options = {}): Required<Options> {
@@ -42,5 +49,6 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     cwd: options.cwd ?? process.cwd(),
     sortKeys: options.sortKeys ?? false,
     strategy: options.strategy ?? 'merge',
+    yarnResolutions: options.yarnResolutions ?? true,
   }
 }

@@ -1,5 +1,6 @@
 import { pick } from '@ntnyq/utils'
 import consola from 'consola'
+import { defu } from 'defu'
 import detectIndent from 'detect-indent'
 import { dump, load } from 'js-yaml'
 import { resolve } from 'pathe'
@@ -19,6 +20,7 @@ import {
   pruneNpmrc,
   readNpmrc,
 } from './utils'
+import type { PnpmSettings } from '@pnpm/types'
 import type { Options } from './options'
 import type { PackageJson, PnpmWorkspace } from './types'
 
@@ -74,14 +76,37 @@ export async function migratePnpmSettings(
     : {}
 
   // no pnpm settings related fields
-  if (!packageJsonObject.pnpm && !Object.keys(pnpmSettingsInNpmrc).length) {
+  if (
+    !packageJsonObject.pnpm
+    && (!options.yarnResolutions || !packageJsonObject.resolutions)
+    && !Object.keys(pnpmSettingsInNpmrc).length
+  ) {
     consola.warn('No pnpm settings fields to migrate')
     return
   }
 
+  const pnpmSettingsInPackageJson: PnpmSettings =
+    options.yarnResolutions && packageJsonObject.resolutions
+      ? {
+          ...packageJsonObject.pnpm,
+          overrides: defu(
+            packageJsonObject.pnpm?.overrides,
+            packageJsonObject.resolutions,
+          ),
+        }
+      : { ...packageJsonObject.pnpm }
+
+  // Remove `overrides` if empty object
+  if (
+    pnpmSettingsInPackageJson.overrides
+    && !Object.keys(pnpmSettingsInPackageJson.overrides).length
+  ) {
+    delete pnpmSettingsInPackageJson.overrides
+  }
+
   const pnpmWorkspaceResult: PnpmWorkspace = {
     ...pnpmSettingsInNpmrc,
-    ...packageJsonObject.pnpm,
+    ...pnpmSettingsInPackageJson,
     ...pnpmWorkspaceYamlObject,
   }
 
@@ -97,8 +122,16 @@ export async function migratePnpmSettings(
     await pruneNpmrc(npmrcPath)
   }
 
-  if (isPackageJsonExist && options.cleanNpmrc) {
+  if (
+    isPackageJsonExist
+    && options.cleanPackageJson
+    && (packageJsonObject.pnpm || packageJsonObject.resolutions)
+  ) {
     delete packageJsonObject.pnpm
+
+    if (options.yarnResolutions) {
+      delete packageJsonObject.resolutions
+    }
 
     await fsWriteFile(
       packageJsonPath,
