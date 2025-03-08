@@ -104,11 +104,10 @@ export async function migratePnpmSettings(
     delete pnpmSettingsInPackageJson.overrides
   }
 
-  const pnpmWorkspaceResult: PnpmWorkspace = {
+  const pnpmWorkspaceResult: PnpmWorkspace = defu(pnpmWorkspaceYamlObject, {
     ...pnpmSettingsInNpmrc,
     ...pnpmSettingsInPackageJson,
-    ...pnpmWorkspaceYamlObject,
-  }
+  })
 
   await fsWriteFile(
     pnpmWorkspaceYamlPath,
