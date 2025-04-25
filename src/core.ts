@@ -2,8 +2,8 @@ import { pick } from '@ntnyq/utils'
 import consola from 'consola'
 import { defu } from 'defu'
 import detectIndent from 'detect-indent'
-import { dump, load } from 'js-yaml'
 import { resolve } from 'pathe'
+import { parse, Document as YamlDocument } from 'yaml'
 import {
   DEFAULT_INDENT,
   NPMRC,
@@ -68,7 +68,7 @@ export async function migratePnpmSettings(
     const content = await fsReadFile(pnpmWorkspaceYamlPath)
 
     pnpmWorkspaceYamlIndent = detectIndent(content).amount
-    pnpmWorkspaceYamlObject = load(content) as PnpmWorkspace
+    pnpmWorkspaceYamlObject = parse(content) as PnpmWorkspace
   }
 
   const pnpmSettingsInNpmrc = isNpmrcExist
@@ -109,13 +109,23 @@ export async function migratePnpmSettings(
     ...pnpmSettingsInPackageJson,
   })
 
-  await fsWriteFile(
-    pnpmWorkspaceYamlPath,
-    dump(pnpmWorkspaceResult, {
-      indent: pnpmWorkspaceYamlIndent,
-      sortKeys: options.sortKeys,
-    }),
-  )
+  const yamlDocument = new YamlDocument({
+    indent: pnpmWorkspaceYamlIndent,
+    sortMapEntries: options.sortKeys,
+  })
+
+  Object.entries(pnpmWorkspaceResult).forEach(([key, value], index) => {
+    yamlDocument.add({ key, value })
+
+    if (
+      options.newlineBetween
+      && index < Object.keys(pnpmWorkspaceResult).length - 1
+    ) {
+      yamlDocument.add({ key: '', value: '' })
+    }
+  })
+
+  await fsWriteFile(pnpmWorkspaceYamlPath, document.toString())
 
   if (isNpmrcExist && options.cleanNpmrc) {
     await pruneNpmrc(npmrcPath)

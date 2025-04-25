@@ -23,6 +23,12 @@ export interface Options {
   cwd?: string
 
   /**
+   * Add newlines between each root keys like pnpm does
+   * @default true
+   */
+  newlineBetween?: boolean
+
+  /**
    * Sort keys when write `pnpm-workspace.yaml`
    *
    * @default false
@@ -47,6 +53,7 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     cleanNpmrc: options.cleanNpmrc ?? true,
     cleanPackageJson: options.cleanPackageJson ?? true,
     cwd: options.cwd ?? process.cwd(),
+    newlineBetween: options.newlineBetween ?? true,
     sortKeys: options.sortKeys ?? false,
     strategy: options.strategy ?? 'merge',
     yarnResolutions: options.yarnResolutions ?? true,

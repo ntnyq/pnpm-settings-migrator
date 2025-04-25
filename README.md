@@ -52,6 +52,13 @@ Disable removing pnpm settings in `.npmrc` file.
 
 Disable removing `pnpm` field in `package.json`.
 
+### `---no-newline-between`
+
+- **Type**: `boolean`
+- **Default**: `false`
+
+Disable adding newlines between each root keys.
+
 ## Context
 
 - [Moving settings to pnpm-workspace.yaml](https://github.com/orgs/pnpm/discussions/9037)

@@ -16,6 +16,10 @@ cli
     '--no-yarn-resolutions',
     'Disable migrating resolutions field in package.json',
   )
+  .option(
+    '--no-newline-between',
+    'Disable adding newlines between each root keys',
+  )
   .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
   .option(
     '--no-clean-package-json',

@@ -59,15 +59,14 @@
     "consola": "^3.4.2",
     "defu": "^6.1.4",
     "detect-indent": "^7.0.1",
-    "js-yaml": "^4.1.0",
     "pathe": "^2.0.3",
     "read-ini-file": "^4.0.0",
-    "uncase": "^0.1.0"
+    "uncase": "^0.1.0",
+    "yaml": "^2.7.1"
   },
   "devDependencies": {
     "@ntnyq/eslint-config": "^4.0.4",
     "@ntnyq/prettier-config": "^2.0.0",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.1",
     "bumpp": "^10.1.0",
     "eslint": "^9.25.1",
