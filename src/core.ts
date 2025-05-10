@@ -96,7 +96,7 @@ export async function migratePnpmSettings(
         }
       : { ...packageJsonObject.pnpm }
 
-  // Remove `overrides` if empty object
+  // Remove `overrides` if it's empty
   if (
     pnpmSettingsInPackageJson.overrides
     && !Object.keys(pnpmSettingsInPackageJson.overrides).length
@@ -109,10 +109,12 @@ export async function migratePnpmSettings(
     ...pnpmSettingsInPackageJson,
   })
 
-  const yamlDocument = new YamlDocument({
-    indent: pnpmWorkspaceYamlIndent,
-    sortMapEntries: options.sortKeys,
-  })
+  const yamlDocument = new YamlDocument(
+    {},
+    {
+      sortMapEntries: options.sortKeys,
+    },
+  )
 
   Object.entries(pnpmWorkspaceResult).forEach(([key, value], index) => {
     yamlDocument.add({ key, value })
@@ -129,7 +131,12 @@ export async function migratePnpmSettings(
     }
   })
 
-  await fsWriteFile(pnpmWorkspaceYamlPath, yamlDocument.toString())
+  await fsWriteFile(
+    pnpmWorkspaceYamlPath,
+    yamlDocument.toString({
+      indent: pnpmWorkspaceYamlIndent,
+    }),
+  )
 
   if (isNpmrcExist && options.cleanNpmrc) {
     await pruneNpmrc(npmrcPath)
