@@ -45,14 +45,14 @@ Disable migrating `resolutions` field in `package.json`.
 
 Disable removing pnpm settings in `.npmrc` file.
 
-### `---no-clean-package-json`
+### `--no-clean-package-json`
 
 - **Type**: `boolean`
 - **Default**: `false`
 
 Disable removing `pnpm` field in `package.json`.
 
-### `---no-newline-between`
+### `--no-newline-between`
 
 - **Type**: `boolean`
 - **Default**: `false`
