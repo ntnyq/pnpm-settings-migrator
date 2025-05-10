@@ -129,7 +129,7 @@ export async function migratePnpmSettings(
     }
   })
 
-  await fsWriteFile(pnpmWorkspaceYamlPath, document.toString())
+  await fsWriteFile(pnpmWorkspaceYamlPath, yamlDocument.toString())
 
   if (isNpmrcExist && options.cleanNpmrc) {
     await pruneNpmrc(npmrcPath)
