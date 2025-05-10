@@ -121,7 +121,11 @@ export async function migratePnpmSettings(
       options.newlineBetween
       && index < Object.keys(pnpmWorkspaceResult).length - 1
     ) {
-      yamlDocument.add({ key: '', value: '' })
+      // add a newlines
+      yamlDocument.add({
+        key: '',
+        value: null,
+      })
     }
   })
 

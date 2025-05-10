@@ -7,12 +7,16 @@ export const PNPM_WORKSPACE_YAML = 'pnpm-workspace.yaml'
  */
 export const DEFAULT_INDENT = 2
 
+/**
+ * @see {@link https://pnpm.io/settings}
+ */
 // @keep-sorted
 export const PNPM_SETTINGS_FIELDS: string[] = [
   'allowedDeprecatedVersions',
   'allowNonAppliedPatches',
   'auditConfig',
   'configDependencies',
+  'dangerouslyAllowAllBuilds',
   'executionEnv',
   'ignoredBuiltDependencies',
   'ignoredOptionalDependencies',
