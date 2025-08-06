@@ -1,0 +1,16 @@
+{
+  "name": "test-workspace",
+  "pnpm": {
+    "overrides": {
+      "foo": "1.0.0"
+    },
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "react"
+      ]
+    }
+  },
+  "resolutions": {
+    "bar": "2.0.0"
+  }
+}
