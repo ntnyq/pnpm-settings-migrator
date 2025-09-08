@@ -74,7 +74,7 @@
     "nano-staged": "^0.8.0",
     "npm-run-all2": "^8.0.4",
     "prettier": "^3.6.2",
-    "tsdown": "^0.14.1",
+    "tsdown": "^0.14.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
