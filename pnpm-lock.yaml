@@ -52,7 +52,7 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1
       '@types/node':
-        specifier: ^24.7.0
+        specifier: ^24.7.2
         version: 24.7.2
       bumpp:
         specifier: ^10.3.1
