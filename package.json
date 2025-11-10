@@ -2,7 +2,7 @@
   "name": "pnpm-settings-migrator",
   "type": "module",
   "version": "0.0.9",
-  "packageManager": "pnpm@10.19.0",
+  "packageManager": "pnpm@10.20.0",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
@@ -53,7 +53,7 @@
     "@ntnyq/utils": "^0.9.2",
     "@pnpm/types": "^1000.9.0",
     "cac": "^6.7.14",
-    "camelcase-keys": "^10.0.0",
+    "camelcase-keys": "^10.0.1",
     "consola": "^3.4.2",
     "defu": "^6.1.4",
     "detect-indent": "^7.0.2",
@@ -65,16 +65,16 @@
   "devDependencies": {
     "@ntnyq/eslint-config": "^5.7.0",
     "@ntnyq/prettier-config": "^3.0.1",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.10.0",
     "bumpp": "^10.3.1",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.0",
     "husky": "^9.1.7",
     "nano-staged": "^0.8.0",
     "npm-run-all2": "^8.0.4",
     "prettier": "^3.6.2",
-    "tsdown": "^0.15.11",
+    "tsdown": "^0.15.12",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.4"
+    "vitest": "^4.0.6"
   },
   "nano-staged": {
     "*.{js,ts,mjs,cjs,md,yml,yaml,toml,json}": "eslint --fix"
