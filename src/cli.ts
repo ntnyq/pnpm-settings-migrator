@@ -23,7 +23,7 @@ cli
   .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
   .option(
     '--no-clean-package-json',
-    'Disable removing pnpm field in package.json',
+    'Disable removing pnpm fields in package.json',
   )
   .help()
 
