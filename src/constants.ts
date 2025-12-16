@@ -13,6 +13,7 @@ export const DEFAULT_INDENT = 2
 // @keep-sorted
 // @keep-unique
 export const PNPM_SETTINGS_FIELDS: string[] = [
+  'allowBuilds',
   'allowedDeprecatedVersions',
   'allowNonAppliedPatches',
   'allowUnusedPatches',
