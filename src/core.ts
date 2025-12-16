@@ -24,138 +24,181 @@ import type { PnpmSettings } from '@pnpm/types'
 import type { Options } from './options'
 import type { PackageJson, PnpmWorkspace } from './types'
 
+/**
+ * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
+ *
+ * This function collects pnpm configurations from multiple sources and consolidates
+ * them into a single `pnpm-workspace.yaml` file:
+ * - `package.json` pnpm field
+ * - `.npmrc` pnpm-related settings
+ * - `package.json` resolutions (optional, converts to pnpm overrides)
+ *
+ * @param rawOptions - Migration options
+ * @param rawOptions.cwd - Current working directory (default: process.cwd())
+ * @param rawOptions.cleanNpmrc - Whether to remove pnpm settings from `.npmrc` (default: true)
+ * @param rawOptions.cleanPackageJson - Whether to remove pnpm field from `package.json` (default: true)
+ * @param rawOptions.yarnResolutions - Whether to migrate resolutions field (default: true)
+ * @param rawOptions.sortKeys - Whether to sort keys in output YAML (default: false)
+ * @param rawOptions.newlineBetween - Add newlines between root keys (default: true)
+ *
+ * @returns A promise that resolves when migration is complete
+ *
+ * @throws {Error} When file operations fail or JSON/YAML parsing errors occur
+ *
+ * @example
+ * ```ts
+ * // Migrate with default options
+ * await migratePnpmSettings()
+ *
+ * // Migrate with custom options
+ * await migratePnpmSettings({
+ *   cwd: '/path/to/workspace',
+ *   cleanNpmrc: false,
+ *   sortKeys: true
+ * })
+ * ```
+ */
 export async function migratePnpmSettings(
   rawOptions: Options = {},
 ): Promise<void> {
-  const options = resolveOptions(rawOptions)
+  try {
+    const options = resolveOptions(rawOptions)
 
-  const npmrcPath = resolve(options.cwd, NPMRC)
-  const packageJsonPath = resolve(options.cwd, PACKAGE_JSON)
-  const pnpmWorkspaceYamlPath = resolve(options.cwd, PNPM_WORKSPACE_YAML)
+    const npmrcPath = resolve(options.cwd, NPMRC)
+    const packageJsonPath = resolve(options.cwd, PACKAGE_JSON)
+    const pnpmWorkspaceYamlPath = resolve(options.cwd, PNPM_WORKSPACE_YAML)
 
-  const isNpmrcExist = await fsExists(npmrcPath)
-  if (!isNpmrcExist) {
-    consola.info(`${dim(NPMRC)} not found`)
-  }
+    const [npmrcExists, packageJsonExists, pnpmWorkspaceExists] =
+      await Promise.all([
+        fsExists(npmrcPath),
+        fsExists(packageJsonPath),
+        fsExists(pnpmWorkspaceYamlPath),
+      ])
 
-  const isPackageJsonExist = await fsExists(packageJsonPath)
-  if (!isPackageJsonExist) {
-    consola.info(`${dim(PACKAGE_JSON)} not found`)
-  }
+    if (!npmrcExists) {
+      consola.info(`${dim(NPMRC)} not found`)
+    }
 
-  const isPnpmWorkspaceExist = await fsExists(pnpmWorkspaceYamlPath)
+    if (!packageJsonExists) {
+      consola.info(`${dim(PACKAGE_JSON)} not found`)
+    }
 
-  // No `.npmrc` or `package.json` file
-  if (!isNpmrcExist && !isPackageJsonExist) {
-    consola.warn('No pnpm settings files to migrate')
-    return
-  }
+    // No `.npmrc` or `package.json` file
+    if (!npmrcExists && !packageJsonExists) {
+      consola.warn('No pnpm settings files to migrate')
+      return
+    }
 
-  let packageJsonIndent: number | string = DEFAULT_INDENT
-  let packageJsonObject: PackageJson = {}
+    let packageJsonIndent: number | string = DEFAULT_INDENT
+    let packageJsonObject: PackageJson = {}
 
-  let pnpmWorkspaceYamlIndent: number = DEFAULT_INDENT
-  let pnpmWorkspaceYamlObject: PnpmWorkspace = {}
+    let pnpmWorkspaceYamlIndent: number = DEFAULT_INDENT
+    let pnpmWorkspaceYamlObject: PnpmWorkspace = {}
 
-  if (isPackageJsonExist) {
-    const content = await fsReadFile(packageJsonPath)
+    if (packageJsonExists) {
+      const content = await fsReadFile(packageJsonPath)
 
-    packageJsonIndent = detectIndent(content).indent
-    packageJsonObject = JSON.parse(content) as PackageJson
-  }
+      packageJsonIndent = detectIndent(content).indent
+      packageJsonObject = JSON.parse(content) as PackageJson
+    }
 
-  if (isPnpmWorkspaceExist) {
-    const content = await fsReadFile(pnpmWorkspaceYamlPath)
+    if (pnpmWorkspaceExists) {
+      const content = await fsReadFile(pnpmWorkspaceYamlPath)
 
-    pnpmWorkspaceYamlIndent = detectIndent(content).amount
-    pnpmWorkspaceYamlObject = parse(content) as PnpmWorkspace
-  }
+      pnpmWorkspaceYamlIndent = detectIndent(content).amount
+      pnpmWorkspaceYamlObject = parse(content) as PnpmWorkspace
+    }
 
-  const pnpmSettingsInNpmrc = isNpmrcExist
-    ? pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS)
-    : {}
+    const pnpmSettingsInNpmrc = npmrcExists
+      ? pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS)
+      : {}
 
-  // no pnpm settings related fields
-  if (
-    !packageJsonObject.pnpm
-    && (!options.yarnResolutions || !packageJsonObject.resolutions)
-    && !Object.keys(pnpmSettingsInNpmrc).length
-  ) {
-    consola.warn('No pnpm settings fields to migrate')
-    return
-  }
+    // no pnpm settings related fields
+    const hasPnpmInPackageJson = !!packageJsonObject.pnpm
+    const hasResolutions =
+      options.yarnResolutions && !!packageJsonObject.resolutions
+    const hasNpmrcSettings = Object.keys(pnpmSettingsInNpmrc).length > 0
 
-  const pnpmSettingsInPackageJson: PnpmSettings =
-    options.yarnResolutions && packageJsonObject.resolutions
-      ? {
-          ...packageJsonObject.pnpm,
-          overrides: defu(
-            packageJsonObject.pnpm?.overrides,
-            packageJsonObject.resolutions,
-          ),
-        }
-      : { ...packageJsonObject.pnpm }
+    if (!hasPnpmInPackageJson && !hasResolutions && !hasNpmrcSettings) {
+      consola.warn('No pnpm settings fields to migrate')
+      return
+    }
 
-  // Remove `overrides` if it's empty
-  if (
-    pnpmSettingsInPackageJson.overrides
-    && !Object.keys(pnpmSettingsInPackageJson.overrides).length
-  ) {
-    delete pnpmSettingsInPackageJson.overrides
-  }
+    const pnpmSettingsInPackageJson: PnpmSettings =
+      options.yarnResolutions && packageJsonObject.resolutions
+        ? {
+            ...packageJsonObject.pnpm,
+            overrides: defu(
+              packageJsonObject.pnpm?.overrides,
+              packageJsonObject.resolutions,
+            ),
+          }
+        : { ...packageJsonObject.pnpm }
 
-  const pnpmWorkspaceResult: PnpmWorkspace = defu(pnpmWorkspaceYamlObject, {
-    ...pnpmSettingsInNpmrc,
-    ...pnpmSettingsInPackageJson,
-  })
-
-  const yamlDocument = new YamlDocument(
-    {},
-    {
-      sortMapEntries: options.sortKeys,
-    },
-  )
-
-  Object.entries(pnpmWorkspaceResult).forEach(([key, value], index) => {
-    yamlDocument.add({ key, value })
-
+    // Remove `overrides` if it's empty
     if (
-      options.newlineBetween
-      && index < Object.keys(pnpmWorkspaceResult).length - 1
+      pnpmSettingsInPackageJson.overrides
+      && !Object.keys(pnpmSettingsInPackageJson.overrides).length
     ) {
-      // add a newlines
-      // yamlDocument.add({
-      //   key: '',
-      //   value: null,
-      // })
+      delete pnpmSettingsInPackageJson.overrides
     }
-  })
 
-  await fsWriteFile(
-    pnpmWorkspaceYamlPath,
-    yamlDocument.toString({
-      indent: pnpmWorkspaceYamlIndent,
-    }),
-  )
+    const pnpmWorkspaceResult: PnpmWorkspace = defu(pnpmWorkspaceYamlObject, {
+      ...pnpmSettingsInNpmrc,
+      ...pnpmSettingsInPackageJson,
+    })
 
-  if (isNpmrcExist && options.cleanNpmrc) {
-    await pruneNpmrc(npmrcPath)
-  }
+    const yamlDocument = new YamlDocument(
+      {},
+      {
+        sortMapEntries: options.sortKeys,
+      },
+    )
 
-  if (
-    isPackageJsonExist
-    && options.cleanPackageJson
-    && (packageJsonObject.pnpm || packageJsonObject.resolutions)
-  ) {
-    delete packageJsonObject.pnpm
+    Object.entries(pnpmWorkspaceResult).forEach(([key, value], index) => {
+      yamlDocument.add({ key, value })
 
-    if (options.yarnResolutions) {
-      delete packageJsonObject.resolutions
-    }
+      if (
+        options.newlineBetween
+        && index < Object.keys(pnpmWorkspaceResult).length - 1
+      ) {
+        // add a newlines
+        // yamlDocument.add({
+        //   key: '',
+        //   value: null,
+        // })
+      }
+    })
 
     await fsWriteFile(
-      packageJsonPath,
-      JSON.stringify(packageJsonObject, null, packageJsonIndent),
+      pnpmWorkspaceYamlPath,
+      yamlDocument.toString({
+        indent: pnpmWorkspaceYamlIndent,
+      }),
     )
+
+    if (npmrcExists && options.cleanNpmrc) {
+      await pruneNpmrc(npmrcPath)
+    }
+
+    if (
+      packageJsonExists
+      && options.cleanPackageJson
+      && (packageJsonObject.pnpm || packageJsonObject.resolutions)
+    ) {
+      delete packageJsonObject.pnpm
+
+      if (options.yarnResolutions) {
+        delete packageJsonObject.resolutions
+      }
+
+      await fsWriteFile(
+        packageJsonPath,
+        JSON.stringify(packageJsonObject, null, packageJsonIndent),
+      )
+    }
+  } catch (err) {
+    consola.error('Failed to migrate pnpm settings:', err)
+    throw err
   }
 }
