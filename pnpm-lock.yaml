@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@ntnyq/utils':
-        specifier: ^0.9.2
-        version: 0.9.2
+        specifier: ^0.10.0
+        version: 0.10.0
       '@pnpm/types':
         specifier: ^1001.2.0
         version: 1001.2.0
@@ -73,7 +73,7 @@ importers:
         specifier: ^3.7.4
         version: 3.7.4
       tsdown:
-        specifier: ^0.18.2
+        specifier: ^0.18.3
         version: 0.18.3(synckit@0.11.11)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
@@ -433,6 +433,10 @@ packages:
 
   '@ntnyq/prettier-config@3.0.1':
     resolution: {integrity: sha512-Mi8pvBu6Z0HsC6vFQQ9ucmEiot4GJ3AbwfU8J626m5oll9mgF5InO+pdGnFVtr9e82YHUHA67MihHLYT7CDhHw==}
+
+  '@ntnyq/utils@0.10.0':
+    resolution: {integrity: sha512-yMXmOByHnqddPcX4p2e175Q/KNk0G/llvbuQ9R5SQTD8ORNIT9XQK5kn7zLjzP5eCfYJJ1juzu6xLlFpk4H4AQ==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   '@ntnyq/utils@0.6.5':
     resolution: {integrity: sha512-sjCzIYGXvRRuwN37twCVjszeDTfPtDE3hQ+vT/orH9Xo0ubKQDEA+HsyTewN1vo3ao0Kl3DGpsgPJ4nxy+nyvQ==}
@@ -2752,6 +2756,8 @@ snapshots:
       - vitest
 
   '@ntnyq/prettier-config@3.0.1': {}
+
+  '@ntnyq/utils@0.10.0': {}
 
   '@ntnyq/utils@0.6.5': {}
 
