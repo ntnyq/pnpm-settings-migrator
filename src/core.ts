@@ -137,8 +137,8 @@ export async function migratePnpmSettings(
 
     // Remove `overrides` if it's empty
     if (
-      pnpmSettingsInPackageJson.overrides
-      && !Object.keys(pnpmSettingsInPackageJson.overrides).length
+      pnpmSettingsInPackageJson.overrides &&
+      !Object.keys(pnpmSettingsInPackageJson.overrides).length
     ) {
       delete pnpmSettingsInPackageJson.overrides
     }
@@ -159,8 +159,8 @@ export async function migratePnpmSettings(
       yamlDocument.add({ key, value })
 
       if (
-        options.newlineBetween
-        && index < Object.keys(pnpmWorkspaceResult).length - 1
+        options.newlineBetween &&
+        index < Object.keys(pnpmWorkspaceResult).length - 1
       ) {
         // add a newlines
         // yamlDocument.add({
@@ -182,9 +182,9 @@ export async function migratePnpmSettings(
     }
 
     if (
-      packageJsonExists
-      && options.cleanPackageJson
-      && (packageJsonObject.pnpm || packageJsonObject.resolutions)
+      packageJsonExists &&
+      options.cleanPackageJson &&
+      (packageJsonObject.pnpm || packageJsonObject.resolutions)
     ) {
       delete packageJsonObject.pnpm
 

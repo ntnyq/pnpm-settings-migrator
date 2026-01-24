@@ -2,7 +2,7 @@
   "name": "pnpm-settings-migrator",
   "type": "module",
   "version": "0.1.0",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@10.28.1",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
@@ -40,18 +40,20 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "lint": "eslint",
     "prepare": "husky",
     "prepublishOnly": "pnpm run build",
     "release": "run-s release:check release:version",
-    "release:check": "run-s lint typecheck test",
+    "release:check": "run-s lint format:check typecheck test",
     "release:version": "bumpp",
     "test": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@ntnyq/utils": "^0.11.0",
-    "@pnpm/types": "^1001.2.0",
+    "@pnpm/types": "^1001.3.0",
     "cac": "^6.7.14",
     "camelcase-keys": "^10.0.1",
     "consola": "^3.4.2",
@@ -63,20 +65,21 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@ntnyq/eslint-config": "^5.9.0",
-    "@ntnyq/prettier-config": "^3.0.1",
+    "@ntnyq/eslint-config": "^6.0.0-beta.3",
     "@types/node": "^24.10.7",
-    "bumpp": "^10.3.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260123.3",
+    "bumpp": "^10.4.0",
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
     "nano-staged": "^0.9.0",
     "npm-run-all2": "^8.0.4",
-    "prettier": "^3.7.4",
-    "tsdown": "^0.19.0",
+    "oxfmt": "^0.26.0",
+    "tsdown": "^0.20.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.18"
   },
   "nano-staged": {
-    "*.{js,ts,mjs,cjs,md,yml,yaml,toml,json}": "eslint --fix"
+    "*.{js,ts,mjs,cjs,md,yml,yaml,toml,json}": "eslint --fix",
+    "*": "oxfmt --no-error-on-unmatched-pattern"
   }
 }
