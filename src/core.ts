@@ -17,12 +17,12 @@ import {
   fsExists,
   fsReadFile,
   fsWriteFile,
+  mergeByStrategy,
   pruneNpmrc,
   readNpmrc,
 } from './utils'
 import type { PnpmSettings } from '@pnpm/types'
-import type { Options } from './options'
-import type { PackageJson, PnpmWorkspace } from './types'
+import type { PackageJson, Options, PnpmWorkspace } from './types'
 
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
@@ -143,10 +143,18 @@ export async function migratePnpmSettings(
       delete pnpmSettingsInPackageJson.overrides
     }
 
-    const pnpmWorkspaceResult: PnpmWorkspace = defu(pnpmWorkspaceYamlObject, {
+    // Collect incoming settings from package.json and .npmrc
+    const incomingSettings: PnpmWorkspace = {
       ...pnpmSettingsInNpmrc,
       ...pnpmSettingsInPackageJson,
-    })
+    }
+
+    // Merge based on strategy
+    const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
+      pnpmWorkspaceYamlObject,
+      incomingSettings,
+      options.strategy,
+    )
 
     const yamlDocument = new YamlDocument(
       {},

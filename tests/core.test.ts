@@ -427,4 +427,136 @@ registry=https://registry.npmjs.org/
       bar: '2.0.0',
     })
   })
+
+  describe('merge strategies', () => {
+    it('should use discard strategy to keep existing values', async () => {
+      const existingWorkspace = `packages:
+  - packages/*
+
+overrides:
+  foo: 1.0.0
+`
+
+      await writeFile(join(TEST_DIR, 'pnpm-workspace.yaml'), existingWorkspace)
+
+      const packageJson = {
+        name: 'test-workspace',
+        pnpm: {
+          packages: ['apps/*'],
+          overrides: {
+            bar: '2.0.0',
+          },
+        },
+      }
+
+      await writeFile(
+        join(TEST_DIR, 'package.json'),
+        JSON.stringify(packageJson, null, 2),
+      )
+
+      await migratePnpmSettings({
+        cwd: TEST_DIR,
+        strategy: 'discard',
+      })
+
+      const workspaceContent = await fsReadFile(
+        join(TEST_DIR, 'pnpm-workspace.yaml'),
+      )
+      const workspace = parse(workspaceContent)
+
+      expect(workspace.packages).toEqual(['packages/*'])
+      expect(workspace.overrides).toEqual({
+        foo: '1.0.0',
+        bar: '2.0.0',
+      })
+    })
+
+    it('should use overwrite strategy to replace with incoming values', async () => {
+      const existingWorkspace = `packages:
+  - packages/*
+
+overrides:
+  foo: 1.0.0
+`
+
+      await writeFile(join(TEST_DIR, 'pnpm-workspace.yaml'), existingWorkspace)
+
+      const packageJson = {
+        name: 'test-workspace',
+        pnpm: {
+          packages: ['apps/*'],
+          overrides: {
+            bar: '2.0.0',
+          },
+        },
+      }
+
+      await writeFile(
+        join(TEST_DIR, 'package.json'),
+        JSON.stringify(packageJson, null, 2),
+      )
+
+      await migratePnpmSettings({
+        cwd: TEST_DIR,
+        strategy: 'overwrite',
+      })
+
+      const workspaceContent = await fsReadFile(
+        join(TEST_DIR, 'pnpm-workspace.yaml'),
+      )
+      const workspace = parse(workspaceContent)
+
+      expect(workspace.packages).toEqual(['apps/*'])
+      expect(workspace.overrides).toEqual({
+        foo: '1.0.0',
+        bar: '2.0.0',
+      })
+    })
+
+    it('should use merge strategy to combine arrays with deduplication', async () => {
+      const existingWorkspace = `packages:
+  - packages/*
+  - common
+
+overrides:
+  foo: 1.0.0
+
+shamefullyHoist: true
+`
+
+      await writeFile(join(TEST_DIR, 'pnpm-workspace.yaml'), existingWorkspace)
+
+      const packageJson = {
+        name: 'test-workspace',
+        pnpm: {
+          packages: ['apps/*', 'common'],
+          overrides: {
+            bar: '2.0.0',
+          },
+        },
+      }
+
+      await writeFile(
+        join(TEST_DIR, 'package.json'),
+        JSON.stringify(packageJson, null, 2),
+      )
+
+      await migratePnpmSettings({
+        cwd: TEST_DIR,
+        strategy: 'merge',
+      })
+
+      const workspaceContent = await fsReadFile(
+        join(TEST_DIR, 'pnpm-workspace.yaml'),
+      )
+      const workspace = parse(workspaceContent)
+
+      expect(workspace.packages).toEqual(['packages/*', 'common', 'apps/*'])
+      expect(workspace.overrides).toEqual({
+        foo: '1.0.0',
+        bar: '2.0.0',
+      })
+      expect(workspace.shamefullyHoist).toBe(true)
+    })
+  })
 })

@@ -4,7 +4,7 @@ import { consola } from 'consola'
 import { name, version } from '../package.json'
 import { migratePnpmSettings } from './core'
 import { bold, dim, green, magenta, red } from './utils'
-import type { Options } from './options'
+import type { Options } from './types'
 
 const cli = cac(name)
 
@@ -12,6 +12,10 @@ cli
   .version(version)
   .option('--cwd [cwd]', 'Current working directory')
   .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
+  .option(
+    '--strategy <strategy>',
+    'Strategy to handle conflicts (discard, merge, overwrite)',
+  )
   .option(
     '--no-yarn-resolutions',
     'Disable migrating resolutions field in package.json',
