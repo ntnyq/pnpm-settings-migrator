@@ -466,8 +466,8 @@ overrides:
 
       expect(workspace.packages).toEqual(['packages/*'])
       expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
     })
 
@@ -508,8 +508,8 @@ overrides:
 
       expect(workspace.packages).toEqual(['apps/*'])
       expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
     })
 
@@ -553,8 +553,8 @@ shamefullyHoist: true
 
       expect(workspace.packages).toEqual(['packages/*', 'common', 'apps/*'])
       expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
       expect(workspace.shamefullyHoist).toBe(true)
     })

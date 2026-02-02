@@ -1,6 +1,6 @@
-import { defu } from 'defu'
 import { isPlainObject, isUndefined } from '@ntnyq/utils'
-import type { PnpmWorkspace, MergeStrategy } from '../types'
+import { defu } from 'defu'
+import type { MergeStrategy, PnpmWorkspace } from '../types'
 
 /**
  * Merge two objects based on the specified strategy.
@@ -36,13 +36,13 @@ export function mergeByStrategy(
       // Keep existing values, only add new keys from incoming
       return discardMerge(existing, incoming)
 
-    case 'overwrite':
-      // Use incoming values, only keep keys not in incoming
-      return discardMerge(incoming, existing)
-
     case 'merge':
       // Deep merge with array deduplication
       return mergeWithArrayDedupe(existing, incoming)
+
+    case 'overwrite':
+      // Use incoming values, only keep keys not in incoming
+      return discardMerge(incoming, existing)
 
     default:
       return defu(existing, incoming)

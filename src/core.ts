@@ -22,7 +22,7 @@ import {
   readNpmrc,
 } from './utils'
 import type { PnpmSettings } from '@pnpm/types'
-import type { PackageJson, Options, PnpmWorkspace } from './types'
+import type { Options, PackageJson, PnpmWorkspace } from './types'
 
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
