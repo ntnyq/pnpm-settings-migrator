@@ -55,7 +55,7 @@
     "@ntnyq/utils": "^0.11.0",
     "@pnpm/types": "^1001.3.0",
     "cac": "^6.7.14",
-    "camelcase-keys": "^10.0.1",
+    "camelcase-keys": "^10.0.2",
     "consola": "^3.4.2",
     "defu": "^6.1.4",
     "detect-indent": "^7.0.2",
@@ -65,9 +65,9 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@ntnyq/eslint-config": "^6.0.0-beta.3",
+    "@ntnyq/eslint-config": "^6.0.0-beta.4",
     "@types/node": "^24.10.9",
-    "@typescript/native-preview": "^7.0.0-dev.20260123.3",
+    "@typescript/native-preview": "^7.0.0-dev.20260124.1",
     "bumpp": "^10.4.0",
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
