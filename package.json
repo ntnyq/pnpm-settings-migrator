@@ -1,7 +1,7 @@
 {
   "name": "pnpm-settings-migrator",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packageManager": "pnpm@10.30.3",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
