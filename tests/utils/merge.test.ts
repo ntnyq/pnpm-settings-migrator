@@ -49,8 +49,8 @@ describe('mergeByStrategy', () => {
       const result = mergeByStrategy(existing, incoming, 'discard')
 
       expect(result.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
     })
   })
@@ -101,8 +101,8 @@ describe('mergeByStrategy', () => {
       const result = mergeByStrategy(existing, incoming, 'overwrite')
 
       expect(result.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
     })
   })
@@ -136,8 +136,8 @@ describe('mergeByStrategy', () => {
       const result = mergeByStrategy(existing, incoming, 'merge')
 
       expect(result.overrides).toEqual({
-        foo: '1.0.0',
         bar: '2.0.0',
+        foo: '1.0.0',
       })
     })
 
@@ -184,11 +184,11 @@ describe('mergeByStrategy', () => {
 
     it('should handle complex merge scenarios', () => {
       const existing: PnpmWorkspace = {
+        neverBuiltDependencies: ['fsevents'],
         packages: ['packages/*'],
         overrides: {
           foo: '1.0.0',
         },
-        neverBuiltDependencies: ['fsevents'],
       }
       const incoming: PnpmWorkspace = {
         packages: ['apps/*'],
@@ -203,12 +203,12 @@ describe('mergeByStrategy', () => {
       const result = mergeByStrategy(existing, incoming, 'merge')
 
       expect(result).toEqual({
+        neverBuiltDependencies: ['fsevents'],
         packages: ['packages/*', 'apps/*'],
         overrides: {
-          foo: '1.0.0',
           bar: '2.0.0',
+          foo: '1.0.0',
         },
-        neverBuiltDependencies: ['fsevents'],
         peerDependencyRules: {
           ignoreMissing: ['react'],
         },

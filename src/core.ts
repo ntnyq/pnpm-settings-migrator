@@ -22,7 +22,7 @@ import {
   readNpmrc,
 } from './utils'
 import type { PnpmSettings } from '@pnpm/types'
-import type { PackageJson, Options, PnpmWorkspace } from './types'
+import type { Options, PackageJson, PnpmWorkspace } from './types'
 
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
@@ -163,27 +163,19 @@ export async function migratePnpmSettings(
       },
     )
 
-    Object.entries(pnpmWorkspaceResult).forEach(([key, value], index) => {
+    Object.entries(pnpmWorkspaceResult).forEach(([key, value]) => {
       yamlDocument.add({ key, value })
-
-      if (
-        options.newlineBetween &&
-        index < Object.keys(pnpmWorkspaceResult).length - 1
-      ) {
-        // add a newlines
-        // yamlDocument.add({
-        //   key: '',
-        //   value: null,
-        // })
-      }
     })
 
-    await fsWriteFile(
-      pnpmWorkspaceYamlPath,
-      yamlDocument.toString({
-        indent: pnpmWorkspaceYamlIndent,
-      }),
-    )
+    const yamlContent = yamlDocument.toString({
+      indent: pnpmWorkspaceYamlIndent,
+    })
+
+    const finalYamlContent = options.newlineBetween
+      ? yamlContent.replace(/\n(?=[^\s#][^:\n]*:)/g, '\n\n')
+      : yamlContent
+
+    await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
 
     if (npmrcExists && options.cleanNpmrc) {
       await pruneNpmrc(npmrcPath)

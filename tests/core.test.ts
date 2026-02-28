@@ -54,14 +54,18 @@ describe('migratePnpmSettings', () => {
     )
     const workspace = parse(workspaceContent)
 
-    expect(workspace).toMatchObject({
-      overrides: {
-        foo: '1.0.0',
-      },
-      peerDependencyRules: {
-        ignoreMissing: ['react'],
-      },
-    })
+    expect(workspace).toMatchInlineSnapshot(`
+      {
+        "overrides": {
+          "foo": "1.0.0",
+        },
+        "peerDependencyRules": {
+          "ignoreMissing": [
+            "react",
+          ],
+        },
+      }
+    `)
   })
 
   it('should migrate pnpm settings from .npmrc', async () => {
@@ -84,9 +88,14 @@ ignored-optional-dependencies[]=@esbuild/*
     )
     const workspace = parse(workspaceContent)
 
-    expect(workspace).toMatchObject({
-      ignoredOptionalDependencies: ['fsevents', '@esbuild/*'],
-    })
+    expect(workspace).toMatchInlineSnapshot(`
+      {
+        "ignoredOptionalDependencies": [
+          "fsevents",
+          "@esbuild/*",
+        ],
+      }
+    `)
   })
 
   it('should merge settings from both package.json and .npmrc', async () => {
@@ -114,12 +123,16 @@ ignored-optional-dependencies[]=@esbuild/*
     )
     const workspace = parse(workspaceContent)
 
-    expect(workspace).toMatchObject({
-      ignoredOptionalDependencies: ['fsevents'],
-      overrides: {
-        foo: '1.0.0',
-      },
-    })
+    expect(workspace).toMatchInlineSnapshot(`
+      {
+        "ignoredOptionalDependencies": [
+          "fsevents",
+        ],
+        "overrides": {
+          "foo": "1.0.0",
+        },
+      }
+    `)
   })
 
   it('should convert resolutions to overrides when yarnResolutions is true', async () => {
@@ -171,7 +184,7 @@ ignored-optional-dependencies[]=@esbuild/*
     const workspaceExists = await fsExists(
       join(TEST_DIR, 'pnpm-workspace.yaml'),
     )
-    expect(workspaceExists).toBe(false)
+    expect(workspaceExists).toBeFalsy()
   })
 
   it('should preserve existing pnpm-workspace.yaml', async () => {
@@ -257,11 +270,13 @@ ignored-optional-dependencies[]=@esbuild/*
     const updatedContent = await fsReadFile(join(TEST_DIR, 'package.json'))
     const updated = JSON.parse(updatedContent)
 
-    expect(updated.pnpm).toMatchObject({
-      overrides: {
-        foo: '1.0.0',
-      },
-    })
+    expect(updated.pnpm).toMatchInlineSnapshot(`
+      {
+        "overrides": {
+          "foo": "1.0.0",
+        },
+      }
+    `)
   })
 
   it('should clean pnpm settings from .npmrc when cleanNpmrc is true', async () => {
@@ -290,8 +305,14 @@ registry=https://registry.npmjs.org/
 
     const updatedNpmrc = await fsReadFile(join(TEST_DIR, '.npmrc'))
 
-    expect(updatedNpmrc).toContain('ignored-optional-dependencies')
-    expect(updatedNpmrc).toContain('registry=https://registry.npmjs.org/')
+    expect(updatedNpmrc).toMatchInlineSnapshot(`
+      "ignored-optional-dependencies[]=fsevents
+      registry=https://registry.npmjs.org/"
+    `)
+    expect(updatedNpmrc).toMatchInlineSnapshot(`
+      "ignored-optional-dependencies[]=fsevents
+      registry=https://registry.npmjs.org/"
+    `)
   })
 
   it('should preserve indentation from package.json', async () => {
@@ -315,7 +336,81 @@ registry=https://registry.npmjs.org/
     const updatedContent = await fsReadFile(join(TEST_DIR, 'package.json'))
 
     // Check that 4-space indentation is preserved
-    expect(updatedContent).toContain('    "name"')
+    expect(updatedContent).toMatchInlineSnapshot(`
+      "{
+          "name": "test-workspace"
+      }
+      "
+    `)
+  })
+
+  it('should add blank lines between root keys when newlineBetween is true', async () => {
+    const packageJson = {
+      name: 'test-workspace',
+      pnpm: {
+        overrides: {
+          foo: '1.0.0',
+        },
+        peerDependencyRules: {
+          ignoreMissing: ['react'],
+        },
+      },
+    }
+
+    await writeFile(
+      join(TEST_DIR, 'package.json'),
+      JSON.stringify(packageJson, null, 2),
+    )
+
+    await migratePnpmSettings({ cwd: TEST_DIR, newlineBetween: true })
+
+    const workspaceContent = await fsReadFile(
+      join(TEST_DIR, 'pnpm-workspace.yaml'),
+    )
+
+    expect(workspaceContent).toMatchInlineSnapshot(`
+      "overrides:
+        foo: 1.0.0
+
+      peerDependencyRules:
+        ignoreMissing:
+          - react
+      "
+    `)
+  })
+
+  it('should not add blank lines between root keys when newlineBetween is false', async () => {
+    const packageJson = {
+      name: 'test-workspace',
+      pnpm: {
+        overrides: {
+          foo: '1.0.0',
+        },
+        peerDependencyRules: {
+          ignoreMissing: ['react'],
+        },
+      },
+    }
+
+    await writeFile(
+      join(TEST_DIR, 'package.json'),
+      JSON.stringify(packageJson, null, 2),
+    )
+
+    await migratePnpmSettings({ cwd: TEST_DIR, newlineBetween: false })
+
+    const workspaceContent = await fsReadFile(
+      join(TEST_DIR, 'pnpm-workspace.yaml'),
+    )
+
+    expect(workspaceContent).toMatchInlineSnapshot(`
+      "overrides:
+        foo: 1.0.0
+      peerDependencyRules:
+        ignoreMissing:
+          - react
+      "
+    `)
   })
 
   it('should warn when no pnpm settings fields exist', async () => {
@@ -339,7 +434,7 @@ registry=https://registry.npmjs.org/
     const workspaceExists = await fsExists(
       join(TEST_DIR, 'pnpm-workspace.yaml'),
     )
-    expect(workspaceExists).toBe(false)
+    expect(workspaceExists).toBeFalsy()
   })
 
   it('should handle empty overrides correctly', async () => {
@@ -366,9 +461,13 @@ registry=https://registry.npmjs.org/
     const workspace = parse(workspaceContent)
 
     expect(workspace.overrides).toBeUndefined()
-    expect(workspace.peerDependencyRules).toMatchObject({
-      ignoreMissing: ['react'],
-    })
+    expect(workspace.peerDependencyRules).toMatchInlineSnapshot(`
+      {
+        "ignoreMissing": [
+          "react",
+        ],
+      }
+    `)
   })
 
   it('should delete resolutions when yarnResolutions is true and cleanPackageJson is true', async () => {
@@ -423,12 +522,40 @@ registry=https://registry.npmjs.org/
     const updatedContent = await fsReadFile(join(TEST_DIR, 'package.json'))
     const updated = JSON.parse(updatedContent)
 
-    expect(updated.resolutions).toMatchObject({
-      bar: '2.0.0',
-    })
+    expect(updated.resolutions).toMatchInlineSnapshot(`
+      {
+        "bar": "2.0.0",
+      }
+    `)
   })
 
   describe('merge strategies', () => {
+    it('should throw for invalid strategy', async () => {
+      const packageJson = {
+        name: 'test-workspace',
+        pnpm: {
+          overrides: {
+            foo: '1.0.0',
+          },
+        },
+      }
+
+      await writeFile(
+        join(TEST_DIR, 'package.json'),
+        JSON.stringify(packageJson, null, 2),
+      )
+
+      await expect(
+        migratePnpmSettings({
+          cwd: TEST_DIR,
+          // @ts-expect-error invalid strategy
+          strategy: 'invalid',
+        }),
+      ).rejects.toThrow(
+        'Invalid strategy: invalid. Expected one of: discard, merge, overwrite',
+      )
+    })
+
     it('should use discard strategy to keep existing values', async () => {
       const existingWorkspace = `packages:
   - packages/*
@@ -464,11 +591,17 @@ overrides:
       )
       const workspace = parse(workspaceContent)
 
-      expect(workspace.packages).toEqual(['packages/*'])
-      expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
-        bar: '2.0.0',
-      })
+      expect(workspace.packages).toMatchInlineSnapshot(`
+        [
+          "packages/*",
+        ]
+      `)
+      expect(workspace.overrides).toMatchInlineSnapshot(`
+        {
+          "bar": "2.0.0",
+          "foo": "1.0.0",
+        }
+      `)
     })
 
     it('should use overwrite strategy to replace with incoming values', async () => {
@@ -506,11 +639,17 @@ overrides:
       )
       const workspace = parse(workspaceContent)
 
-      expect(workspace.packages).toEqual(['apps/*'])
-      expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
-        bar: '2.0.0',
-      })
+      expect(workspace.packages).toMatchInlineSnapshot(`
+        [
+          "apps/*",
+        ]
+      `)
+      expect(workspace.overrides).toMatchInlineSnapshot(`
+        {
+          "bar": "2.0.0",
+          "foo": "1.0.0",
+        }
+      `)
     })
 
     it('should use merge strategy to combine arrays with deduplication', async () => {
@@ -551,12 +690,20 @@ shamefullyHoist: true
       )
       const workspace = parse(workspaceContent)
 
-      expect(workspace.packages).toEqual(['packages/*', 'common', 'apps/*'])
-      expect(workspace.overrides).toEqual({
-        foo: '1.0.0',
-        bar: '2.0.0',
-      })
-      expect(workspace.shamefullyHoist).toBe(true)
+      expect(workspace.packages).toMatchInlineSnapshot(`
+        [
+          "packages/*",
+          "common",
+          "apps/*",
+        ]
+      `)
+      expect(workspace.overrides).toMatchInlineSnapshot(`
+        {
+          "bar": "2.0.0",
+          "foo": "1.0.0",
+        }
+      `)
+      expect(workspace.shamefullyHoist).toBeTruthy()
     })
   })
 })

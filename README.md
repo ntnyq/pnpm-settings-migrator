@@ -45,28 +45,28 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 ### `--no-yarn-resolutions`
 
 - **Type**: `boolean`
-- **Default**: `false`
+- **Default behavior**: `yarnResolutions=true` (use this flag to disable)
 
 Disable migrating `resolutions` field in `package.json`.
 
 ### `--no-clean-npmrc`
 
 - **Type**: `boolean`
-- **Default**: `false`
+- **Default behavior**: `cleanNpmrc=true` (use this flag to disable)
 
 Disable removing pnpm settings in `.npmrc` file.
 
 ### `--no-clean-package-json`
 
 - **Type**: `boolean`
-- **Default**: `false`
+- **Default behavior**: `cleanPackageJson=true` (use this flag to disable)
 
 Disable removing `pnpm` field in `package.json`.
 
 ### `--no-newline-between`
 
 - **Type**: `boolean`
-- **Default**: `false`
+- **Default behavior**: `newlineBetween=true` (use this flag to disable)
 
 Disable adding newlines between each root keys.
 

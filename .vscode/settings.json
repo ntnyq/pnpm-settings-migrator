@@ -26,6 +26,7 @@
     "bumpp",
     "changelogithub",
     "codecov",
+    "dedupe",
     "defu",
     "esbuild",
     "lcov",

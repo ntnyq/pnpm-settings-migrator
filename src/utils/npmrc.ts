@@ -53,6 +53,5 @@ export async function pruneNpmrc(path: string): Promise<void> {
  * ```
  */
 export async function readNpmrc(path: string): Promise<NpmRC> {
-  const content = await readIniFile(path)
-  return camelcaseKeys(content as NpmRC)
+  return camelcaseKeys((await readIniFile(path)) as NpmRC)
 }
