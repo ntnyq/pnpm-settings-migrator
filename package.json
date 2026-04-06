@@ -75,7 +75,7 @@
     "npm-run-all2": "^8.0.4",
     "oxfmt": "^0.42.0",
     "tsdown": "^0.21.7",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   },
   "nano-staged": {
