@@ -97,7 +97,32 @@ export interface PackageJson {
 export type NpmRC = Record<string, any>
 
 /**
+ * Deprecated `pnpm` settings in `package.json`
+ * @see {@link https://github.com/pnpm/pnpm/blob/main/core/types/CHANGELOG.md#major-changes}
+ */
+export interface PnpmSettingsDeprecated {
+  /**
+   * @deprecated
+   */
+  ignoredBuiltDependencies?: string[]
+  /**
+   * @deprecated
+   */
+  neverBuiltDependencies?: string[]
+  /**
+   * @deprecated
+   */
+  onlyBuiltDependencies?: string[]
+  /**
+   * @deprecated
+   */
+  onlyBuiltDependenciesFile?: string
+}
+
+/**
  * `pnpm-workspace` types
  * @pg
  */
-export type PnpmWorkspace = PnpmSettings & PnpmWorkspaceLegacy
+export type PnpmWorkspace = PnpmSettings &
+  PnpmSettingsDeprecated &
+  PnpmWorkspaceLegacy
