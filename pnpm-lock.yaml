@@ -15,8 +15,8 @@ importers:
         specifier: ^0.11.6
         version: 0.11.6
       '@pnpm/types':
-        specifier: ^1100.0.0
-        version: 1100.0.0
+        specifier: ^1101.0.0
+        version: 1101.0.0
       cac:
         specifier: ^7.0.0
         version: 7.0.0
@@ -435,8 +435,8 @@ packages:
     resolution: {integrity: sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@pnpm/types@1100.0.0':
-    resolution: {integrity: sha512-3rxOdRJAcDk66fF7KQQ6uHA3D1kM5oKlUK163UdocyGGPqDJiKyAAbZuIg47l9/6muH5ujKrJstW65sDGQTr0g==}
+  '@pnpm/types@1101.0.0':
+    resolution: {integrity: sha512-mDjsSJCsyuWQ6fbh3wa4FL+lx2FtE4GMEP79v6Uqf301Iz40LnD2Jjn2jVnkrPgReftmKV6DxTB/qeWTbtV+oA==}
     engines: {node: '>=22.13'}
 
   '@quansync/fs@1.0.0':
@@ -2844,7 +2844,7 @@ snapshots:
 
   '@pkgr/core@0.2.9': {}
 
-  '@pnpm/types@1100.0.0': {}
+  '@pnpm/types@1101.0.0': {}
 
   '@quansync/fs@1.0.0':
     dependencies:
