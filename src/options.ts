@@ -1,5 +1,5 @@
 import process from 'node:process'
-import type { MergeStrategy, Options } from './types'
+import type { CompatibilityTarget, MergeStrategy, Options } from './types'
 
 /**
  * Default values for migration options.
@@ -7,6 +7,7 @@ import type { MergeStrategy, Options } from './types'
 const DEFAULT_OPTIONS: Required<Options> = {
   cleanNpmrc: true,
   cleanPackageJson: true,
+  compatibility: 'auto',
   cwd: process.cwd(),
   newlineBetween: true,
   sortKeys: false,
@@ -15,6 +16,7 @@ const DEFAULT_OPTIONS: Required<Options> = {
 }
 
 const VALID_STRATEGIES: MergeStrategy[] = ['discard', 'merge', 'overwrite']
+const VALID_COMPATIBILITIES: CompatibilityTarget[] = ['auto', 'v10', 'v11']
 
 /**
  * Resolve and normalize migration options with defaults.
@@ -40,6 +42,7 @@ const VALID_STRATEGIES: MergeStrategy[] = ['discard', 'merge', 'overwrite']
 export function resolveOptions(options: Options = {}): Required<Options> {
   return {
     cleanNpmrc: options.cleanNpmrc ?? DEFAULT_OPTIONS.cleanNpmrc,
+    compatibility: resolveCompatibility(options.compatibility),
     cwd: options.cwd ?? DEFAULT_OPTIONS.cwd,
     newlineBetween: options.newlineBetween ?? DEFAULT_OPTIONS.newlineBetween,
     sortKeys: options.sortKeys ?? DEFAULT_OPTIONS.sortKeys,
@@ -48,6 +51,20 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     cleanPackageJson:
       options.cleanPackageJson ?? DEFAULT_OPTIONS.cleanPackageJson,
   }
+}
+
+function resolveCompatibility(compatibility?: string): CompatibilityTarget {
+  if (!compatibility) {
+    return DEFAULT_OPTIONS.compatibility
+  }
+
+  if (VALID_COMPATIBILITIES.includes(compatibility as CompatibilityTarget)) {
+    return compatibility as CompatibilityTarget
+  }
+
+  throw new Error(
+    `Invalid compatibility: ${compatibility}. Expected one of: ${VALID_COMPATIBILITIES.join(', ')}`,
+  )
 }
 
 function resolveStrategy(strategy?: string): MergeStrategy {

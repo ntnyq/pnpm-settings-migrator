@@ -13,6 +13,10 @@ cli
   .option('--cwd [cwd]', 'Current working directory')
   .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
   .option(
+    '--compatibility <compatibility>',
+    'Compatibility target (auto, v10, v11)',
+  )
+  .option(
     '--strategy <strategy>',
     'Strategy to handle conflicts (discard, merge, overwrite)',
   )

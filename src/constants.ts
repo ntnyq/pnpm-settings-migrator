@@ -40,3 +40,13 @@ export const PNPM_SETTINGS_FIELDS: string[] = [
   'supportedArchitectures',
   'updateConfig',
 ]
+
+// Removed in pnpm v11
+export const PNPM_V11_REMOVED_SETTINGS: string[] = [
+  'allowNonAppliedPatches',
+  'ignorePatchFailures',
+  'ignoredBuiltDependencies',
+  'neverBuiltDependencies',
+  'onlyBuiltDependencies',
+  'onlyBuiltDependenciesFile',
+]

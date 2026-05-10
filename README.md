@@ -31,6 +31,18 @@ Current working directory.
 
 Sort keys when write `pnpm-workspace.yaml`.
 
+### `--compatibility`
+
+- **Type**: `'auto' | 'v10' | 'v11'`
+- **Default**: `'auto'`
+
+Compatibility target for migrated settings:
+
+- `auto`: infer from `packageManager` (`pnpm@11+` => `v11`, otherwise `v10`)
+- `v10`: keep legacy settings as-is
+- `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
+  and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
+
 ### `--strategy`
 
 - **Type**: `'discard' | 'merge' | 'overwrite'`

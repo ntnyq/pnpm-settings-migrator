@@ -2,7 +2,7 @@
   "oxc.enable": true,
   "eslint.enable": true,
   "editor.formatOnSave": true,
-  "typescript.experimental.useTsgo": true,
+  "js/ts.experimental.useTsgo": true,
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
@@ -24,6 +24,7 @@
   ],
   "cSpell.words": [
     "bumpp",
+    "cafile",
     "changelogithub",
     "codecov",
     "dedupe",

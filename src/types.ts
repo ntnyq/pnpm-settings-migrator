@@ -1,7 +1,12 @@
 import type { PnpmSettings } from '@pnpm/types'
 
 /**
- * Merge strategy for combining pnpm settings
+ * Compatibility target used by the migrator.
+ */
+export type CompatibilityTarget = 'auto' | 'v10' | 'v11'
+
+/**
+ * Merge strategy for combining pnpm settings.
  */
 export type MergeStrategy = 'discard' | 'merge' | 'overwrite'
 
@@ -22,6 +27,16 @@ export interface Options {
    * @default true
    */
   cleanPackageJson?: boolean
+
+  /**
+   * pnpm compatibility target.
+   * - `auto`: detect from `packageManager` (fallback to `v10`)
+   * - `v10`: keep legacy v10 settings
+   * - `v11`: normalize to v11-compatible settings
+   *
+   * @default 'auto'
+   */
+  compatibility?: CompatibilityTarget
 
   /**
    * Current working directory
@@ -78,6 +93,11 @@ export interface PackageJson {
   overrides?: Record<string, string>
 
   /**
+   * Package manager declaration, for example `pnpm@11.0.0`
+   */
+  packageManager?: string
+
+  /**
    * pnpm settings
    */
   pnpm?: PnpmSettings
@@ -104,7 +124,15 @@ export interface PnpmSettingsDeprecated {
   /**
    * @deprecated
    */
+  allowNonAppliedPatches?: boolean
+  /**
+   * @deprecated
+   */
   ignoredBuiltDependencies?: string[]
+  /**
+   * @deprecated
+   */
+  ignorePatchFailures?: boolean
   /**
    * @deprecated
    */

@@ -9,6 +9,7 @@ import {
   NPMRC,
   PACKAGE_JSON,
   PNPM_SETTINGS_FIELDS,
+  PNPM_V11_REMOVED_SETTINGS,
   PNPM_WORKSPACE_YAML,
 } from './constants'
 import { resolveOptions } from './options'
@@ -19,10 +20,16 @@ import {
   fsWriteFile,
   mergeByStrategy,
   pruneNpmrc,
+  readMigratableNpmrc,
   readNpmrc,
 } from './utils'
 import type { PnpmSettings } from '@pnpm/types'
-import type { Options, PackageJson, PnpmWorkspace } from './types'
+import type {
+  CompatibilityTarget,
+  Options,
+  PackageJson,
+  PnpmWorkspace,
+} from './types'
 
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
@@ -109,9 +116,20 @@ export async function migratePnpmSettings(
       pnpmWorkspaceYamlObject = parse(content) as PnpmWorkspace
     }
 
-    const pnpmSettingsInNpmrc = npmrcExists
-      ? pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS)
-      : {}
+    const compatibility = resolveCompatibilityTarget(
+      options.compatibility,
+      packageJsonObject.packageManager,
+    )
+
+    const npmrcMigratable = npmrcExists
+      ? compatibility === 'v10'
+        ? {
+            keys: PNPM_SETTINGS_FIELDS,
+            settings: pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS),
+          }
+        : await readMigratableNpmrc(npmrcPath, compatibility)
+      : { keys: [], settings: {} }
+    const pnpmSettingsInNpmrc = npmrcMigratable.settings
 
     // no pnpm settings related fields
     const hasPnpmInPackageJson = !!packageJsonObject.pnpm
@@ -149,6 +167,8 @@ export async function migratePnpmSettings(
       ...pnpmSettingsInPackageJson,
     }
 
+    normalizeIncomingSettings(incomingSettings, compatibility)
+
     // Merge based on strategy
     const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
       pnpmWorkspaceYamlObject,
@@ -178,7 +198,7 @@ export async function migratePnpmSettings(
     await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
 
     if (npmrcExists && options.cleanNpmrc) {
-      await pruneNpmrc(npmrcPath)
+      await pruneNpmrc(npmrcPath, compatibility, npmrcMigratable.keys)
     }
 
     if (
@@ -201,4 +221,73 @@ export async function migratePnpmSettings(
     consola.error('Failed to migrate pnpm settings:', err)
     throw err
   }
+}
+
+/**
+ * Build v11 `allowBuilds` map from legacy build-script settings.
+ */
+function collectAllowBuildsFromLegacy(
+  incomingSettings: PnpmWorkspace,
+): Record<string, boolean> | undefined {
+  const allowBuilds: Record<string, boolean> = {}
+
+  for (const name of incomingSettings.onlyBuiltDependencies || []) {
+    allowBuilds[name] = true
+  }
+
+  for (const name of incomingSettings.ignoredBuiltDependencies || []) {
+    allowBuilds[name] = false
+  }
+
+  for (const name of incomingSettings.neverBuiltDependencies || []) {
+    allowBuilds[name] = false
+  }
+
+  return Object.keys(allowBuilds).length ? allowBuilds : undefined
+}
+
+/**
+ * Normalize incoming settings according to compatibility target.
+ */
+function normalizeIncomingSettings(
+  incomingSettings: PnpmWorkspace,
+  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+): void {
+  if (compatibility === 'v10') {
+    return
+  }
+
+  if (incomingSettings.allowNonAppliedPatches !== undefined) {
+    incomingSettings.allowUnusedPatches =
+      incomingSettings.allowUnusedPatches ??
+      incomingSettings.allowNonAppliedPatches
+  }
+
+  const allowBuildsFromLegacy = collectAllowBuildsFromLegacy(incomingSettings)
+  if (allowBuildsFromLegacy) {
+    incomingSettings.allowBuilds = {
+      ...allowBuildsFromLegacy,
+      ...(incomingSettings.allowBuilds || {}),
+    }
+  }
+
+  for (const key of PNPM_V11_REMOVED_SETTINGS) {
+    delete incomingSettings[key as keyof PnpmWorkspace]
+  }
+}
+
+/**
+ * Resolve final compatibility target from user option and package manager hint.
+ */
+function resolveCompatibilityTarget(
+  compatibility: CompatibilityTarget,
+  packageManager?: string,
+): Exclude<CompatibilityTarget, 'auto'> {
+  if (compatibility !== 'auto') {
+    return compatibility
+  }
+
+  const [, major] = (packageManager || '').match(/^pnpm@(\d+)(?:\.|$)/) || []
+
+  return Number(major) >= 11 ? 'v11' : 'v10'
 }

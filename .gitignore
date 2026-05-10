@@ -12,3 +12,6 @@ lib-cov
 *.tsbuildinfo
 
 **/.vitepress/cache
+
+# pnpm
+**/.pnpm-store/**
