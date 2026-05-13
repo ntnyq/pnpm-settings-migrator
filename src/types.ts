@@ -52,6 +52,13 @@ export interface Options {
   newlineBetween?: boolean
 
   /**
+   * Replace deprecated settings with new ones and remove deprecated keys.
+   *
+   * @default false
+   */
+  replaceDeprecated?: boolean
+
+  /**
    * Sort keys when write `pnpm-workspace.yaml`
    *
    * @default false

@@ -154,4 +154,28 @@ describe('migratePnpmSettings/compatibility', () => {
     expect(workspace.ignoredOptionalDependencies).toEqual(['fsevents'])
     expect(workspace.nodeLinker).toBeUndefined()
   })
+
+  it('replaces deprecated settings when replaceDeprecated is true in v10 mode', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        allowNonAppliedPatches: true,
+        ignoredBuiltDependencies: ['core-js'],
+        onlyBuiltDependencies: ['esbuild'],
+      },
+    })
+
+    await migratePnpmSettings({
+      compatibility: 'v10',
+      cwd: testDir,
+      replaceDeprecated: true,
+    })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.allowUnusedPatches).toBe(true)
+    expect(workspace.allowBuilds).toEqual({ 'core-js': false, esbuild: true })
+    expect(workspace.allowNonAppliedPatches).toBeUndefined()
+    expect(workspace.ignoredBuiltDependencies).toBeUndefined()
+    expect(workspace.onlyBuiltDependencies).toBeUndefined()
+  })
 })

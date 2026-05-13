@@ -43,6 +43,18 @@ Compatibility target for migrated settings:
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
   and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
 
+### `--replace-deprecated`
+
+- **Type**: `boolean`
+- **Default**: `false`
+
+Force replacing deprecated pnpm settings with new keys and remove old keys during migration.
+
+Example conversions:
+
+- `allowNonAppliedPatches` -> `allowUnusedPatches`
+- `onlyBuiltDependencies` / `ignoredBuiltDependencies` / `neverBuiltDependencies` -> `allowBuilds`
+
 ### `--strategy`
 
 - **Type**: `'discard' | 'merge' | 'overwrite'`

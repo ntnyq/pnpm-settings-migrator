@@ -17,6 +17,10 @@ cli
     'Compatibility target (auto, v10, v11)',
   )
   .option(
+    '--replace-deprecated',
+    'Replace deprecated pnpm settings with new ones and remove old keys',
+  )
+  .option(
     '--strategy <strategy>',
     'Strategy to handle conflicts (discard, merge, overwrite)',
   )

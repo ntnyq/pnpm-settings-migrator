@@ -10,6 +10,7 @@ const DEFAULT_OPTIONS: Required<Options> = {
   compatibility: 'auto',
   cwd: process.cwd(),
   newlineBetween: true,
+  replaceDeprecated: false,
   sortKeys: false,
   strategy: 'merge',
   yarnResolutions: true,
@@ -50,6 +51,8 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     yarnResolutions: options.yarnResolutions ?? DEFAULT_OPTIONS.yarnResolutions,
     cleanPackageJson:
       options.cleanPackageJson ?? DEFAULT_OPTIONS.cleanPackageJson,
+    replaceDeprecated:
+      options.replaceDeprecated ?? DEFAULT_OPTIONS.replaceDeprecated,
   }
 }
 

@@ -167,7 +167,11 @@ export async function migratePnpmSettings(
       ...pnpmSettingsInPackageJson,
     }
 
-    normalizeIncomingSettings(incomingSettings, compatibility)
+    normalizeIncomingSettings(
+      incomingSettings,
+      compatibility,
+      options.replaceDeprecated,
+    )
 
     // Merge based on strategy
     const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
@@ -252,8 +256,9 @@ function collectAllowBuildsFromLegacy(
 function normalizeIncomingSettings(
   incomingSettings: PnpmWorkspace,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  replaceDeprecated: boolean,
 ): void {
-  if (compatibility === 'v10') {
+  if (compatibility === 'v10' && !replaceDeprecated) {
     return
   }
 
