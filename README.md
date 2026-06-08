@@ -39,9 +39,18 @@ Sort keys when write `pnpm-workspace.yaml`.
 Compatibility target for migrated settings:
 
 - `auto`: infer from `packageManager` (`pnpm@11+` => `v11`, otherwise `v10`)
-- `v10`: keep legacy settings as-is
+- `v10`: keep legacy settings as-is and migrate schema-aligned pnpm config keys from `.npmrc`
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
   and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
+
+Notes:
+
+- `.npmrc` migration is aligned with pnpm workspace config fields such as `node-linker`,
+  hoist settings, lockfile settings, store settings, proxy settings, and other pnpm
+  runtime/install options.
+- Workspace manifest-only fields such as `packages`, `catalog`, and `catalogs` are not
+  migrated from `.npmrc`.
+- In `v11`, auth/registry-related keys still stay in `.npmrc`.
 
 ### `--replace-deprecated`
 

@@ -49,6 +49,27 @@ describe('migratePnpmSettings/base', () => {
     ])
   })
 
+  it('migrates additional schema-aligned settings from .npmrc', async () => {
+    await writeNpmrc(
+      [
+        'node-linker=hoisted',
+        'package-import-method=clone-or-copy',
+        'store-dir=.pnpm-store',
+        'verify-store-integrity=false',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace).toMatchObject({
+      nodeLinker: 'hoisted',
+      packageImportMethod: 'clone-or-copy',
+      storeDir: '.pnpm-store',
+      verifyStoreIntegrity: false,
+    })
+  })
+
   it('merges settings from package.json and .npmrc', async () => {
     await writePackageJson({
       name: 'test-workspace',
@@ -144,6 +165,23 @@ describe('migratePnpmSettings/base', () => {
     const updated = await readWorkspaceFile('.npmrc')
 
     expect(updated).not.toContain('ignored-optional-dependencies')
+    expect(updated).toContain('registry=https://registry.npmjs.org/')
+  })
+
+  it('cleans additional schema-aligned keys from .npmrc when cleanNpmrc is true', async () => {
+    await writeNpmrc(
+      [
+        'node-linker=hoisted',
+        'store-dir=.pnpm-store',
+        'registry=https://registry.npmjs.org/',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ cleanNpmrc: true, cwd: testDir })
+    const updated = await readWorkspaceFile('.npmrc')
+
+    expect(updated).not.toContain('node-linker=')
+    expect(updated).not.toContain('store-dir=')
     expect(updated).toContain('registry=https://registry.npmjs.org/')
   })
 

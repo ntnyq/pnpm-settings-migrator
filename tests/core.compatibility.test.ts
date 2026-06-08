@@ -16,6 +16,7 @@ describe('migratePnpmSettings/compatibility', () => {
       [
         'node-linker=hoisted',
         'save-exact=true',
+        'cafile=/tmp/custom-ca.pem',
         'registry=https://registry.npmjs.org/',
         '//registry.npmjs.org/:_authToken=' + '$' + '{NPM_TOKEN}',
       ].join('\n'),
@@ -25,6 +26,7 @@ describe('migratePnpmSettings/compatibility', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace).toMatchObject({ nodeLinker: 'hoisted', saveExact: true })
+    expect(workspace.cafile).toBeUndefined()
     expect(workspace.registry).toBeUndefined()
   })
 
@@ -33,6 +35,7 @@ describe('migratePnpmSettings/compatibility', () => {
       [
         'node-linker=hoisted',
         'save-exact=true',
+        'cafile=/tmp/custom-ca.pem',
         'registry=https://registry.npmjs.org/',
         '@my-org:registry=https://registry.example.com/',
         '//registry.npmjs.org/:_authToken=' + '$' + '{NPM_TOKEN}',
@@ -48,6 +51,7 @@ describe('migratePnpmSettings/compatibility', () => {
 
     expect(updatedNpmrc).not.toContain('node-linker=')
     expect(updatedNpmrc).not.toContain('save-exact=')
+    expect(updatedNpmrc).toContain('cafile=/tmp/custom-ca.pem')
     expect(updatedNpmrc).toContain('registry=https://registry.npmjs.org/')
     expect(updatedNpmrc).toContain(
       '@my-org:registry=https://registry.example.com/',
@@ -91,7 +95,28 @@ describe('migratePnpmSettings/compatibility', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace.ignoredOptionalDependencies).toEqual(['fsevents'])
-    expect(workspace.nodeLinker).toBeUndefined()
+    expect(workspace.nodeLinker).toBe('hoisted')
+  })
+
+  it('migrates additional schema-aligned .npmrc settings in v10', async () => {
+    await writeNpmrc(
+      [
+        'network-concurrency=24',
+        'package-import-method=clone-or-copy',
+        'store-dir=.pnpm-store',
+        'verify-store-integrity=false',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace).toMatchObject({
+      networkConcurrency: '24',
+      packageImportMethod: 'clone-or-copy',
+      storeDir: '.pnpm-store',
+      verifyStoreIntegrity: false,
+    })
   })
 
   it('normalizes legacy build settings to allowBuilds in v11', async () => {
@@ -144,15 +169,13 @@ describe('migratePnpmSettings/compatibility', () => {
   })
 
   it('auto mode defaults to v10 behavior when packageManager is missing', async () => {
-    await writeNpmrc(
-      'node-linker=hoisted\nignored-optional-dependencies[]=fsevents',
-    )
+    await writeNpmrc('node-linker=hoisted\nsave-exact=true')
 
     await migratePnpmSettings({ compatibility: 'auto', cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.ignoredOptionalDependencies).toEqual(['fsevents'])
-    expect(workspace.nodeLinker).toBeUndefined()
+    expect(workspace.nodeLinker).toBe('hoisted')
+    expect(workspace.saveExact).toBe(true)
   })
 
   it('replaces deprecated settings when replaceDeprecated is true in v10 mode', async () => {
