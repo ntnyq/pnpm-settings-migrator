@@ -2,7 +2,7 @@
   "name": "pnpm-settings-migrator",
   "type": "module",
   "version": "0.6.0",
-  "packageManager": "pnpm@11.5.2",
+  "packageManager": "pnpm@11.8.0",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@ntnyq/utils": "^0.15.0",
-    "@pnpm/types": "^1101.3.0",
+    "@pnpm/types": "^1101.3.2",
     "cac": "^7.0.0",
     "camelcase-keys": "^10.0.2",
     "consola": "^3.4.2",
@@ -66,16 +66,16 @@
   },
   "devDependencies": {
     "@ntnyq/eslint-config": "^6.1.5",
-    "@types/node": "^25.9.2",
-    "@typescript/native-preview": "^7.0.0-dev.20260607.1",
+    "@types/node": "^26.0.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260620.1",
     "bumpp": "^11.1.0",
-    "eslint": "^10.4.1",
+    "eslint": "^10.5.0",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
-    "npm-run-all2": "^9.0.1",
-    "oxfmt": "^0.53.0",
-    "tsdown": "^0.22.2",
-    "vitest": "^4.1.8"
+    "npm-run-all2": "^9.0.2",
+    "oxfmt": "^0.55.0",
+    "tsdown": "^0.22.3",
+    "vitest": "^4.1.9"
   },
   "nano-staged": {
     "*.{js,ts,mjs,tsx,md,yml,yaml,toml,json}": "eslint --fix",

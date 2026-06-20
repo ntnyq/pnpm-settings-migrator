@@ -130,6 +130,35 @@ describe('migratePnpmSettings/base', () => {
     })
   })
 
+  it('uses default indent when existing pnpm-workspace.yaml has no detected indent', async () => {
+    await writeWorkspaceYaml('packages: []\n')
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { overrides: { foo: '1.0.0' } },
+    })
+
+    await migratePnpmSettings({ cwd: testDir })
+    const updated = await readWorkspaceFile('pnpm-workspace.yaml')
+
+    expect(updated).toContain('packages: []')
+    expect(updated).toContain('overrides:\n  foo: 1.0.0')
+  })
+
+  it('handles empty existing pnpm-workspace.yaml', async () => {
+    await writeWorkspaceYaml('')
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { overrides: { foo: '1.0.0' } },
+    })
+
+    await migratePnpmSettings({ cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace).toMatchObject({
+      overrides: { foo: '1.0.0' },
+    })
+  })
+
   it('cleans package.json when cleanPackageJson is true', async () => {
     await writePackageJson({
       name: 'test-workspace',

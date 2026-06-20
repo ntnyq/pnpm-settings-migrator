@@ -112,8 +112,8 @@ export async function migratePnpmSettings(
     if (pnpmWorkspaceExists) {
       const content = await fsReadFile(pnpmWorkspaceYamlPath)
 
-      pnpmWorkspaceYamlIndent = detectIndent(content).amount
-      pnpmWorkspaceYamlObject = parse(content) as PnpmWorkspace
+      pnpmWorkspaceYamlIndent = resolveYamlIndent(content)
+      pnpmWorkspaceYamlObject = (parse(content) as PnpmWorkspace | null) ?? {}
     }
 
     const compatibility = resolveCompatibilityTarget(
@@ -295,4 +295,10 @@ function resolveCompatibilityTarget(
   const [, major] = (packageManager || '').match(/^pnpm@(\d+)(?:\.|$)/) || []
 
   return Number(major) >= 11 ? 'v11' : 'v10'
+}
+
+function resolveYamlIndent(content: string): number {
+  const detectedIndent = detectIndent(content).amount
+
+  return detectedIndent > 0 ? detectedIndent : DEFAULT_INDENT
 }
