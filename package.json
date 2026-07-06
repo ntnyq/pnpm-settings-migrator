@@ -2,7 +2,7 @@
   "name": "pnpm-settings-migrator",
   "type": "module",
   "version": "0.6.1",
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
@@ -52,7 +52,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@ntnyq/utils": "^0.15.0",
+    "@ntnyq/utils": "^0.16.0",
     "@pnpm/types": "^1101.3.2",
     "cac": "^7.0.0",
     "camelcase-keys": "^10.0.2",
@@ -66,10 +66,10 @@
   },
   "devDependencies": {
     "@ntnyq/eslint-config": "^6.1.5",
-    "@types/node": "^26.0.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260622.1",
+    "@types/node": "^26.0.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260628.1",
     "bumpp": "^11.1.0",
-    "eslint": "^10.5.0",
+    "eslint": "^10.6.0",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
     "npm-run-all2": "^9.0.2",
