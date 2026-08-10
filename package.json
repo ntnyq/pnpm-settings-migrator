@@ -2,7 +2,7 @@
   "name": "pnpm-settings-migrator",
   "type": "module",
   "version": "0.6.1",
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "pnpm@11.19.0",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@ntnyq/utils": "^0.21.0",
-    "@pnpm/types": "^1101.6.0",
+    "@pnpm/types": "^1101.8.0",
     "cac": "^7.0.0",
     "camelcase-keys": "^10.0.2",
     "consola": "^3.4.2",
@@ -61,19 +61,19 @@
     "detect-indent": "^7.0.2",
     "pathe": "^2.0.3",
     "read-ini-file": "^5.0.0",
-    "uncase": "^0.2.0",
+    "uncase": "^0.3.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@ntnyq/eslint-config": "^6.1.5",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "bumpp": "^12.0.0",
+    "bumpp": "^12.1.1",
     "eslint": "^10.8.0",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
-    "npm-run-all2": "^9.0.2",
-    "oxfmt": "^0.60.0",
+    "npm-run-all2": "^9.0.3",
+    "oxfmt": "^0.61.0",
     "tsdown": "^0.22.14",
     "vitest": "^4.1.10"
   },
