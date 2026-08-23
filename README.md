@@ -43,6 +43,23 @@ Compatibility target for migrated settings:
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
   and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
 
+In `v11` mode, normalization is applied both to settings read from legacy files and
+to deprecated settings already present in `pnpm-workspace.yaml`.
+
+Automated v10 to v11 conversions include:
+
+- `managePackageManagerVersions`, `packageManagerStrict`, and
+  `packageManagerStrictVersion` -> `pmOnFail`
+- `onlyBuiltDependencies`, `onlyBuiltDependenciesFile`,
+  `neverBuiltDependencies`, and `ignoredBuiltDependencies` -> `allowBuilds`
+- `allowNonAppliedPatches` -> `allowUnusedPatches`
+- `auditConfig.ignoreCves` -> `auditConfig.ignoreGhsas`
+- `useNodeVersion` and root `executionEnv.nodeVersion` ->
+  `package.json#devEngines.runtime`
+- `.npmrc` entries such as `node-mirror:release` -> `nodeDownloadMirrors`
+- removal of `ignoreDepScripts` and `ignorePatchFailures`, which have no v11
+  equivalent
+
 Notes:
 
 - `.npmrc` migration is aligned with pnpm workspace config fields such as `node-linker`,
@@ -51,6 +68,12 @@ Notes:
 - Workspace manifest-only fields such as `packages`, `catalog`, and `catalogs` are not
   migrated from `.npmrc`.
 - In `v11`, auth/registry-related keys still stay in `.npmrc`.
+- If no auth/registry lines remain after a v11 migration, the empty `.npmrc` is removed.
+- Values moved from `auditConfig.ignoreCves` still contain CVE IDs. Replace them
+  manually with the corresponding GHSA IDs after migration.
+- The migrator does not update the `packageManager` version, CI environment variables,
+  shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
+  pass `--compatibility v11` explicitly and update the pin separately.
 
 ### `--replace-deprecated`
 

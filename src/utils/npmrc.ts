@@ -4,7 +4,7 @@ import { readIniFile } from 'read-ini-file'
 import { kebabCase } from 'uncase'
 import { PNPM_SETTINGS_FIELDS } from '../constants'
 import type { CompatibilityTarget, NpmRC } from '../types'
-import { fsReadFile, fsWriteFile } from './fs'
+import { fsReadFile, fsRemoveFile, fsWriteFile } from './fs'
 
 const NPMRC_AUTH_OR_REGISTRY_KEYS: string[] = [
   '_auth',
@@ -22,6 +22,8 @@ const NPMRC_AUTH_OR_REGISTRY_KEYS: string[] = [
   'tokenhelper',
   'username',
 ]
+
+const NODE_MIRROR_KEY_PATTERN = /^node-mirror:(?<channel>.+)$/iu
 
 /**
  * Normalize `.npmrc` key for case-insensitive matching.
@@ -106,7 +108,13 @@ export async function pruneNpmrc(
     return !pnpmSettingsFields.some(field => key.startsWith(field))
   })
 
-  await fsWriteFile(path, lines.join('\n'))
+  const updatedContent = lines.join('\n').trimEnd()
+  if (compatibility === 'v11' && !updatedContent.trim()) {
+    await fsRemoveFile(path)
+    return
+  }
+
+  await fsWriteFile(path, updatedContent)
 }
 
 /**
@@ -151,16 +159,30 @@ export async function readMigratableNpmrc(
 
   const migratable: NpmRC = {}
   const keys: string[] = []
+  const nodeDownloadMirrors: Record<string, string> = {}
   for (const [key, value] of Object.entries(raw)) {
     if (!isNpmrcAuthOrRegistryKey(key)) {
-      migratable[key] = value
       keys.push(key)
+
+      const nodeMirrorMatch = normalizeNpmrcKey(key).match(
+        NODE_MIRROR_KEY_PATTERN,
+      )
+      if (nodeMirrorMatch?.groups?.channel) {
+        nodeDownloadMirrors[nodeMirrorMatch.groups.channel] = String(value)
+      } else {
+        migratable[key] = value
+      }
     }
+  }
+
+  const settings = camelcaseKeys(migratable)
+  if (Object.keys(nodeDownloadMirrors).length) {
+    settings.nodeDownloadMirrors = nodeDownloadMirrors
   }
 
   return {
     keys,
-    settings: camelcaseKeys(migratable),
+    settings,
   }
 }
 

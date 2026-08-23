@@ -1,48 +1,31 @@
-import type { PnpmSettings } from '@pnpm/types'
 import consola from 'consola'
-import { defu } from 'defu'
-import detectIndent from 'detect-indent'
 import { resolve } from 'pathe'
-import { parse, Document as YamlDocument } from 'yaml'
-import {
-  DEFAULT_INDENT,
-  NPMRC,
-  PACKAGE_JSON,
-  PNPM_WORKSPACE_YAML,
-} from './constants'
+import { Document as YamlDocument } from 'yaml'
+import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
 import { resolveOptions } from './options'
 import type { Options, PackageJson, PnpmWorkspace } from './types'
 import {
   dim,
   fsExists,
-  fsReadFile,
   fsWriteFile,
   mergeByStrategy,
+  migrateRuntimeToPackageJson,
   normalizeIncomingSettings,
   pruneNpmrc,
   readMigratableNpmrc,
   resolveCompatibilityTarget,
+  resolveRuntimeVersionByStrategy,
 } from './utils'
-
-interface ParsedPackageJson {
-  indent: number | string
-  value: PackageJson
-}
-
-interface ParsedPnpmWorkspace {
-  indent: number
-  value: PnpmWorkspace
-}
-
-function resolveYamlIndent(content: string): number {
-  const detectedIndent = detectIndent(content).amount
-
-  return detectedIndent > 0 ? detectedIndent : DEFAULT_INDENT
-}
+import {
+  readPackageJson,
+  readPnpmWorkspace,
+  resolvePackageJsonSettings,
+} from './utils/config'
 
 function hasSettingsSources(
   npmrcExists: boolean,
   packageJsonExists: boolean,
+  pnpmWorkspaceExists: boolean,
 ): boolean {
   if (!npmrcExists) {
     consola.info(`${dim(NPMRC)} not found`)
@@ -52,7 +35,7 @@ function hasSettingsSources(
     consola.info(`${dim(PACKAGE_JSON)} not found`)
   }
 
-  if (npmrcExists || packageJsonExists) {
+  if (npmrcExists || packageJsonExists || pnpmWorkspaceExists) {
     return true
   }
 
@@ -60,67 +43,25 @@ function hasSettingsSources(
   return false
 }
 
-async function readPackageJson(
-  path: string,
-  exists: boolean,
-): Promise<ParsedPackageJson> {
-  if (!exists) {
-    return { indent: DEFAULT_INDENT, value: {} }
-  }
+function hasMigratableSettings(sources: {
+  existingSettingsChanged: boolean
+  packageJson: PackageJson
+  pnpmSettingsInNpmrc: PnpmWorkspace
+  yarnResolutions: boolean
+}): boolean {
+  const {
+    existingSettingsChanged,
+    packageJson,
+    pnpmSettingsInNpmrc,
+    yarnResolutions,
+  } = sources
 
-  const content = await fsReadFile(path)
-
-  return {
-    indent: detectIndent(content).indent,
-    value: JSON.parse(content) as PackageJson,
-  }
-}
-
-async function readPnpmWorkspace(
-  path: string,
-  exists: boolean,
-): Promise<ParsedPnpmWorkspace> {
-  if (!exists) {
-    return { indent: DEFAULT_INDENT, value: {} }
-  }
-
-  const content = await fsReadFile(path)
-
-  return {
-    indent: resolveYamlIndent(content),
-    value: (parse(content) as PnpmWorkspace | null) ?? {},
-  }
-}
-
-function hasMigratableSettings(
-  packageJson: PackageJson,
-  pnpmSettingsInNpmrc: PnpmWorkspace,
-  yarnResolutions: boolean,
-): boolean {
   return Boolean(
+    existingSettingsChanged ||
     packageJson.pnpm ||
     (yarnResolutions && packageJson.resolutions) ||
     Object.keys(pnpmSettingsInNpmrc).length,
   )
-}
-
-function resolvePackageJsonSettings(
-  packageJson: PackageJson,
-  yarnResolutions: boolean,
-): PnpmSettings {
-  const pnpmSettings: PnpmSettings =
-    yarnResolutions && packageJson.resolutions
-      ? {
-          ...packageJson.pnpm,
-          overrides: defu(packageJson.pnpm?.overrides, packageJson.resolutions),
-        }
-      : { ...packageJson.pnpm }
-
-  if (pnpmSettings.overrides && !Object.keys(pnpmSettings.overrides).length) {
-    delete pnpmSettings.overrides
-  }
-
-  return pnpmSettings
 }
 
 /**
@@ -131,6 +72,7 @@ function resolvePackageJsonSettings(
  * - `package.json` pnpm field
  * - `.npmrc` pnpm-related settings
  * - `package.json` resolutions (optional, converts to pnpm overrides)
+ * - deprecated settings already present in `pnpm-workspace.yaml`
  *
  * @param rawOptions - Migration options
  * @param rawOptions.cwd - Current working directory (default: process.cwd())
@@ -174,7 +116,9 @@ export async function migratePnpmSettings(
         fsExists(pnpmWorkspaceYamlPath),
       ])
 
-    if (!hasSettingsSources(npmrcExists, packageJsonExists)) {
+    if (
+      !hasSettingsSources(npmrcExists, packageJsonExists, pnpmWorkspaceExists)
+    ) {
       return
     }
 
@@ -193,17 +137,6 @@ export async function migratePnpmSettings(
       : { keys: [], settings: {} }
     const pnpmSettingsInNpmrc = npmrcMigratable.settings
 
-    if (
-      !hasMigratableSettings(
-        packageJson.value,
-        pnpmSettingsInNpmrc,
-        options.yarnResolutions,
-      )
-    ) {
-      consola.warn('No pnpm settings fields to migrate')
-      return
-    }
-
     const pnpmSettingsInPackageJson = resolvePackageJsonSettings(
       packageJson.value,
       options.yarnResolutions,
@@ -215,11 +148,57 @@ export async function migratePnpmSettings(
       ...pnpmSettingsInPackageJson,
     }
 
-    normalizeIncomingSettings(
-      incomingSettings,
-      compatibility,
-      options.replaceDeprecated,
+    const [existingNormalization, incomingNormalization] = await Promise.all([
+      normalizeIncomingSettings(pnpmWorkspace.value, {
+        compatibility,
+        cwd: options.cwd,
+        replaceDeprecated: options.replaceDeprecated,
+      }),
+      normalizeIncomingSettings(incomingSettings, {
+        compatibility,
+        cwd: options.cwd,
+        replaceDeprecated: options.replaceDeprecated,
+      }),
+    ])
+
+    for (const warning of [
+      ...existingNormalization.warnings,
+      ...incomingNormalization.warnings,
+    ]) {
+      consola.warn(warning)
+    }
+
+    const runtimeVersion = resolveRuntimeVersionByStrategy(
+      existingNormalization.runtimeVersion,
+      incomingNormalization.runtimeVersion,
+      options.strategy,
     )
+
+    if (runtimeVersion && !packageJsonExists) {
+      throw new Error(
+        'Cannot migrate the removed Node.js runtime setting without a package.json file.',
+      )
+    }
+
+    const runtimeMigration = migrateRuntimeToPackageJson(
+      packageJson.value,
+      runtimeVersion,
+    )
+    if (runtimeMigration.warning) {
+      consola.warn(runtimeMigration.warning)
+    }
+
+    if (
+      !hasMigratableSettings({
+        existingSettingsChanged: existingNormalization.changed,
+        packageJson: packageJson.value,
+        pnpmSettingsInNpmrc,
+        yarnResolutions: options.yarnResolutions,
+      })
+    ) {
+      consola.warn('No pnpm settings fields to migrate')
+      return
+    }
 
     // Merge based on strategy
     const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
@@ -253,17 +232,21 @@ export async function migratePnpmSettings(
       await pruneNpmrc(npmrcPath, compatibility, npmrcMigratable.keys)
     }
 
-    if (
-      packageJsonExists &&
-      options.cleanPackageJson &&
-      (packageJson.value.pnpm || packageJson.value.resolutions)
-    ) {
+    let packageJsonChanged = runtimeMigration.changed
+
+    if (packageJsonExists && options.cleanPackageJson) {
+      if (packageJson.value.pnpm) {
+        packageJsonChanged = true
+      }
       delete packageJson.value.pnpm
 
-      if (options.yarnResolutions) {
+      if (options.yarnResolutions && packageJson.value.resolutions) {
+        packageJsonChanged = true
         delete packageJson.value.resolutions
       }
+    }
 
+    if (packageJsonExists && packageJsonChanged) {
       await fsWriteFile(
         packageJsonPath,
         JSON.stringify(packageJson.value, null, packageJson.indent),

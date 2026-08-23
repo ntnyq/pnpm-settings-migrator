@@ -33,6 +33,13 @@ export function createTestWorkspace(scope: string) {
     await writeFile(join(testDir, '.npmrc'), content)
   }
 
+  async function writeWorkspaceFile(
+    name: string,
+    content: string,
+  ): Promise<void> {
+    await writeFile(join(testDir, name), content)
+  }
+
   async function writePackageJson(data: unknown, indent = 2): Promise<void> {
     await writeFile(
       join(testDir, 'package.json'),
@@ -50,6 +57,7 @@ export function createTestWorkspace(scope: string) {
     testDir,
     writeNpmrc,
     writePackageJson,
+    writeWorkspaceFile,
     writeWorkspaceYaml,
   }
 }

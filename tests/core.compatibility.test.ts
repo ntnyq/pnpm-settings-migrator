@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
+import { fsExists } from '../src/utils'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/compatibility', () => {
@@ -9,6 +10,8 @@ describe('migratePnpmSettings/compatibility', () => {
     testDir,
     writeNpmrc,
     writePackageJson,
+    writeWorkspaceFile,
+    writeWorkspaceYaml,
   } = createTestWorkspace('compatibility')
 
   it('migrates non auth/registry .npmrc settings in v11', async () => {
@@ -98,6 +101,19 @@ describe('migratePnpmSettings/compatibility', () => {
     expect(workspace.nodeLinker).toBe('hoisted')
   })
 
+  it('keeps package-manager strictness settings in v10 mode', async () => {
+    await writeNpmrc(
+      'package-manager-strict=false\npackage-manager-strict-version=true',
+    )
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.packageManagerStrict).toBe(false)
+    expect(workspace.packageManagerStrictVersion).toBe(true)
+    expect(workspace.pmOnFail).toBeUndefined()
+  })
+
   it('migrates additional schema-aligned .npmrc settings in v10', async () => {
     await writeNpmrc(
       [
@@ -137,6 +153,177 @@ describe('migratePnpmSettings/compatibility', () => {
       esbuild: true,
       fsevents: false,
     })
+  })
+
+  it('merges onlyBuiltDependenciesFile entries into allowBuilds in v11', async () => {
+    await writeWorkspaceFile(
+      'allowed-builds.json',
+      JSON.stringify(['electron', '@swc/core']),
+    )
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        onlyBuiltDependencies: ['esbuild'],
+        onlyBuiltDependenciesFile: 'allowed-builds.json',
+      },
+    })
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.allowBuilds).toStrictEqual({
+      '@swc/core': true,
+      electron: true,
+      esbuild: true,
+    })
+    expect(workspace.onlyBuiltDependenciesFile).toBeUndefined()
+  })
+
+  it.each([
+    [
+      'managePackageManagerVersions enabled',
+      { managePackageManagerVersions: true },
+      'download',
+    ],
+    [
+      'managePackageManagerVersions disabled',
+      { managePackageManagerVersions: false },
+      'ignore',
+    ],
+    ['packageManagerStrict disabled', { packageManagerStrict: false }, 'warn'],
+    [
+      'packageManagerStrictVersion enabled',
+      { packageManagerStrictVersion: true },
+      'error',
+    ],
+  ])('replaces %s with pmOnFail', async (_name, pnpm, expected) => {
+    await writePackageJson({ name: 'test-workspace', pnpm })
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.pmOnFail).toBe(expected)
+    expect(workspace.managePackageManagerVersions).toBeUndefined()
+    expect(workspace.packageManagerStrict).toBeUndefined()
+    expect(workspace.packageManagerStrictVersion).toBeUndefined()
+  })
+
+  it('normalizes removed settings already in pnpm-workspace.yaml', async () => {
+    await writeWorkspaceYaml(
+      [
+        'packageManagerStrict: false',
+        'onlyBuiltDependencies:',
+        '  - esbuild',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.pmOnFail).toBe('warn')
+    expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
+    expect(workspace.packageManagerStrict).toBeUndefined()
+    expect(workspace.onlyBuiltDependencies).toBeUndefined()
+  })
+
+  it.each([
+    ['discard', true],
+    ['merge', true],
+    ['overwrite', false],
+  ] as const)(
+    'preserves %s precedence after normalizing existing and incoming settings',
+    async (strategy, expected) => {
+      await writeWorkspaceYaml('onlyBuiltDependencies:\n  - esbuild\n')
+      await writePackageJson({
+        name: 'test-workspace',
+        pnpm: { ignoredBuiltDependencies: ['esbuild'] },
+      })
+
+      await migratePnpmSettings({
+        compatibility: 'v11',
+        cwd: testDir,
+        strategy,
+      })
+      const workspace = await readWorkspaceYaml()
+
+      expect(workspace.allowBuilds).toStrictEqual({ esbuild: expected })
+    },
+  )
+
+  it('renames auditConfig.ignoreCves in v11', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        auditConfig: {
+          ignoreCves: ['CVE-2025-0001'],
+        },
+      },
+    })
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.auditConfig).toStrictEqual({
+      ignoreGhsas: ['CVE-2025-0001'],
+    })
+  })
+
+  it('moves useNodeVersion to package.json devEngines.runtime in v11', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      packageManager: 'pnpm@11.0.0',
+      pnpm: { useNodeVersion: '22.14.0' },
+    })
+
+    await migratePnpmSettings({ cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+
+    expect(workspace.useNodeVersion).toBeUndefined()
+    expect(packageJson.devEngines.runtime).toStrictEqual({
+      name: 'node',
+      version: '22.14.0',
+    })
+    expect(packageJson.pnpm).toBeUndefined()
+  })
+
+  it('moves root executionEnv.nodeVersion to devEngines.runtime in v11', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        executionEnv: { nodeVersion: '22.15.0' },
+        ignoreDepScripts: true,
+      },
+    })
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+
+    expect(workspace.executionEnv).toBeUndefined()
+    expect(workspace.ignoreDepScripts).toBeUndefined()
+    expect(packageJson.devEngines.runtime).toStrictEqual({
+      name: 'node',
+      version: '22.15.0',
+    })
+  })
+
+  it('converts legacy node mirror entries from .npmrc in v11', async () => {
+    await writeNpmrc(
+      [
+        'node-mirror:release=https://npmmirror.com/mirrors/node/',
+        'node-mirror:nightly=https://npmmirror.com/mirrors/node-nightly/',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.nodeDownloadMirrors).toStrictEqual({
+      nightly: 'https://npmmirror.com/mirrors/node-nightly/',
+      release: 'https://npmmirror.com/mirrors/node/',
+    })
+    await expect(fsExists(`${testDir}/.npmrc`)).resolves.toBe(false)
   })
 
   it('renames allowNonAppliedPatches to allowUnusedPatches in v11', async () => {

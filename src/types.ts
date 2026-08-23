@@ -93,6 +93,14 @@ export interface PnpmWorkspaceLegacy {
  */
 export interface PackageJson {
   /**
+   * Development tool declarations.
+   */
+  devEngines?: {
+    runtime?: RuntimeEngine | RuntimeEngine[]
+    [key: string]: unknown
+  }
+
+  /**
    * same as `pnpm.overrides`
    *
    * @compatibility npm, bun
@@ -107,7 +115,7 @@ export interface PackageJson {
   /**
    * pnpm settings
    */
-  pnpm?: PnpmSettings
+  pnpm?: PnpmWorkspace
 
   /**
    * same as `pnpm.overrides`
@@ -124,10 +132,26 @@ export interface PackageJson {
 export type NpmRC = Record<string, any>
 
 /**
+ * Runtime declaration stored in `package.json#devEngines.runtime`.
+ */
+export interface RuntimeEngine {
+  name: string
+  onFail?: 'download' | 'error' | 'ignore' | 'warn'
+  version: string
+}
+
+/**
  * Deprecated `pnpm` settings in `package.json`
  * @see {@link https://github.com/pnpm/pnpm/blob/main/core/types/CHANGELOG.md#major-changes}
  */
 export interface PnpmSettingsDeprecated {
+  /**
+   * @deprecated
+   */
+  auditConfig?: {
+    ignoreCves?: string[]
+    ignoreGhsas?: string[]
+  }
   /**
    * @deprecated
    */
@@ -139,7 +163,15 @@ export interface PnpmSettingsDeprecated {
   /**
    * @deprecated
    */
+  ignoreDepScripts?: boolean
+  /**
+   * @deprecated
+   */
   ignorePatchFailures?: boolean
+  /**
+   * @deprecated
+   */
+  managePackageManagerVersions?: boolean
   /**
    * @deprecated
    */
@@ -152,6 +184,33 @@ export interface PnpmSettingsDeprecated {
    * @deprecated
    */
   onlyBuiltDependenciesFile?: string
+  /**
+   * @deprecated
+   */
+  packageManagerStrict?: boolean
+  /**
+   * @deprecated
+   */
+  packageManagerStrictVersion?: boolean
+  /**
+   * @deprecated
+   */
+  useNodeVersion?: string
+  /**
+   * @deprecated
+   */
+  executionEnv?: {
+    nodeVersion?: string
+    [key: string]: unknown
+  }
+}
+
+/**
+ * Settings introduced in pnpm v11.
+ */
+export interface PnpmSettingsV11 {
+  packageConfigs?: Record<string, Record<string, unknown>>
+  pmOnFail?: 'download' | 'error' | 'ignore' | 'warn'
 }
 
 /**
@@ -160,4 +219,5 @@ export interface PnpmSettingsDeprecated {
  */
 export type PnpmWorkspace = PnpmSettings &
   PnpmSettingsDeprecated &
+  PnpmSettingsV11 &
   PnpmWorkspaceLegacy

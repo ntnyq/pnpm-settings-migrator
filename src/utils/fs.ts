@@ -1,5 +1,5 @@
 import type { PathLike } from 'node:fs'
-import { access, readFile, writeFile } from 'node:fs/promises'
+import { access, readFile, rm, writeFile } from 'node:fs/promises'
 
 /**
  * Check if a path exists
@@ -19,6 +19,14 @@ export async function fsExists(path: PathLike): Promise<boolean> {
  */
 export async function fsReadFile(path: PathLike): Promise<string> {
   return await readFile(path, 'utf-8')
+}
+
+/**
+ * Remove a file if it exists.
+ * @param path - file path
+ */
+export async function fsRemoveFile(path: PathLike): Promise<void> {
+  await rm(path, { force: true })
 }
 
 /**
