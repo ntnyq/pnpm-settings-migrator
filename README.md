@@ -33,18 +33,22 @@ Sort keys when write `pnpm-workspace.yaml`.
 
 ### `--compatibility`
 
-- **Type**: `'auto' | 'v10' | 'v11'`
+- **Type**: `'auto' | 'v10' | 'v11' | 'v12'`
 - **Default**: `'auto'`
 
 Compatibility target for migrated settings:
 
-- `auto`: infer from `packageManager` (`pnpm@11+` => `v11`, otherwise `v10`)
+- `auto`: infer from `packageManager` or `devEngines.packageManager`
+  (`pnpm@12+` => `v12`, `pnpm@11` => `v11`, otherwise `v10`)
 - `v10`: keep legacy settings as-is and migrate schema-aligned pnpm config keys from `.npmrc`
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
   and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
+- `v12`: apply the same settings migration as `v11`. pnpm 12 keeps pnpm 11's
+  settings and lockfile format.
 
-In `v11` mode, normalization is applied both to settings read from legacy files and
-to deprecated settings already present in `pnpm-workspace.yaml`.
+In `v11` and `v12` modes, normalization is applied both to settings read from
+legacy files and to deprecated settings already present in
+`pnpm-workspace.yaml`.
 
 Automated v10 to v11 conversions include:
 
@@ -67,13 +71,17 @@ Notes:
   runtime/install options.
 - Workspace manifest-only fields such as `packages`, `catalog`, and `catalogs` are not
   migrated from `.npmrc`.
-- In `v11`, auth/registry-related keys still stay in `.npmrc`.
-- If no auth/registry lines remain after a v11 migration, the empty `.npmrc` is removed.
+- In `v11` and `v12`, auth/registry-related keys still stay in `.npmrc`.
+- If no auth/registry lines remain after a v11 or v12 migration, the empty
+  `.npmrc` is removed.
 - Values moved from `auditConfig.ignoreCves` still contain CVE IDs. Replace them
   manually with the corresponding GHSA IDs after migration.
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
+- pnpm 12 is currently a release candidate. Its removed
+  `pnpm install --resolution-only` CLI flag is outside this settings migrator's
+  scope; replace it with `pnpm peers check` in scripts before upgrading.
 
 ### `--replace-deprecated`
 

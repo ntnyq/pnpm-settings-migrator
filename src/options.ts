@@ -17,7 +17,12 @@ const DEFAULT_OPTIONS: Required<Options> = {
 }
 
 const VALID_STRATEGIES: MergeStrategy[] = ['discard', 'merge', 'overwrite']
-const VALID_COMPATIBILITIES: CompatibilityTarget[] = ['auto', 'v10', 'v11']
+const VALID_COMPATIBILITIES: CompatibilityTarget[] = [
+  'auto',
+  'v10',
+  'v11',
+  'v12',
+]
 
 function resolveCompatibility(compatibility?: string): CompatibilityTarget {
   if (!compatibility) {

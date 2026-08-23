@@ -50,7 +50,8 @@ function getNpmrcLineKey(line: string): string | undefined {
 }
 
 /**
- * Check whether a `.npmrc` key is auth/registry-related and should stay in v11.
+ * Check whether a `.npmrc` key is auth/registry-related and should stay in
+ * pnpm v11 and newer.
  */
 function isNpmrcAuthOrRegistryKey(key: string): boolean {
   const normalized = normalizeNpmrcKey(key)
@@ -100,8 +101,8 @@ export async function pruneNpmrc(
       return true
     }
 
-    if (compatibility === 'v11') {
-      // In v11 mode only remove lines that were actually migrated.
+    if (compatibility !== 'v10') {
+      // In v11+ mode only remove lines that were actually migrated.
       return !migratedKeySet.has(normalizeNpmrcKey(key))
     }
 
@@ -109,7 +110,7 @@ export async function pruneNpmrc(
   })
 
   const updatedContent = lines.join('\n').trimEnd()
-  if (compatibility === 'v11' && !updatedContent.trim()) {
+  if (compatibility !== 'v10' && !updatedContent.trim()) {
     await fsRemoveFile(path)
     return
   }
@@ -140,7 +141,8 @@ export async function pruneNpmrc(
  * Read `.npmrc` and return settings that should be migrated into workspace config.
  *
  * - `v10`: returns settings from the legacy whitelist.
- * - `v11`: excludes auth/registry keys because pnpm still reads them from `.npmrc`.
+ * - `v11+`: excludes auth/registry keys because pnpm still reads them from
+ *   `.npmrc`.
  */
 export async function readMigratableNpmrc(
   path: string,

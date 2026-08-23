@@ -3,7 +3,7 @@ import type { PnpmSettings } from '@pnpm/types'
 /**
  * Compatibility target used by the migrator.
  */
-export type CompatibilityTarget = 'auto' | 'v10' | 'v11'
+export type CompatibilityTarget = 'auto' | 'v10' | 'v11' | 'v12'
 
 /**
  * Merge strategy for combining pnpm settings.
@@ -33,6 +33,7 @@ export interface Options {
    * - `auto`: detect from `packageManager` (fallback to `v10`)
    * - `v10`: keep legacy v10 settings
    * - `v11`: normalize to v11-compatible settings
+   * - `v12`: apply the v11 settings migration for pnpm v12
    *
    * @default 'auto'
    */
@@ -96,6 +97,7 @@ export interface PackageJson {
    * Development tool declarations.
    */
   devEngines?: {
+    packageManager?: PackageManagerEngine
     runtime?: RuntimeEngine | RuntimeEngine[]
     [key: string]: unknown
   }
@@ -130,6 +132,16 @@ export interface PackageJson {
  * @pg
  */
 export type NpmRC = Record<string, any>
+
+/**
+ * Package manager declaration stored in
+ * `package.json#devEngines.packageManager`.
+ */
+export interface PackageManagerEngine {
+  name: string
+  onFail?: 'download' | 'error' | 'ignore' | 'warn'
+  version: string
+}
 
 /**
  * Runtime declaration stored in `package.json#devEngines.runtime`.

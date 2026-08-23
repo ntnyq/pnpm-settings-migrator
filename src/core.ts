@@ -64,6 +64,17 @@ function hasMigratableSettings(sources: {
   )
 }
 
+function assertCanMigrateRuntime(
+  runtimeVersion: string | undefined,
+  packageJsonExists: boolean,
+): void {
+  if (runtimeVersion && !packageJsonExists) {
+    throw new Error(
+      'Cannot migrate the removed Node.js runtime setting without a package.json file.',
+    )
+  }
+}
+
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
  *
@@ -130,6 +141,7 @@ export async function migratePnpmSettings(
     const compatibility = resolveCompatibilityTarget(
       options.compatibility,
       packageJson.value.packageManager,
+      packageJson.value.devEngines?.packageManager,
     )
 
     const npmrcMigratable = npmrcExists
@@ -174,11 +186,7 @@ export async function migratePnpmSettings(
       options.strategy,
     )
 
-    if (runtimeVersion && !packageJsonExists) {
-      throw new Error(
-        'Cannot migrate the removed Node.js runtime setting without a package.json file.',
-      )
-    }
+    assertCanMigrateRuntime(runtimeVersion, packageJsonExists)
 
     const runtimeMigration = migrateRuntimeToPackageJson(
       packageJson.value,

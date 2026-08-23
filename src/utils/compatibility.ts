@@ -8,8 +8,6 @@ import type {
 } from '../types'
 import { fsReadFile } from './fs'
 
-const PNPM_V11_MAJOR = 11
-
 const PNPM_REPLACEABLE_IN_V10_SETTINGS: string[] = [
   'allowNonAppliedPatches',
   'ignoredBuiltDependencies',
@@ -275,20 +273,4 @@ export function resolveRuntimeVersionByStrategy(
   }
 
   return existingVersion ?? incomingVersion
-}
-
-/**
- * Resolve final compatibility target from user option and package manager hint.
- */
-export function resolveCompatibilityTarget(
-  compatibility: CompatibilityTarget,
-  packageManager?: string,
-): Exclude<CompatibilityTarget, 'auto'> {
-  if (compatibility !== 'auto') {
-    return compatibility
-  }
-
-  const match = packageManager?.match(/^pnpm@(?<major>\d+)(?:\.|$)/u)
-
-  return Number(match?.groups?.major) >= PNPM_V11_MAJOR ? 'v11' : 'v10'
 }

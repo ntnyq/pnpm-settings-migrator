@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils'
+import { fsExists, resolveCompatibilityTarget } from '../src/utils'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/compatibility', () => {
@@ -353,6 +353,34 @@ describe('migratePnpmSettings/compatibility', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
+  })
+
+  it('auto-detects v12 release candidates from packageManager', () => {
+    expect(resolveCompatibilityTarget('auto', 'pnpm@12.0.0-rc.7')).toBe('v12')
+  })
+
+  it('auto-detects v12 ranges from devEngines.packageManager', () => {
+    expect(
+      resolveCompatibilityTarget('auto', undefined, {
+        name: 'pnpm',
+        version: '^12.0.0-rc.7',
+      }),
+    ).toBe('v12')
+  })
+
+  it('applies v11 settings migration and npmrc cleanup in v12 mode', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { onlyBuiltDependencies: ['esbuild'] },
+    })
+    await writeNpmrc('node-linker=hoisted')
+
+    await migratePnpmSettings({ compatibility: 'v12', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
+    expect(workspace.nodeLinker).toBe('hoisted')
+    await expect(fsExists(`${testDir}/.npmrc`)).resolves.toBe(false)
   })
 
   it('auto mode defaults to v10 behavior when packageManager is missing', async () => {

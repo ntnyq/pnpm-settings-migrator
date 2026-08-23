@@ -14,7 +14,7 @@ cli
   .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
   .option(
     '--compatibility <compatibility>',
-    'Compatibility target (auto, v10, v11)',
+    'Compatibility target (auto, v10, v11, v12)',
   )
   .option(
     '--replace-deprecated',
