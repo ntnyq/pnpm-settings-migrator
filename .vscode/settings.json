@@ -1,14 +1,13 @@
 {
   "oxc.enable": true,
-  "eslint.enable": true,
+  "eslint.enable": false,
+  "prettier.enable": false,
   "editor.formatOnSave": true,
-  "js/ts.experimental.useTsgo": true,
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "never",
-    "source.sortImports": "never"
+    "source.format.oxc": "explicit"
   },
+  "js/ts.experimental.useTsgo": true,
   "eslint.validate": [
     "vue",
     "yaml",
@@ -33,6 +32,7 @@
     "lcov",
     "noproxy",
     "oxfmt",
+    "oxlint",
     "pathe",
     "pnpm",
     "pnpmfile",

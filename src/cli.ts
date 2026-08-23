@@ -3,8 +3,8 @@ import { cac } from 'cac'
 import { consola } from 'consola'
 import { name, version } from '../package.json'
 import { migratePnpmSettings } from './core'
-import { bold, dim, green, magenta, red } from './utils'
 import type { Options } from './types'
+import { bold, dim, green, magenta, red } from './utils'
 
 const cli = cac(name)
 

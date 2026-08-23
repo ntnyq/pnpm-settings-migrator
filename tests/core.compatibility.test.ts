@@ -94,7 +94,7 @@ describe('migratePnpmSettings/compatibility', () => {
     await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.ignoredOptionalDependencies).toEqual(['fsevents'])
+    expect(workspace.ignoredOptionalDependencies).toStrictEqual(['fsevents'])
     expect(workspace.nodeLinker).toBe('hoisted')
   })
 
@@ -132,7 +132,7 @@ describe('migratePnpmSettings/compatibility', () => {
     await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.allowBuilds).toEqual({
+    expect(workspace.allowBuilds).toStrictEqual({
       'core-js': false,
       esbuild: true,
       fsevents: false,
@@ -165,7 +165,7 @@ describe('migratePnpmSettings/compatibility', () => {
     await migratePnpmSettings({ cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.allowBuilds).toEqual({ esbuild: true })
+    expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
   })
 
   it('auto mode defaults to v10 behavior when packageManager is missing', async () => {
@@ -196,7 +196,10 @@ describe('migratePnpmSettings/compatibility', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace.allowUnusedPatches).toBe(true)
-    expect(workspace.allowBuilds).toEqual({ 'core-js': false, esbuild: true })
+    expect(workspace.allowBuilds).toStrictEqual({
+      'core-js': false,
+      esbuild: true,
+    })
     expect(workspace.allowNonAppliedPatches).toBeUndefined()
     expect(workspace.ignoredBuiltDependencies).toBeUndefined()
     expect(workspace.onlyBuiltDependencies).toBeUndefined()

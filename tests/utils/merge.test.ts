@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { mergeByStrategy } from '../../src/utils'
 import type { PnpmWorkspace } from '../../src/types'
+import { mergeByStrategy } from '../../src/utils'
 
 describe('mergeByStrategy', () => {
   describe('discard strategy', () => {
@@ -14,7 +14,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'discard')
 
-      expect(result.packages).toEqual(['packages/*'])
+      expect(result.packages).toStrictEqual(['packages/*'])
     })
 
     it('should add new keys from incoming', () => {
@@ -30,8 +30,8 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'discard')
 
-      expect(result.packages).toEqual(['packages/*'])
-      expect(result.overrides).toEqual({ foo: '1.0.0' })
+      expect(result.packages).toStrictEqual(['packages/*'])
+      expect(result.overrides).toStrictEqual({ foo: '1.0.0' })
     })
 
     it('should merge nested objects', () => {
@@ -48,7 +48,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'discard')
 
-      expect(result.overrides).toEqual({
+      expect(result.overrides).toStrictEqual({
         bar: '2.0.0',
         foo: '1.0.0',
       })
@@ -66,7 +66,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'overwrite')
 
-      expect(result.packages).toEqual(['apps/*'])
+      expect(result.packages).toStrictEqual(['apps/*'])
     })
 
     it('should keep existing keys not in incoming', () => {
@@ -82,8 +82,8 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'overwrite')
 
-      expect(result.packages).toEqual(['apps/*'])
-      expect(result.overrides).toEqual({ bar: '2.0.0' })
+      expect(result.packages).toStrictEqual(['apps/*'])
+      expect(result.overrides).toStrictEqual({ bar: '2.0.0' })
     })
 
     it('should merge nested objects', () => {
@@ -100,7 +100,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'overwrite')
 
-      expect(result.overrides).toEqual({
+      expect(result.overrides).toStrictEqual({
         bar: '2.0.0',
         foo: '1.0.0',
       })
@@ -118,7 +118,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'merge')
 
-      expect(result.packages).toEqual(['packages/*', 'common', 'apps/*'])
+      expect(result.packages).toStrictEqual(['packages/*', 'common', 'apps/*'])
     })
 
     it('should merge nested objects', () => {
@@ -135,7 +135,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'merge')
 
-      expect(result.overrides).toEqual({
+      expect(result.overrides).toStrictEqual({
         bar: '2.0.0',
         foo: '1.0.0',
       })
@@ -158,7 +158,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'merge')
 
-      expect(result.peerDependencyRules).toEqual({
+      expect(result.peerDependencyRules).toStrictEqual({
         ignoreMissing: ['react', 'vue'],
         allowedVersions: {
           react: '18',
@@ -176,7 +176,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'merge')
 
-      expect(result.neverBuiltDependencies).toEqual([
+      expect(result.neverBuiltDependencies).toStrictEqual([
         'fsevents',
         '@esbuild/linux-x64',
       ])
@@ -202,7 +202,7 @@ describe('mergeByStrategy', () => {
 
       const result = mergeByStrategy(existing, incoming, 'merge')
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         neverBuiltDependencies: ['fsevents'],
         packages: ['packages/*', 'apps/*'],
         overrides: {

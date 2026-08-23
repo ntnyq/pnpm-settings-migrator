@@ -35,8 +35,8 @@ describe('migratePnpmSettings/strategy', () => {
     await migratePnpmSettings({ cwd: testDir, strategy: 'discard' })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.packages).toEqual(['packages/*'])
-    expect(workspace.overrides).toEqual({ bar: '2.0.0', foo: '1.0.0' })
+    expect(workspace.packages).toStrictEqual(['packages/*'])
+    expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
   })
 
   it('uses overwrite strategy to prioritize incoming values', async () => {
@@ -51,8 +51,8 @@ describe('migratePnpmSettings/strategy', () => {
     await migratePnpmSettings({ cwd: testDir, strategy: 'overwrite' })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.packages).toEqual(['apps/*'])
-    expect(workspace.overrides).toEqual({ bar: '2.0.0', foo: '1.0.0' })
+    expect(workspace.packages).toStrictEqual(['apps/*'])
+    expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
   })
 
   it('uses merge strategy to dedupe arrays and keep existing primitives', async () => {
@@ -67,8 +67,8 @@ describe('migratePnpmSettings/strategy', () => {
     await migratePnpmSettings({ cwd: testDir, strategy: 'merge' })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.packages).toEqual(['packages/*', 'common', 'apps/*'])
-    expect(workspace.overrides).toEqual({ bar: '2.0.0', foo: '1.0.0' })
-    expect(workspace.shamefullyHoist).toBeTruthy()
+    expect(workspace.packages).toStrictEqual(['packages/*', 'common', 'apps/*'])
+    expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
+    expect(workspace.shamefullyHoist).toBe(true)
   })
 })

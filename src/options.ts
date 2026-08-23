@@ -19,6 +19,34 @@ const DEFAULT_OPTIONS: Required<Options> = {
 const VALID_STRATEGIES: MergeStrategy[] = ['discard', 'merge', 'overwrite']
 const VALID_COMPATIBILITIES: CompatibilityTarget[] = ['auto', 'v10', 'v11']
 
+function resolveCompatibility(compatibility?: string): CompatibilityTarget {
+  if (!compatibility) {
+    return DEFAULT_OPTIONS.compatibility
+  }
+
+  if (VALID_COMPATIBILITIES.includes(compatibility as CompatibilityTarget)) {
+    return compatibility as CompatibilityTarget
+  }
+
+  throw new Error(
+    `Invalid compatibility: ${compatibility}. Expected one of: ${VALID_COMPATIBILITIES.join(', ')}`,
+  )
+}
+
+function resolveStrategy(strategy?: string): MergeStrategy {
+  if (!strategy) {
+    return DEFAULT_OPTIONS.strategy
+  }
+
+  if (VALID_STRATEGIES.includes(strategy as MergeStrategy)) {
+    return strategy as MergeStrategy
+  }
+
+  throw new Error(
+    `Invalid strategy: ${strategy}. Expected one of: ${VALID_STRATEGIES.join(', ')}`,
+  )
+}
+
 /**
  * Resolve and normalize migration options with defaults.
  *
@@ -54,32 +82,4 @@ export function resolveOptions(options: Options = {}): Required<Options> {
     replaceDeprecated:
       options.replaceDeprecated ?? DEFAULT_OPTIONS.replaceDeprecated,
   }
-}
-
-function resolveCompatibility(compatibility?: string): CompatibilityTarget {
-  if (!compatibility) {
-    return DEFAULT_OPTIONS.compatibility
-  }
-
-  if (VALID_COMPATIBILITIES.includes(compatibility as CompatibilityTarget)) {
-    return compatibility as CompatibilityTarget
-  }
-
-  throw new Error(
-    `Invalid compatibility: ${compatibility}. Expected one of: ${VALID_COMPATIBILITIES.join(', ')}`,
-  )
-}
-
-function resolveStrategy(strategy?: string): MergeStrategy {
-  if (!strategy) {
-    return DEFAULT_OPTIONS.strategy
-  }
-
-  if (VALID_STRATEGIES.includes(strategy as MergeStrategy)) {
-    return strategy as MergeStrategy
-  }
-
-  throw new Error(
-    `Invalid strategy: ${strategy}. Expected one of: ${VALID_STRATEGIES.join(', ')}`,
-  )
 }

@@ -81,7 +81,7 @@ export interface Options {
 /**
  * legacy `pnpm-workspace` types
  */
-export type PnpmWorkspaceLegacy = {
+export interface PnpmWorkspaceLegacy {
   catalog?: Record<string, string>
   catalogs?: Record<string, Record<string, string>>
   packages?: string[]

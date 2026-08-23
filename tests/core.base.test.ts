@@ -43,7 +43,7 @@ describe('migratePnpmSettings/base', () => {
     await migratePnpmSettings({ cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
-    expect(workspace.ignoredOptionalDependencies).toEqual([
+    expect(workspace.ignoredOptionalDependencies).toStrictEqual([
       'fsevents',
       '@esbuild/*',
     ])
@@ -108,7 +108,7 @@ describe('migratePnpmSettings/base', () => {
     await migratePnpmSettings({ cwd: testDir, yarnResolutions: false })
 
     const workspaceExists = await fsExists(`${testDir}/pnpm-workspace.yaml`)
-    expect(workspaceExists).toBeFalsy()
+    expect(workspaceExists).toBe(false)
   })
 
   it('preserves existing pnpm-workspace.yaml data', async () => {
@@ -182,7 +182,7 @@ describe('migratePnpmSettings/base', () => {
     await migratePnpmSettings({ cleanPackageJson: false, cwd: testDir })
     const updated = JSON.parse(await readWorkspaceFile('package.json'))
 
-    expect(updated.pnpm).toEqual({ overrides: { foo: '1.0.0' } })
+    expect(updated.pnpm).toStrictEqual({ overrides: { foo: '1.0.0' } })
   })
 
   it('cleans pnpm keys from .npmrc when cleanNpmrc is true', async () => {
@@ -270,7 +270,7 @@ describe('migratePnpmSettings/base', () => {
     await expect(migratePnpmSettings({ cwd: testDir })).resolves.toBeUndefined()
 
     const workspaceExists = await fsExists(`${testDir}/pnpm-workspace.yaml`)
-    expect(workspaceExists).toBeFalsy()
+    expect(workspaceExists).toBe(false)
   })
 
   it('removes empty overrides object', async () => {
@@ -286,7 +286,9 @@ describe('migratePnpmSettings/base', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace.overrides).toBeUndefined()
-    expect(workspace.peerDependencyRules).toEqual({ ignoreMissing: ['react'] })
+    expect(workspace.peerDependencyRules).toStrictEqual({
+      ignoreMissing: ['react'],
+    })
   })
 
   it('handles resolutions cleanup toggles', async () => {
@@ -313,6 +315,6 @@ describe('migratePnpmSettings/base', () => {
       yarnResolutions: false,
     })
     updated = JSON.parse(await readWorkspaceFile('package.json'))
-    expect(updated.resolutions).toEqual({ bar: '2.0.0' })
+    expect(updated.resolutions).toStrictEqual({ bar: '2.0.0' })
   })
 })

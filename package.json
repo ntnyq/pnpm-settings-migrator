@@ -1,24 +1,31 @@
 {
   "name": "pnpm-settings-migrator",
-  "type": "module",
   "version": "0.6.1",
-  "packageManager": "pnpm@11.21.0",
   "description": "Move pnpm settings from `pnpm` field in `package.json` and `.npmrc` file to `pnpm-workspace.yaml`",
   "keywords": [
     "migrator",
     "pnpm",
     "settings"
   ],
+  "homepage": "https://github.com/ntnyq/pnpm-settings-migrator#readme",
+  "bugs": {
+    "url": "https://github.com/ntnyq/pnpm-settings-migrator/issues"
+  },
   "license": "MIT",
   "author": {
     "name": "ntnyq",
     "email": "ntnyq13@gmail.com"
   },
-  "homepage": "https://github.com/ntnyq/pnpm-settings-migrator#readme",
   "repository": "ntnyq/pnpm-settings-migrator",
-  "bugs": {
-    "url": "https://github.com/ntnyq/pnpm-settings-migrator/issues"
-  },
+  "bin": "./bin.mjs",
+  "files": [
+    "bin.mjs",
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -26,34 +33,26 @@
       "default": "./dist/index.mjs"
     }
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
-  "bin": "./bin.mjs",
-  "files": [
-    "bin.mjs",
-    "dist"
-  ],
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "lint": "eslint",
+    "lint": "oxlint",
     "prepare": "husky",
     "prepublishOnly": "pnpm run build",
     "release": "run-s release:check release:version",
     "release:check": "run-s lint format:check typecheck test",
     "release:version": "bumpp",
     "test": "vitest",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ntnyq/utils": "^0.21.1",
-    "@pnpm/types": "^1101.9.0",
+    "@pnpm/types": "^1102.0.0",
     "cac": "^7.0.0",
     "camelcase-keys": "^10.0.2",
     "consola": "^3.4.2",
@@ -65,20 +64,20 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@ntnyq/eslint-config": "^6.1.5",
     "@types/node": "^26.2.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "bumpp": "^12.2.0",
-    "eslint": "^10.8.1",
+    "bumpp": "^12.2.1",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
     "npm-run-all2": "^9.0.3",
-    "oxfmt": "^0.62.0",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
     "tsdown": "^0.22.14",
-    "vitest": "^4.1.10"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   },
   "nano-staged": {
-    "*.{js,ts,mjs,tsx,md,yml,yaml,toml,json}": "eslint --fix",
+    "*.{js,ts,mjs,tsx}": "oxlint --fix",
     "*": "oxfmt --no-error-on-unmatched-pattern"
-  }
+  },
+  "packageManager": "pnpm@11.23.0"
 }

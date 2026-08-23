@@ -1,4 +1,4 @@
-import { pick } from '@ntnyq/utils'
+import type { PnpmSettings } from '@pnpm/types'
 import consola from 'consola'
 import { defu } from 'defu'
 import detectIndent from 'detect-indent'
@@ -8,28 +8,120 @@ import {
   DEFAULT_INDENT,
   NPMRC,
   PACKAGE_JSON,
-  PNPM_SETTINGS_FIELDS,
-  PNPM_V11_REMOVED_SETTINGS,
   PNPM_WORKSPACE_YAML,
 } from './constants'
 import { resolveOptions } from './options'
+import type { Options, PackageJson, PnpmWorkspace } from './types'
 import {
   dim,
   fsExists,
   fsReadFile,
   fsWriteFile,
   mergeByStrategy,
+  normalizeIncomingSettings,
   pruneNpmrc,
   readMigratableNpmrc,
-  readNpmrc,
+  resolveCompatibilityTarget,
 } from './utils'
-import type { PnpmSettings } from '@pnpm/types'
-import type {
-  CompatibilityTarget,
-  Options,
-  PackageJson,
-  PnpmWorkspace,
-} from './types'
+
+interface ParsedPackageJson {
+  indent: number | string
+  value: PackageJson
+}
+
+interface ParsedPnpmWorkspace {
+  indent: number
+  value: PnpmWorkspace
+}
+
+function resolveYamlIndent(content: string): number {
+  const detectedIndent = detectIndent(content).amount
+
+  return detectedIndent > 0 ? detectedIndent : DEFAULT_INDENT
+}
+
+function hasSettingsSources(
+  npmrcExists: boolean,
+  packageJsonExists: boolean,
+): boolean {
+  if (!npmrcExists) {
+    consola.info(`${dim(NPMRC)} not found`)
+  }
+
+  if (!packageJsonExists) {
+    consola.info(`${dim(PACKAGE_JSON)} not found`)
+  }
+
+  if (npmrcExists || packageJsonExists) {
+    return true
+  }
+
+  consola.warn('No pnpm settings files to migrate')
+  return false
+}
+
+async function readPackageJson(
+  path: string,
+  exists: boolean,
+): Promise<ParsedPackageJson> {
+  if (!exists) {
+    return { indent: DEFAULT_INDENT, value: {} }
+  }
+
+  const content = await fsReadFile(path)
+
+  return {
+    indent: detectIndent(content).indent,
+    value: JSON.parse(content) as PackageJson,
+  }
+}
+
+async function readPnpmWorkspace(
+  path: string,
+  exists: boolean,
+): Promise<ParsedPnpmWorkspace> {
+  if (!exists) {
+    return { indent: DEFAULT_INDENT, value: {} }
+  }
+
+  const content = await fsReadFile(path)
+
+  return {
+    indent: resolveYamlIndent(content),
+    value: (parse(content) as PnpmWorkspace | null) ?? {},
+  }
+}
+
+function hasMigratableSettings(
+  packageJson: PackageJson,
+  pnpmSettingsInNpmrc: PnpmWorkspace,
+  yarnResolutions: boolean,
+): boolean {
+  return Boolean(
+    packageJson.pnpm ||
+    (yarnResolutions && packageJson.resolutions) ||
+    Object.keys(pnpmSettingsInNpmrc).length,
+  )
+}
+
+function resolvePackageJsonSettings(
+  packageJson: PackageJson,
+  yarnResolutions: boolean,
+): PnpmSettings {
+  const pnpmSettings: PnpmSettings =
+    yarnResolutions && packageJson.resolutions
+      ? {
+          ...packageJson.pnpm,
+          overrides: defu(packageJson.pnpm?.overrides, packageJson.resolutions),
+        }
+      : { ...packageJson.pnpm }
+
+  if (pnpmSettings.overrides && !Object.keys(pnpmSettings.overrides).length) {
+    delete pnpmSettings.overrides
+  }
+
+  return pnpmSettings
+}
 
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
@@ -82,84 +174,40 @@ export async function migratePnpmSettings(
         fsExists(pnpmWorkspaceYamlPath),
       ])
 
-    if (!npmrcExists) {
-      consola.info(`${dim(NPMRC)} not found`)
-    }
-
-    if (!packageJsonExists) {
-      consola.info(`${dim(PACKAGE_JSON)} not found`)
-    }
-
-    // No `.npmrc` or `package.json` file
-    if (!npmrcExists && !packageJsonExists) {
-      consola.warn('No pnpm settings files to migrate')
+    if (!hasSettingsSources(npmrcExists, packageJsonExists)) {
       return
     }
 
-    let packageJsonIndent: number | string = DEFAULT_INDENT
-    let packageJsonObject: PackageJson = {}
-
-    let pnpmWorkspaceYamlIndent: number = DEFAULT_INDENT
-    let pnpmWorkspaceYamlObject: PnpmWorkspace = {}
-
-    if (packageJsonExists) {
-      const content = await fsReadFile(packageJsonPath)
-
-      packageJsonIndent = detectIndent(content).indent
-      packageJsonObject = JSON.parse(content) as PackageJson
-    }
-
-    if (pnpmWorkspaceExists) {
-      const content = await fsReadFile(pnpmWorkspaceYamlPath)
-
-      pnpmWorkspaceYamlIndent = resolveYamlIndent(content)
-      pnpmWorkspaceYamlObject = (parse(content) as PnpmWorkspace | null) ?? {}
-    }
+    const [packageJson, pnpmWorkspace] = await Promise.all([
+      readPackageJson(packageJsonPath, packageJsonExists),
+      readPnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceExists),
+    ])
 
     const compatibility = resolveCompatibilityTarget(
       options.compatibility,
-      packageJsonObject.packageManager,
+      packageJson.value.packageManager,
     )
 
     const npmrcMigratable = npmrcExists
-      ? compatibility === 'v10'
-        ? {
-            keys: PNPM_SETTINGS_FIELDS,
-            settings: pick(await readNpmrc(npmrcPath), PNPM_SETTINGS_FIELDS),
-          }
-        : await readMigratableNpmrc(npmrcPath, compatibility)
+      ? await readMigratableNpmrc(npmrcPath, compatibility)
       : { keys: [], settings: {} }
     const pnpmSettingsInNpmrc = npmrcMigratable.settings
 
-    // no pnpm settings related fields
-    const hasPnpmInPackageJson = !!packageJsonObject.pnpm
-    const hasResolutions =
-      options.yarnResolutions && !!packageJsonObject.resolutions
-    const hasNpmrcSettings = Object.keys(pnpmSettingsInNpmrc).length > 0
-
-    if (!hasPnpmInPackageJson && !hasResolutions && !hasNpmrcSettings) {
+    if (
+      !hasMigratableSettings(
+        packageJson.value,
+        pnpmSettingsInNpmrc,
+        options.yarnResolutions,
+      )
+    ) {
       consola.warn('No pnpm settings fields to migrate')
       return
     }
 
-    const pnpmSettingsInPackageJson: PnpmSettings =
-      options.yarnResolutions && packageJsonObject.resolutions
-        ? {
-            ...packageJsonObject.pnpm,
-            overrides: defu(
-              packageJsonObject.pnpm?.overrides,
-              packageJsonObject.resolutions,
-            ),
-          }
-        : { ...packageJsonObject.pnpm }
-
-    // Remove `overrides` if it's empty
-    if (
-      pnpmSettingsInPackageJson.overrides &&
-      !Object.keys(pnpmSettingsInPackageJson.overrides).length
-    ) {
-      delete pnpmSettingsInPackageJson.overrides
-    }
+    const pnpmSettingsInPackageJson = resolvePackageJsonSettings(
+      packageJson.value,
+      options.yarnResolutions,
+    )
 
     // Collect incoming settings from package.json and .npmrc
     const incomingSettings: PnpmWorkspace = {
@@ -175,7 +223,7 @@ export async function migratePnpmSettings(
 
     // Merge based on strategy
     const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
-      pnpmWorkspaceYamlObject,
+      pnpmWorkspace.value,
       incomingSettings,
       options.strategy,
     )
@@ -192,11 +240,11 @@ export async function migratePnpmSettings(
     })
 
     const yamlContent = yamlDocument.toString({
-      indent: pnpmWorkspaceYamlIndent,
+      indent: pnpmWorkspace.indent,
     })
 
     const finalYamlContent = options.newlineBetween
-      ? yamlContent.replace(/\n(?=[^\s#][^:\n]*:)/g, '\n\n')
+      ? yamlContent.replace(/\n(?=[^\s#][^:\n]*:)/gu, '\n\n')
       : yamlContent
 
     await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
@@ -208,97 +256,21 @@ export async function migratePnpmSettings(
     if (
       packageJsonExists &&
       options.cleanPackageJson &&
-      (packageJsonObject.pnpm || packageJsonObject.resolutions)
+      (packageJson.value.pnpm || packageJson.value.resolutions)
     ) {
-      delete packageJsonObject.pnpm
+      delete packageJson.value.pnpm
 
       if (options.yarnResolutions) {
-        delete packageJsonObject.resolutions
+        delete packageJson.value.resolutions
       }
 
       await fsWriteFile(
         packageJsonPath,
-        JSON.stringify(packageJsonObject, null, packageJsonIndent),
+        JSON.stringify(packageJson.value, null, packageJson.indent),
       )
     }
   } catch (err) {
     consola.error('Failed to migrate pnpm settings:', err)
     throw err
   }
-}
-
-/**
- * Build v11 `allowBuilds` map from legacy build-script settings.
- */
-function collectAllowBuildsFromLegacy(
-  incomingSettings: PnpmWorkspace,
-): Record<string, boolean> | undefined {
-  const allowBuilds: Record<string, boolean> = {}
-
-  for (const name of incomingSettings.onlyBuiltDependencies || []) {
-    allowBuilds[name] = true
-  }
-
-  for (const name of incomingSettings.ignoredBuiltDependencies || []) {
-    allowBuilds[name] = false
-  }
-
-  for (const name of incomingSettings.neverBuiltDependencies || []) {
-    allowBuilds[name] = false
-  }
-
-  return Object.keys(allowBuilds).length ? allowBuilds : undefined
-}
-
-/**
- * Normalize incoming settings according to compatibility target.
- */
-function normalizeIncomingSettings(
-  incomingSettings: PnpmWorkspace,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
-  replaceDeprecated: boolean,
-): void {
-  if (compatibility === 'v10' && !replaceDeprecated) {
-    return
-  }
-
-  if (incomingSettings.allowNonAppliedPatches !== undefined) {
-    incomingSettings.allowUnusedPatches =
-      incomingSettings.allowUnusedPatches ??
-      incomingSettings.allowNonAppliedPatches
-  }
-
-  const allowBuildsFromLegacy = collectAllowBuildsFromLegacy(incomingSettings)
-  if (allowBuildsFromLegacy) {
-    incomingSettings.allowBuilds = {
-      ...allowBuildsFromLegacy,
-      ...(incomingSettings.allowBuilds || {}),
-    }
-  }
-
-  for (const key of PNPM_V11_REMOVED_SETTINGS) {
-    delete incomingSettings[key as keyof PnpmWorkspace]
-  }
-}
-
-/**
- * Resolve final compatibility target from user option and package manager hint.
- */
-function resolveCompatibilityTarget(
-  compatibility: CompatibilityTarget,
-  packageManager?: string,
-): Exclude<CompatibilityTarget, 'auto'> {
-  if (compatibility !== 'auto') {
-    return compatibility
-  }
-
-  const [, major] = (packageManager || '').match(/^pnpm@(\d+)(?:\.|$)/) || []
-
-  return Number(major) >= 11 ? 'v11' : 'v10'
-}
-
-function resolveYamlIndent(content: string): number {
-  const detectedIndent = detectIndent(content).amount
-
-  return detectedIndent > 0 ? detectedIndent : DEFAULT_INDENT
 }

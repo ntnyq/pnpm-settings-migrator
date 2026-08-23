@@ -1,5 +1,5 @@
-import { access, readFile, writeFile } from 'node:fs/promises'
 import type { PathLike } from 'node:fs'
+import { access, readFile, writeFile } from 'node:fs/promises'
 
 /**
  * Check if a path exists

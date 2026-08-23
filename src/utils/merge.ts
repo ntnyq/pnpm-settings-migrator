@@ -3,53 +3,6 @@ import { defu } from 'defu'
 import type { MergeStrategy, PnpmWorkspace } from '../types'
 
 /**
- * Merge two objects based on the specified strategy.
- *
- * @param existing - Existing pnpm-workspace.yaml content
- * @param incoming - New settings from package.json and .npmrc
- * @param strategy - Merge strategy to use
- *
- * @returns Merged pnpm workspace configuration
- *
- * @example
- * ```ts
- * // Discard strategy - keep existing values
- * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'discard')
- * // => { packages: ['a'] }
- *
- * // Merge strategy - combine arrays with deduplication
- * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'merge')
- * // => { packages: ['a', 'b'] }
- *
- * // Overwrite strategy - use incoming values
- * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'overwrite')
- * // => { packages: ['b'] }
- * ```
- */
-export function mergeByStrategy(
-  existing: PnpmWorkspace,
-  incoming: PnpmWorkspace,
-  strategy: MergeStrategy,
-): PnpmWorkspace {
-  switch (strategy) {
-    case 'discard':
-      // Keep existing values, only add new keys from incoming
-      return discardMerge(existing, incoming)
-
-    case 'merge':
-      // Deep merge with array deduplication
-      return mergeWithArrayDedupe(existing, incoming)
-
-    case 'overwrite':
-      // Use incoming values, only keep keys not in incoming
-      return discardMerge(incoming, existing)
-
-    default:
-      return defu(existing, incoming)
-  }
-}
-
-/**
  * Merge objects with priority to the first argument.
  * Only adds keys from second argument that don't exist in first.
  * For nested objects, recursively merges them.
@@ -122,4 +75,51 @@ function mergeWithArrayDedupe(
   }
 
   return result as PnpmWorkspace
+}
+
+/**
+ * Merge two objects based on the specified strategy.
+ *
+ * @param existing - Existing pnpm-workspace.yaml content
+ * @param incoming - New settings from package.json and .npmrc
+ * @param strategy - Merge strategy to use
+ *
+ * @returns Merged pnpm workspace configuration
+ *
+ * @example
+ * ```ts
+ * // Discard strategy - keep existing values
+ * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'discard')
+ * // => { packages: ['a'] }
+ *
+ * // Merge strategy - combine arrays with deduplication
+ * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'merge')
+ * // => { packages: ['a', 'b'] }
+ *
+ * // Overwrite strategy - use incoming values
+ * mergeByStrategy({ packages: ['a'] }, { packages: ['b'] }, 'overwrite')
+ * // => { packages: ['b'] }
+ * ```
+ */
+export function mergeByStrategy(
+  existing: PnpmWorkspace,
+  incoming: PnpmWorkspace,
+  strategy: MergeStrategy,
+): PnpmWorkspace {
+  switch (strategy) {
+    case 'discard':
+      // Keep existing values, only add new keys from incoming
+      return discardMerge(existing, incoming)
+
+    case 'merge':
+      // Deep merge with array deduplication
+      return mergeWithArrayDedupe(existing, incoming)
+
+    case 'overwrite':
+      // Use incoming values, only keep keys not in incoming
+      return discardMerge(incoming, existing)
+
+    default:
+      return defu(existing, incoming)
+  }
 }

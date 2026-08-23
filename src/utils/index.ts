@@ -1,4 +1,5 @@
 export * from './fs'
 export * from './color'
+export * from './compatibility'
 export * from './merge'
 export * from './npmrc'
