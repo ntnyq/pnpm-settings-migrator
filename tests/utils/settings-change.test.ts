@@ -92,6 +92,25 @@ describe('settings changes', () => {
     })
   })
 
+  it('redacts URL credentials without changing diff classification', () => {
+    expect(
+      createSettingsDiffLines({
+        after: 'https://user:new-secret@proxy.example.test',
+        before: 'https://user:old-secret@proxy.example.test',
+        key: 'httpsProxy',
+      }),
+    ).toStrictEqual([
+      {
+        kind: 'removed',
+        value: 'httpsProxy: https://***@proxy.example.test',
+      },
+      {
+        kind: 'added',
+        value: 'httpsProxy: https://***@proxy.example.test',
+      },
+    ])
+  })
+
   it('reports the change count and a colored multi-line diff', () => {
     const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
     const log = vi.spyOn(consola, 'log').mockImplementation(() => {})

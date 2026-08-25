@@ -10,6 +10,12 @@ import { dim, green, red } from './color'
 const MAX_LCS_CELLS = 1_000_000
 
 /**
+ * URL userinfo can contain proxy usernames and passwords. It must never be
+ * printed in a migration report.
+ */
+const URL_USERINFO_PATTERN = /(?<scheme>[a-z][a-z\d+.-]*:\/\/)[^/\s@]+@/giu
+
+/**
  * Classification applied to one rendered settings diff line.
  */
 export type SettingsDiffLineKind = 'added' | 'removed' | 'unchanged'
@@ -216,6 +222,18 @@ function formatSettingLines(key: string, value: unknown): string[] {
 }
 
 /**
+ * Remove credentials embedded in URLs while preserving enough context to
+ * identify the changed setting.
+ *
+ * @param value - Rendered YAML diff line
+ *
+ * @returns Diff line safe to print to a terminal or CI log
+ */
+function redactUrlCredentials(value: string): string {
+  return value.replace(URL_USERINFO_PATTERN, '$<scheme>***@')
+}
+
+/**
  * Format a setting change as a GitHub-style YAML diff.
  *
  * @param change - Root setting change to format
@@ -228,7 +246,10 @@ export function createSettingsDiffLines(
   return createLineDiff(
     formatSettingLines(change.key, change.before),
     formatSettingLines(change.key, change.after),
-  )
+  ).map(line => ({
+    kind: line.kind,
+    value: redactUrlCredentials(line.value),
+  }))
 }
 
 /**

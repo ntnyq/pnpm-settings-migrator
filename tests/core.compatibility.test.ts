@@ -202,6 +202,28 @@ describe('migratePnpmSettings/compatibility', () => {
     })
   })
 
+  it('normalizes array-form legacy build settings from .npmrc', async () => {
+    await writeNpmrc('only-built-dependencies[]=esbuild')
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
+  })
+
+  it('rejects scalar legacy build settings from .npmrc', async () => {
+    await writeNpmrc('only-built-dependencies=esbuild')
+
+    await expect(
+      migratePnpmSettings({ compatibility: 'v11', cwd: testDir }),
+    ).rejects.toThrow(
+      'Invalid onlyBuiltDependencies: expected an array of package names. In .npmrc, use only-built-dependencies[]=<package>.',
+    )
+    await expect(fsExists(`${testDir}/pnpm-workspace.yaml`)).resolves.toBe(
+      false,
+    )
+  })
+
   it('merges onlyBuiltDependenciesFile entries into allowBuilds in v11', async () => {
     await writeWorkspaceFile(
       'allowed-builds.json',

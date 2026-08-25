@@ -57,8 +57,8 @@ Compatibility target for migrated settings:
 - `v10`: keep legacy settings as-is and migrate schema-aligned pnpm config keys from `.npmrc`
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
   and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
-- `v12`: apply the same settings migration as `v11`. pnpm 12 keeps pnpm 11's
-  settings and lockfile format.
+- `v12`: use the same settings-key migration as `v11`. Lockfile migration and
+  validation are outside this tool's scope.
 
 In `v11` and `v12` modes, normalization is applied both to settings read from
 legacy files and to deprecated settings already present in

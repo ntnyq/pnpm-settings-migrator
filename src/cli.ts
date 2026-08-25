@@ -8,23 +8,26 @@ import { bold, dim, green, magenta, red } from './utils'
 
 const cli = createCli()
 
-cli.command('').action(async (options: Options) => {
-  try {
-    consola.log(`\n${bold(magenta(name))} ${dim(`v${version}`)}`)
-    consola.log(dim('\n--------------\n'))
+cli
+  .command('')
+  .usage('[options]')
+  .action(async (options: Options) => {
+    try {
+      consola.log(`\n${bold(magenta(name))} ${dim(`v${version}`)}`)
+      consola.log(dim('\n--------------\n'))
 
-    await migratePnpmSettings(options)
+      await migratePnpmSettings(options)
 
-    consola.success(green('pnpm settings migrate has finished'))
-  } catch (err) {
-    consola.fail(red(String(err)))
+      consola.success(green('pnpm settings migrate has finished'))
+    } catch (err) {
+      consola.fail(red(String(err)))
 
-    if (err instanceof Error && err.stack) {
-      consola.fail(dim(err.stack?.split('\n').slice(1).join('\n')))
+      if (err instanceof Error && err.stack) {
+        consola.fail(dim(err.stack?.split('\n').slice(1).join('\n')))
+      }
+
+      process.exit(1)
     }
-
-    process.exit(1)
-  }
-})
+  })
 
 cli.parse()

@@ -1,7 +1,6 @@
-import { resolve } from 'pathe'
 import { PNPM_V11_REMOVED_SETTINGS } from '../constants'
 import type { CompatibilityTarget, PnpmWorkspace } from '../types'
-import { fsReadFile } from './fs'
+import { collectAllowBuildsFromLegacy } from './legacy-build-settings'
 
 /**
  * Legacy build settings that can be replaced for pnpm v10.
@@ -52,73 +51,6 @@ export interface NormalizeSettingsOptions {
    * Whether deprecated settings should be replaced for pnpm v10.
    */
   replaceDeprecated: boolean
-}
-
-/**
- * Read packages listed by the legacy `onlyBuiltDependenciesFile` setting.
- *
- * @param cwd - Working directory used to resolve the referenced file
- * @param file - Relative path stored in `onlyBuiltDependenciesFile`
- *
- * @returns Package names read from the referenced JSON file
- *
- * @throws {TypeError} When the referenced JSON value is not a string array
- * @throws {SyntaxError} When the referenced file contains invalid JSON
- */
-async function readOnlyBuiltDependenciesFile(
-  cwd: string,
-  file: string | undefined,
-): Promise<string[]> {
-  if (!file) {
-    return []
-  }
-
-  const path = resolve(cwd, file)
-  const value = JSON.parse(await fsReadFile(path)) as unknown
-
-  if (!Array.isArray(value) || !value.every(item => typeof item === 'string')) {
-    throw new TypeError(
-      `Invalid onlyBuiltDependenciesFile: ${file}. Expected a JSON array of package names.`,
-    )
-  }
-
-  return value
-}
-
-/**
- * Build an `allowBuilds` map from legacy build-script settings.
- *
- * @param incomingSettings - Settings containing legacy build declarations
- * @param cwd - Working directory used to resolve referenced files
- *
- * @returns Package-to-permission map, or `undefined` when no entries exist
- */
-async function collectAllowBuildsFromLegacy(
-  incomingSettings: PnpmWorkspace,
-  cwd: string,
-): Promise<Record<string, boolean> | undefined> {
-  const allowBuilds: Record<string, boolean> = {}
-  const allowedFromFile = await readOnlyBuiltDependenciesFile(
-    cwd,
-    incomingSettings.onlyBuiltDependenciesFile,
-  )
-
-  for (const name of [
-    ...(incomingSettings.onlyBuiltDependencies || []),
-    ...allowedFromFile,
-  ]) {
-    allowBuilds[name] = true
-  }
-
-  for (const name of incomingSettings.ignoredBuiltDependencies || []) {
-    allowBuilds[name] = false
-  }
-
-  for (const name of incomingSettings.neverBuiltDependencies || []) {
-    allowBuilds[name] = false
-  }
-
-  return Object.keys(allowBuilds).length ? allowBuilds : undefined
 }
 
 /**

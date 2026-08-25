@@ -4,11 +4,10 @@ import type { CompatibilityTarget, MergeStrategy, Options } from './types'
 /**
  * Default values for migration options.
  */
-const DEFAULT_OPTIONS: Required<Options> = {
+const DEFAULT_OPTIONS: Required<Omit<Options, 'cwd'>> = {
   cleanNpmrc: true,
   cleanPackageJson: true,
   compatibility: 'auto',
-  cwd: process.cwd(),
   newlineBetween: true,
   replaceDeprecated: false,
   showChanges: true,
@@ -78,7 +77,7 @@ export function resolveOptions(options: Options = {}): Required<Options> {
   return {
     cleanNpmrc: options.cleanNpmrc ?? DEFAULT_OPTIONS.cleanNpmrc,
     compatibility: resolveCompatibility(options.compatibility),
-    cwd: options.cwd ?? DEFAULT_OPTIONS.cwd,
+    cwd: options.cwd ?? process.cwd(),
     newlineBetween: options.newlineBetween ?? DEFAULT_OPTIONS.newlineBetween,
     showChanges: options.showChanges ?? DEFAULT_OPTIONS.showChanges,
     sortKeys: options.sortKeys ?? DEFAULT_OPTIONS.sortKeys,

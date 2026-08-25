@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createCli } from '../src/cli-options'
 
 describe('cli options', () => {
@@ -17,5 +17,24 @@ describe('cli options', () => {
     })
 
     expect(parsed.options.cwd).toBe('/tmp/project')
+  })
+
+  it('does not show a blank default command in help', () => {
+    const cli = createCli()
+    cli.command('').action(() => {})
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    try {
+      cli.parse(['node', 'cli', '--help'])
+
+      const help = info.mock.calls
+        .map(([message]) => String(message))
+        .join('\n')
+      expect(help).toContain('Options:')
+      expect(help).not.toContain('Commands:')
+      expect(help).not.toContain('For more info')
+    } finally {
+      info.mockRestore()
+    }
   })
 })

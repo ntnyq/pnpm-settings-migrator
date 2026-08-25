@@ -6,7 +6,7 @@ import { name, version } from '../package.json'
  * Create the command-line parser shared by the executable and parser tests.
  */
 export function createCli(): CAC {
-  return cac(name)
+  const cli = cac(name)
     .version(version)
     .option('--cwd <cwd>', 'Current working directory')
     .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
@@ -36,5 +36,22 @@ export function createCli(): CAC {
       '--no-clean-package-json',
       'Disable removing pnpm fields in package.json',
     )
-    .help()
+
+  cli.help(sections => {
+    const hasOnlyDefaultCommands =
+      cli.commands.length > 0 &&
+      cli.commands.every(command => command.isDefaultCommand)
+
+    if (!hasOnlyDefaultCommands) {
+      return sections
+    }
+
+    return sections.filter(
+      section =>
+        section.title !== 'Commands' &&
+        !section.title?.startsWith('For more info'),
+    )
+  })
+
+  return cli
 }
