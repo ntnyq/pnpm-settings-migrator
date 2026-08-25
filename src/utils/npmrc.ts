@@ -1,4 +1,3 @@
-import { pick } from '@ntnyq/utils'
 import camelcaseKeys from 'camelcase-keys'
 import { readIniFile } from 'read-ini-file'
 import { kebabCase } from 'uncase'
@@ -105,9 +104,8 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
 /**
  * Remove pnpm-related settings from `.npmrc` file.
  *
- * This function reads the `.npmrc` file, filters out all lines that start with
- * pnpm-specific configuration keys (as defined in PNPM_SETTINGS_FIELDS), and
- * writes the cleaned content back to the file.
+ * This function reads the `.npmrc` file, removes lines whose exact normalized
+ * keys were migrated, and writes the cleaned content back to the file.
  *
  * @param path - Absolute path to the `.npmrc` file
  * @param compatibility - Concrete pnpm compatibility target
@@ -119,15 +117,14 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  *
  * @example
  * ```ts
- * await pruneNpmrc('/path/to/.npmrc')
+ * await pruneNpmrc('/path/to/.npmrc', 'v10', ['node-linker'])
  * ```
  */
 export async function pruneNpmrc(
   path: string,
-  compatibility: Exclude<CompatibilityTarget, 'auto'> = 'v10',
-  migratedKeys: string[] = [],
+  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  migratedKeys: string[],
 ): Promise<void> {
-  const pnpmSettingsFields = PNPM_SETTINGS_FIELDS.map(field => kebabCase(field))
   const migratedKeySet = new Set(migratedKeys.map(normalizeNpmrcKey))
   const content = await fsReadFile(path)
   const lines = content.split(/\r?\n/u).filter(line => {
@@ -136,12 +133,7 @@ export async function pruneNpmrc(
       return true
     }
 
-    if (compatibility !== 'v10') {
-      // In v11+ mode only remove lines that were actually migrated.
-      return !migratedKeySet.has(normalizeNpmrcKey(key))
-    }
-
-    return !pnpmSettingsFields.some(field => key.startsWith(field))
+    return !migratedKeySet.has(key)
   })
 
   const updatedContent = lines.join('\n').trimEnd()
@@ -174,11 +166,17 @@ export async function readMigratableNpmrc(
   const raw = (await readIniFile(path)) as NpmRC
 
   if (compatibility === 'v10') {
-    const settings = camelcaseKeys(raw)
+    const pnpmSettingsFields = new Set(
+      PNPM_SETTINGS_FIELDS.map(field => normalizeNpmrcKey(kebabCase(field))),
+    )
+    const keys = Object.keys(raw).filter(key =>
+      pnpmSettingsFields.has(normalizeNpmrcKey(key)),
+    )
+    const migratable = Object.fromEntries(keys.map(key => [key, raw[key]]))
 
     return {
-      keys: PNPM_SETTINGS_FIELDS,
-      settings: pick(settings, PNPM_SETTINGS_FIELDS),
+      keys,
+      settings: camelcaseKeys(migratable),
     }
   }
 
@@ -209,23 +207,4 @@ export async function readMigratableNpmrc(
     keys,
     settings,
   }
-}
-
-/**
- * Read and parse `.npmrc` with camelCase key conversion.
- *
- * @param path - Absolute path to the `.npmrc` file
- *
- * @returns Parsed `.npmrc` configuration with camelCase keys
- *
- * @throws {Error} When file reading or INI parsing fails
- *
- * @example
- * ```ts
- * const config = await readNpmrc('/path/to/.npmrc')
- * // config.allowBuilds, config.packageExtensions, etc.
- * ```
- */
-export async function readNpmrc(path: string): Promise<NpmRC> {
-  return camelcaseKeys((await readIniFile(path)) as NpmRC)
 }

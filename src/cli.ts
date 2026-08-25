@@ -1,44 +1,12 @@
 import process from 'node:process'
-import { cac } from 'cac'
 import { consola } from 'consola'
 import { name, version } from '../package.json'
+import { createCli } from './cli-options'
 import { migratePnpmSettings } from './core'
 import type { Options } from './types'
 import { bold, dim, green, magenta, red } from './utils'
 
-const cli = cac(name)
-
-cli
-  .version(version)
-  .option('--cwd [cwd]', 'Current working directory')
-  .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
-  .option(
-    '--compatibility <compatibility>',
-    'Compatibility target (auto, v10, v11, v12)',
-  )
-  .option(
-    '--replace-deprecated',
-    'Replace deprecated pnpm settings with new ones and remove old keys',
-  )
-  .option(
-    '--strategy <strategy>',
-    'Strategy to handle conflicts (discard, merge, overwrite)',
-  )
-  .option(
-    '--no-yarn-resolutions',
-    'Disable migrating resolutions field in package.json',
-  )
-  .option(
-    '--no-newline-between',
-    'Disable adding newlines between each root keys',
-  )
-  .option('--no-show-changes', 'Disable showing settings changes')
-  .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
-  .option(
-    '--no-clean-package-json',
-    'Disable removing pnpm fields in package.json',
-  )
-  .help()
+const cli = createCli()
 
 cli.command('').action(async (options: Options) => {
   try {

@@ -1,12 +1,12 @@
 import consola from 'consola'
 import { resolve } from 'pathe'
-import { Document as YamlDocument } from 'yaml'
 import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
 import { resolveOptions } from './options'
 import type { Options, PackageJson, PnpmWorkspace } from './types'
 import {
   collectSettingsChanges,
   dim,
+  formatRootSpacing,
   fsExists,
   fsWriteFile,
   mergeByStrategy,
@@ -17,6 +17,7 @@ import {
   reportSettingsChanges,
   resolveCompatibilityTarget,
   resolveRuntimeVersionByStrategy,
+  updateYamlDocument,
 } from './utils'
 import {
   readPackageJson,
@@ -171,11 +172,13 @@ export async function migratePnpmSettings(
       options.yarnResolutions,
     )
 
-    // Collect incoming settings from package.json and .npmrc
-    const incomingSettings: PnpmWorkspace = {
-      ...pnpmSettingsInNpmrc,
-      ...pnpmSettingsInPackageJson,
-    }
+    // package.json keeps scalar precedence, while collection settings from both
+    // legacy sources are retained.
+    const incomingSettings = mergeByStrategy(
+      pnpmSettingsInPackageJson,
+      pnpmSettingsInNpmrc,
+      'merge',
+    )
 
     const [existingNormalization, incomingNormalization] = await Promise.all([
       normalizeIncomingSettings(pnpmWorkspace.value, {
@@ -233,30 +236,19 @@ export async function migratePnpmSettings(
       options.strategy,
     )
 
-    const yamlDocument = new YamlDocument(
-      {},
-      {
-        sortMapEntries: options.sortKeys,
-      },
-    )
-
-    Object.entries(pnpmWorkspaceResult).forEach(([key, value]) => {
-      yamlDocument.add({ key, value })
+    updateYamlDocument(pnpmWorkspace.document, {
+      after: pnpmWorkspaceResult,
+      before: pnpmWorkspaceBefore,
+      sortKeys: options.sortKeys,
     })
-
-    const yamlContent = yamlDocument.toString({
+    const yamlContent = pnpmWorkspace.document.toString({
       indent: pnpmWorkspace.indent,
     })
 
-    const finalYamlContent = options.newlineBetween
-      ? yamlContent.replace(/\n(?=[^\s#][^:\n]*:)/gu, '\n\n')
-      : yamlContent
-
-    await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
-
-    if (npmrcExists && options.cleanNpmrc) {
-      await pruneNpmrc(npmrcPath, compatibility, npmrcMigratable.keys)
-    }
+    const finalYamlContent = formatRootSpacing(
+      yamlContent,
+      options.newlineBetween,
+    )
 
     let packageJsonChanged = runtimeMigration.changed
 
@@ -272,11 +264,19 @@ export async function migratePnpmSettings(
       }
     }
 
+    // Persist destinations before removing either legacy source. A failed write
+    // can then leave duplicate settings, but never delete the only copy.
+    await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
+
     if (packageJsonExists && packageJsonChanged) {
       await fsWriteFile(
         packageJsonPath,
         JSON.stringify(packageJson.value, null, packageJson.indent),
       )
+    }
+
+    if (npmrcExists && options.cleanNpmrc) {
+      await pruneNpmrc(npmrcPath, compatibility, npmrcMigratable.keys)
     }
 
     reportMigrationChanges(

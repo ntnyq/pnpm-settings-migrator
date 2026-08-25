@@ -104,7 +104,7 @@ export interface PackageJson {
    * Development tool declarations.
    */
   devEngines?: {
-    packageManager?: PackageManagerEngine
+    packageManager?: PackageManagerEngine | PackageManagerEngine[]
     runtime?: RuntimeEngine | RuntimeEngine[]
     [key: string]: unknown
   }
@@ -147,7 +147,7 @@ export type NpmRC = Record<string, any>
 export interface PackageManagerEngine {
   name: string
   onFail?: 'download' | 'error' | 'ignore' | 'warn'
-  version: string
+  version?: string
 }
 
 /**

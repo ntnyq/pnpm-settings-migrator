@@ -79,5 +79,8 @@
     "*.{js,ts,mjs,tsx}": "oxlint --fix",
     "*": "oxfmt --no-error-on-unmatched-pattern"
   },
+  "engines": {
+    "node": "^22.19.0 || >=24.11.0"
+  },
   "packageManager": "pnpm@11.23.0"
 }

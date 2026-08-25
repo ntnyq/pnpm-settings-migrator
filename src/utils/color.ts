@@ -2,16 +2,6 @@ import { getColor } from 'consola/utils'
 import type { ColorFunction } from 'consola/utils'
 
 /**
- * Apply cyan terminal styling to a value.
- */
-export const cyan: ColorFunction = getColor('cyan')
-
-/**
- * Apply yellow terminal styling to a value.
- */
-export const yellow: ColorFunction = getColor('yellow')
-
-/**
  * Apply dim terminal styling to a value.
  */
 export const dim: ColorFunction = getColor('dim')

@@ -1,6 +1,6 @@
 import { defu } from 'defu'
 import detectIndent from 'detect-indent'
-import { parse } from 'yaml'
+import { Document, isMap, parseDocument } from 'yaml'
 import { DEFAULT_INDENT } from '../constants'
 import type { PackageJson, PnpmWorkspace } from '../types'
 import { fsReadFile } from './fs'
@@ -24,6 +24,11 @@ export interface ParsedPackageJson {
  * Parsed pnpm workspace content and its detected indentation width.
  */
 export interface ParsedPnpmWorkspace {
+  /**
+   * Parsed YAML document, including comments and source formatting metadata.
+   */
+  document: Document
+
   /**
    * Number of spaces used to indent the source YAML file.
    */
@@ -89,14 +94,34 @@ export async function readPnpmWorkspace(
   exists: boolean,
 ): Promise<ParsedPnpmWorkspace> {
   if (!exists) {
-    return { indent: DEFAULT_INDENT, value: {} }
+    return {
+      document: new Document({}),
+      indent: DEFAULT_INDENT,
+      value: {},
+    }
   }
 
   const content = await fsReadFile(path)
+  const document: Document = parseDocument(content)
+  const [parseError] = document.errors
+
+  if (parseError) {
+    throw parseError
+  }
+
+  const parsedValue = document.toJS() as unknown
+  if (parsedValue !== null && !isMap(document.contents)) {
+    throw new TypeError('pnpm-workspace.yaml must contain a root mapping.')
+  }
+
+  if (parsedValue === null) {
+    document.contents = document.createNode({})
+  }
 
   return {
+    document,
     indent: resolveYamlIndent(content),
-    value: (parse(content) as PnpmWorkspace | null) ?? {},
+    value: (parsedValue as PnpmWorkspace | null) ?? {},
   }
 }
 

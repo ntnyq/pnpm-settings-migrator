@@ -5,6 +5,11 @@ import type { PnpmWorkspace } from '../types'
 import { dim, green, red } from './color'
 
 /**
+ * Maximum dynamic-programming cells used for an exact line diff.
+ */
+const MAX_LCS_CELLS = 1_000_000
+
+/**
  * Classification applied to one rendered settings diff line.
  */
 export type SettingsDiffLineKind = 'added' | 'removed' | 'unchanged'
@@ -73,6 +78,52 @@ export function collectSettingsChanges(
 }
 
 /**
+ * Create a bounded-memory diff that retains shared prefixes and suffixes.
+ *
+ * This fallback deliberately gives up the exact LCS for unusually large
+ * settings to keep reporting from exhausting memory after migration writes.
+ */
+function createLinearLineDiff(
+  beforeLines: string[],
+  afterLines: string[],
+): SettingsDiffLine[] {
+  let prefixLength = 0
+  const maximumPrefixLength = Math.min(beforeLines.length, afterLines.length)
+
+  while (
+    prefixLength < maximumPrefixLength &&
+    beforeLines[prefixLength] === afterLines[prefixLength]
+  ) {
+    prefixLength++
+  }
+
+  let suffixLength = 0
+  const maximumSuffixLength = maximumPrefixLength - prefixLength
+  while (
+    suffixLength < maximumSuffixLength &&
+    beforeLines[beforeLines.length - suffixLength - 1] ===
+      afterLines[afterLines.length - suffixLength - 1]
+  ) {
+    suffixLength++
+  }
+
+  return [
+    ...beforeLines
+      .slice(0, prefixLength)
+      .map(value => ({ kind: 'unchanged' as const, value })),
+    ...beforeLines
+      .slice(prefixLength, beforeLines.length - suffixLength)
+      .map(value => ({ kind: 'removed' as const, value })),
+    ...afterLines
+      .slice(prefixLength, afterLines.length - suffixLength)
+      .map(value => ({ kind: 'added' as const, value })),
+    ...beforeLines
+      .slice(beforeLines.length - suffixLength)
+      .map(value => ({ kind: 'unchanged' as const, value })),
+  ]
+}
+
+/**
  * Create a line-based diff using the longest common subsequence.
  *
  * @param beforeLines - YAML lines before migration
@@ -84,6 +135,10 @@ function createLineDiff(
   beforeLines: string[],
   afterLines: string[],
 ): SettingsDiffLine[] {
+  if (beforeLines.length * afterLines.length > MAX_LCS_CELLS) {
+    return createLinearLineDiff(beforeLines, afterLines)
+  }
+
   const lengths = Array.from({ length: beforeLines.length + 1 }, () =>
     Array<number>(afterLines.length + 1).fill(0),
   )

@@ -74,6 +74,24 @@ describe('settings changes', () => {
     ).toStrictEqual([{ kind: 'removed', value: 'ignoreDepScripts: true' }])
   })
 
+  it('uses bounded memory for large setting diffs', () => {
+    const before = Array.from(
+      { length: 1_100 },
+      (_, index) => `before-${index}`,
+    )
+    const after = Array.from({ length: 1_100 }, (_, index) => `after-${index}`)
+
+    const lines = createSettingsDiffLines({ after, before, key: 'packages' })
+
+    expect(lines).toHaveLength(2_201)
+    expect(lines[0]).toStrictEqual({ kind: 'unchanged', value: 'packages:' })
+    expect(lines[1]).toStrictEqual({ kind: 'removed', value: '  - before-0' })
+    expect(lines.at(-1)).toStrictEqual({
+      kind: 'added',
+      value: '  - after-1099',
+    })
+  })
+
   it('reports the change count and a colored multi-line diff', () => {
     const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
     const log = vi.spyOn(consola, 'log').mockImplementation(() => {})

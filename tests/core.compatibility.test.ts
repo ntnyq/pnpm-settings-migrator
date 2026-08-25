@@ -368,6 +368,15 @@ describe('migratePnpmSettings/compatibility', () => {
     ).toBe('v12')
   })
 
+  it('auto-detects pnpm from a devEngines.packageManager array', () => {
+    expect(
+      resolveCompatibilityTarget('auto', undefined, [
+        { name: 'npm', version: '^11.0.0' },
+        { name: 'pnpm', version: '^11.0.0' },
+      ]),
+    ).toBe('v11')
+  })
+
   it('applies v11 settings migration and npmrc cleanup in v12 mode', async () => {
     await writePackageJson({
       name: 'test-workspace',
