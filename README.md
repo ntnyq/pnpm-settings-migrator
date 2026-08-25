@@ -15,6 +15,20 @@ Run in your workspace root:
 pnpm dlx pnpm-settings-migrator
 ```
 
+After migration, the CLI reports how many root settings changed and shows a
+GitHub-style YAML diff. Removed lines are red and added lines are green:
+
+```text
+ℹ 2 settings changed
+  packages:
+    - packages/*
++   - apps/*
+
+  overrides:
+    foo: 1.0.0
++   bar: 2.0.0
+```
+
 ## CLI Options
 
 ### `--cwd`
@@ -112,6 +126,14 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 - **Default behavior**: `yarnResolutions=true` (use this flag to disable)
 
 Disable migrating `resolutions` field in `package.json`.
+
+### `--no-show-changes`
+
+- **Type**: `boolean`
+- **Default behavior**: `showChanges=true` (use this flag to disable)
+
+Disable showing the settings diff after migration. Library consumers can set
+`showChanges: false`.
 
 ### `--no-clean-npmrc`
 

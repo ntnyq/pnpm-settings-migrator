@@ -5,22 +5,59 @@ import { DEFAULT_INDENT } from '../constants'
 import type { PackageJson, PnpmWorkspace } from '../types'
 import { fsReadFile } from './fs'
 
+/**
+ * Parsed `package.json` content and its detected indentation.
+ */
 export interface ParsedPackageJson {
+  /**
+   * Indentation used by the source JSON file.
+   */
   indent: number | string
+
+  /**
+   * Parsed package manifest.
+   */
   value: PackageJson
 }
 
+/**
+ * Parsed pnpm workspace content and its detected indentation width.
+ */
 export interface ParsedPnpmWorkspace {
+  /**
+   * Number of spaces used to indent the source YAML file.
+   */
   indent: number
+
+  /**
+   * Parsed pnpm workspace settings.
+   */
   value: PnpmWorkspace
 }
 
+/**
+ * Resolve the indentation width for a YAML document.
+ *
+ * @param content - Raw YAML content
+ *
+ * @returns Detected indentation width or the project default
+ */
 function resolveYamlIndent(content: string): number {
   const detectedIndent = detectIndent(content).amount
 
   return detectedIndent > 0 ? detectedIndent : DEFAULT_INDENT
 }
 
+/**
+ * Read and parse a package manifest when it exists.
+ *
+ * @param path - Absolute path to `package.json`
+ * @param exists - Whether the package manifest exists
+ *
+ * @returns Parsed package manifest and detected indentation
+ *
+ * @throws {SyntaxError} When the package manifest contains invalid JSON
+ */
 export async function readPackageJson(
   path: string,
   exists: boolean,
@@ -37,6 +74,16 @@ export async function readPackageJson(
   }
 }
 
+/**
+ * Read and parse a pnpm workspace manifest when it exists.
+ *
+ * @param path - Absolute path to `pnpm-workspace.yaml`
+ * @param exists - Whether the workspace manifest exists
+ *
+ * @returns Parsed workspace settings and detected indentation
+ *
+ * @throws {Error} When the workspace manifest contains invalid YAML
+ */
 export async function readPnpmWorkspace(
   path: string,
   exists: boolean,
@@ -53,6 +100,17 @@ export async function readPnpmWorkspace(
   }
 }
 
+/**
+ * Resolve migratable pnpm settings from a package manifest.
+ *
+ * Yarn resolutions are merged into pnpm overrides when enabled. Empty
+ * overrides are removed from the result.
+ *
+ * @param packageJson - Parsed package manifest
+ * @param yarnResolutions - Whether to convert Yarn resolutions to pnpm overrides
+ *
+ * @returns Pnpm workspace settings resolved from the package manifest
+ */
 export function resolvePackageJsonSettings(
   packageJson: PackageJson,
   yarnResolutions: boolean,

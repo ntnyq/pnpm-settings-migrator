@@ -6,6 +6,9 @@ import { PNPM_SETTINGS_FIELDS } from '../constants'
 import type { CompatibilityTarget, NpmRC } from '../types'
 import { fsReadFile, fsRemoveFile, fsWriteFile } from './fs'
 
+/**
+ * Authentication and registry keys that must remain in `.npmrc`.
+ */
 const NPMRC_AUTH_OR_REGISTRY_KEYS: string[] = [
   '_auth',
   '_authtoken',
@@ -23,10 +26,32 @@ const NPMRC_AUTH_OR_REGISTRY_KEYS: string[] = [
   'username',
 ]
 
+/**
+ * Pattern for pnpm's channel-specific Node.js mirror keys.
+ */
 const NODE_MIRROR_KEY_PATTERN = /^node-mirror:(?<channel>.+)$/iu
 
 /**
+ * Migratable settings and their original `.npmrc` keys.
+ */
+export interface MigratableNpmrc {
+  /**
+   * Original keys of settings selected for migration.
+   */
+  keys: string[]
+
+  /**
+   * Parsed settings converted to camelCase keys.
+   */
+  settings: NpmRC
+}
+
+/**
  * Normalize `.npmrc` key for case-insensitive matching.
+ *
+ * @param key - Raw `.npmrc` key
+ *
+ * @returns Trimmed lower-case key without an array suffix
  */
 function normalizeNpmrcKey(key: string): string {
   return key.trim().replace(/\[\]$/u, '').toLowerCase()
@@ -34,6 +59,10 @@ function normalizeNpmrcKey(key: string): string {
 
 /**
  * Extract key name from a raw `.npmrc` line.
+ *
+ * @param line - Raw line from an `.npmrc` file
+ *
+ * @returns Normalized key, or `undefined` for comments and invalid lines
  */
 function getNpmrcLineKey(line: string): string | undefined {
   const trimmed = line.trim()
@@ -52,6 +81,10 @@ function getNpmrcLineKey(line: string): string | undefined {
 /**
  * Check whether a `.npmrc` key is auth/registry-related and should stay in
  * pnpm v11 and newer.
+ *
+ * @param key - Raw or normalized `.npmrc` key
+ *
+ * @returns `true` when the key must remain in `.npmrc`
  */
 function isNpmrcAuthOrRegistryKey(key: string): boolean {
   const normalized = normalizeNpmrcKey(key)
@@ -77,6 +110,8 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  * writes the cleaned content back to the file.
  *
  * @param path - Absolute path to the `.npmrc` file
+ * @param compatibility - Concrete pnpm compatibility target
+ * @param migratedKeys - Original `.npmrc` keys that were migrated
  *
  * @returns A promise that resolves when the file has been pruned
  *
@@ -119,35 +154,23 @@ export async function pruneNpmrc(
 }
 
 /**
- * Read and parse `.npmrc` file with camelCase key conversion.
- *
- * This function reads an `.npmrc` INI-format file and parses it into an object.
- * All keys are automatically converted from kebab-case to camelCase for easier
- * JavaScript consumption (e.g., `allow-builds` → `allowBuilds`).
- *
- * @param path - Absolute path to the `.npmrc` file
- *
- * @returns A promise that resolves to the parsed `.npmrc` configuration object with camelCase keys
- *
- * @throws {Error} When file reading or INI parsing fails
- *
- * @example
- * ```ts
- * const config = await readNpmrc('/path/to/.npmrc')
- * // config.allowBuilds, config.packageExtensions, etc.
- * ```
- */
-/**
  * Read `.npmrc` and return settings that should be migrated into workspace config.
  *
  * - `v10`: returns settings from the legacy whitelist.
  * - `v11+`: excludes auth/registry keys because pnpm still reads them from
  *   `.npmrc`.
+ *
+ * @param path - Absolute path to the `.npmrc` file
+ * @param compatibility - Concrete pnpm compatibility target
+ *
+ * @returns Migratable settings and their original `.npmrc` keys
+ *
+ * @throws {Error} When file reading or INI parsing fails
  */
 export async function readMigratableNpmrc(
   path: string,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
-): Promise<{ keys: string[]; settings: NpmRC }> {
+): Promise<MigratableNpmrc> {
   const raw = (await readIniFile(path)) as NpmRC
 
   if (compatibility === 'v10') {
@@ -188,6 +211,21 @@ export async function readMigratableNpmrc(
   }
 }
 
+/**
+ * Read and parse `.npmrc` with camelCase key conversion.
+ *
+ * @param path - Absolute path to the `.npmrc` file
+ *
+ * @returns Parsed `.npmrc` configuration with camelCase keys
+ *
+ * @throws {Error} When file reading or INI parsing fails
+ *
+ * @example
+ * ```ts
+ * const config = await readNpmrc('/path/to/.npmrc')
+ * // config.allowBuilds, config.packageExtensions, etc.
+ * ```
+ */
 export async function readNpmrc(path: string): Promise<NpmRC> {
   return camelcaseKeys((await readIniFile(path)) as NpmRC)
 }

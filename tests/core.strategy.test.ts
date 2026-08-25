@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import consola from 'consola'
+import { stripAnsi } from 'consola/utils'
+import { describe, expect, it, vi } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
 import { createTestWorkspace } from './helpers'
 
@@ -37,6 +39,58 @@ describe('migratePnpmSettings/strategy', () => {
 
     expect(workspace.packages).toStrictEqual(['packages/*'])
     expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
+  })
+
+  it('reports only settings changed by the final merge result', async () => {
+    await writeWorkspaceYaml(
+      'packages:\n  - packages/*\n\noverrides:\n  foo: 1.0.0\n',
+    )
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { overrides: { bar: '2.0.0' }, packages: ['apps/*'] },
+    })
+    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
+    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
+
+    await migratePnpmSettings({ cwd: testDir, strategy: 'discard' })
+
+    expect(info).toHaveBeenCalledWith('1 setting changed')
+    const messages = log.mock.calls.map(([message]) =>
+      stripAnsi(String(message)),
+    )
+    expect(messages).toStrictEqual([
+      '  overrides:',
+      '    foo: 1.0.0',
+      '+   bar: 2.0.0',
+    ])
+
+    info.mockRestore()
+    log.mockRestore()
+  })
+
+  it('can hide the settings diff', async () => {
+    await writeWorkspaceYaml('packages:\n  - packages/*\n')
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { packages: ['apps/*'] },
+    })
+    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
+    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
+
+    await migratePnpmSettings({
+      cwd: testDir,
+      showChanges: false,
+      strategy: 'overwrite',
+    })
+
+    const messages = info.mock.calls.map(([message]) =>
+      stripAnsi(String(message)),
+    )
+    expect(messages).not.toContain('1 setting changed')
+    expect(log).not.toHaveBeenCalled()
+
+    info.mockRestore()
+    log.mockRestore()
   })
 
   it('uses overwrite strategy to prioritize incoming values', async () => {

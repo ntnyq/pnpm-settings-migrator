@@ -60,6 +60,13 @@ export interface Options {
   replaceDeprecated?: boolean
 
   /**
+   * Whether to show a settings diff after migration
+   *
+   * @default true
+   */
+  showChanges?: boolean
+
+  /**
    * Sort keys when write `pnpm-workspace.yaml`
    *
    * @default false

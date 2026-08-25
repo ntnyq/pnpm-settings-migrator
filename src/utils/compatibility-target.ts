@@ -1,10 +1,23 @@
 import type { CompatibilityTarget, PackageManagerEngine } from '../types'
 
+/**
+ * pnpm major version that introduced the v11 settings schema.
+ */
 const PNPM_V11_MAJOR = 11
+
+/**
+ * pnpm major version that introduced the v12 compatibility target.
+ */
 const PNPM_V12_MAJOR = 12
 
 /**
  * Resolve final compatibility target from user option and package manager hint.
+ *
+ * @param compatibility - Explicit or automatically detected compatibility target
+ * @param packageManager - `packageManager` declaration from `package.json`
+ * @param devPackageManager - Package manager declaration from `devEngines`
+ *
+ * @returns Resolved concrete compatibility target
  */
 export function resolveCompatibilityTarget(
   compatibility: CompatibilityTarget,

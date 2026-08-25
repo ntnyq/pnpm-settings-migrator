@@ -5,6 +5,7 @@ import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
 import { resolveOptions } from './options'
 import type { Options, PackageJson, PnpmWorkspace } from './types'
 import {
+  collectSettingsChanges,
   dim,
   fsExists,
   fsWriteFile,
@@ -13,6 +14,7 @@ import {
   normalizeIncomingSettings,
   pruneNpmrc,
   readMigratableNpmrc,
+  reportSettingsChanges,
   resolveCompatibilityTarget,
   resolveRuntimeVersionByStrategy,
 } from './utils'
@@ -75,6 +77,18 @@ function assertCanMigrateRuntime(
   }
 }
 
+function reportMigrationChanges(
+  showChanges: boolean,
+  before: PnpmWorkspace = {},
+  after: PnpmWorkspace = {},
+): void {
+  if (!showChanges) {
+    return
+  }
+
+  reportSettingsChanges(collectSettingsChanges(before, after))
+}
+
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
  *
@@ -92,6 +106,7 @@ function assertCanMigrateRuntime(
  * @param rawOptions.yarnResolutions - Whether to migrate resolutions field (default: true)
  * @param rawOptions.sortKeys - Whether to sort keys in output YAML (default: false)
  * @param rawOptions.newlineBetween - Add newlines between root keys (default: true)
+ * @param rawOptions.showChanges - Show settings changes after migration (default: true)
  *
  * @returns A promise that resolves when migration is complete
  *
@@ -130,6 +145,7 @@ export async function migratePnpmSettings(
     if (
       !hasSettingsSources(npmrcExists, packageJsonExists, pnpmWorkspaceExists)
     ) {
+      reportMigrationChanges(options.showChanges)
       return
     }
 
@@ -137,6 +153,7 @@ export async function migratePnpmSettings(
       readPackageJson(packageJsonPath, packageJsonExists),
       readPnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceExists),
     ])
+    const pnpmWorkspaceBefore = structuredClone(pnpmWorkspace.value)
 
     const compatibility = resolveCompatibilityTarget(
       options.compatibility,
@@ -205,6 +222,7 @@ export async function migratePnpmSettings(
       })
     ) {
       consola.warn('No pnpm settings fields to migrate')
+      reportMigrationChanges(options.showChanges)
       return
     }
 
@@ -260,6 +278,12 @@ export async function migratePnpmSettings(
         JSON.stringify(packageJson.value, null, packageJson.indent),
       )
     }
+
+    reportMigrationChanges(
+      options.showChanges,
+      pnpmWorkspaceBefore,
+      pnpmWorkspaceResult,
+    )
   } catch (err) {
     consola.error('Failed to migrate pnpm settings:', err)
     throw err

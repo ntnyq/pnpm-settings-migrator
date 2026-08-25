@@ -1,13 +1,11 @@
 import { resolve } from 'pathe'
 import { PNPM_V11_REMOVED_SETTINGS } from '../constants'
-import type {
-  CompatibilityTarget,
-  MergeStrategy,
-  PackageJson,
-  PnpmWorkspace,
-} from '../types'
+import type { CompatibilityTarget, PnpmWorkspace } from '../types'
 import { fsReadFile } from './fs'
 
+/**
+ * Legacy build settings that can be replaced for pnpm v10.
+ */
 const PNPM_REPLACEABLE_IN_V10_SETTINGS: string[] = [
   'allowNonAppliedPatches',
   'ignoredBuiltDependencies',
@@ -16,25 +14,56 @@ const PNPM_REPLACEABLE_IN_V10_SETTINGS: string[] = [
   'onlyBuiltDependenciesFile',
 ]
 
+/**
+ * Result of normalizing pnpm settings for a compatibility target.
+ */
 export interface NormalizedSettingsResult {
+  /**
+   * Whether normalization mutated the provided settings.
+   */
   changed: boolean
+
+  /**
+   * Removed Node.js runtime version that should move to `package.json`.
+   */
   runtimeVersion?: string
+
+  /**
+   * User-facing compatibility warnings produced during normalization.
+   */
   warnings: string[]
 }
 
+/**
+ * Context required to normalize pnpm settings.
+ */
 export interface NormalizeSettingsOptions {
+  /**
+   * Concrete pnpm compatibility target.
+   */
   compatibility: Exclude<CompatibilityTarget, 'auto'>
-  cwd: string
-  replaceDeprecated: boolean
-}
 
-export interface RuntimeMigrationResult {
-  changed: boolean
-  warning?: string
+  /**
+   * Working directory used to resolve referenced files.
+   */
+  cwd: string
+
+  /**
+   * Whether deprecated settings should be replaced for pnpm v10.
+   */
+  replaceDeprecated: boolean
 }
 
 /**
  * Read packages listed by the legacy `onlyBuiltDependenciesFile` setting.
+ *
+ * @param cwd - Working directory used to resolve the referenced file
+ * @param file - Relative path stored in `onlyBuiltDependenciesFile`
+ *
+ * @returns Package names read from the referenced JSON file
+ *
+ * @throws {TypeError} When the referenced JSON value is not a string array
+ * @throws {SyntaxError} When the referenced file contains invalid JSON
  */
 async function readOnlyBuiltDependenciesFile(
   cwd: string,
@@ -58,6 +87,11 @@ async function readOnlyBuiltDependenciesFile(
 
 /**
  * Build an `allowBuilds` map from legacy build-script settings.
+ *
+ * @param incomingSettings - Settings containing legacy build declarations
+ * @param cwd - Working directory used to resolve referenced files
+ *
+ * @returns Package-to-permission map, or `undefined` when no entries exist
  */
 async function collectAllowBuildsFromLegacy(
   incomingSettings: PnpmWorkspace,
@@ -89,6 +123,10 @@ async function collectAllowBuildsFromLegacy(
 
 /**
  * Resolve the pnpm v11 replacement for legacy package-manager settings.
+ *
+ * @param settings - Settings containing legacy package-manager declarations
+ *
+ * @returns Resolved `pmOnFail` behavior, or `undefined` when not configured
  */
 function resolvePmOnFail(settings: PnpmWorkspace): PnpmWorkspace['pmOnFail'] {
   if (settings.pmOnFail) {
@@ -116,6 +154,11 @@ function resolvePmOnFail(settings: PnpmWorkspace): PnpmWorkspace['pmOnFail'] {
 
 /**
  * Rename legacy audit settings while preserving values for manual ID updates.
+ *
+ * @param settings - Settings whose audit configuration may be normalized
+ * @param warnings - Warning collection updated with manual follow-up guidance
+ *
+ * @returns Nothing; the settings and warning collection are mutated in place
  */
 function normalizeAuditConfig(
   settings: PnpmWorkspace,
@@ -136,6 +179,11 @@ function normalizeAuditConfig(
 
 /**
  * Resolve a removed Node.js runtime setting for migration to `package.json`.
+ *
+ * @param settings - Settings containing legacy runtime declarations
+ * @param warnings - Warning collection updated when declarations conflict
+ *
+ * @returns Runtime version to migrate, or `undefined` when not configured
  */
 function resolveRuntimeVersion(
   settings: PnpmWorkspace,
@@ -159,6 +207,11 @@ function resolveRuntimeVersion(
 
 /**
  * Normalize settings according to the selected compatibility target.
+ *
+ * @param incomingSettings - Settings to normalize in place
+ * @param options - Compatibility target and normalization context
+ *
+ * @returns Normalization result, extracted runtime version, and warnings
  */
 export async function normalizeIncomingSettings(
   incomingSettings: PnpmWorkspace,
@@ -228,49 +281,4 @@ export async function normalizeIncomingSettings(
     runtimeVersion,
     warnings,
   }
-}
-
-/**
- * Move a removed Node.js runtime setting to `package.json#devEngines.runtime`.
- */
-export function migrateRuntimeToPackageJson(
-  packageJson: PackageJson,
-  runtimeVersion: string | undefined,
-): RuntimeMigrationResult {
-  if (!runtimeVersion) {
-    return { changed: false }
-  }
-
-  if (packageJson.devEngines?.runtime) {
-    return {
-      changed: false,
-      warning:
-        'A devEngines.runtime declaration already exists; the removed pnpm Node.js runtime setting was not applied.',
-    }
-  }
-
-  packageJson.devEngines = {
-    ...packageJson.devEngines,
-    runtime: {
-      name: 'node',
-      version: runtimeVersion,
-    },
-  }
-
-  return { changed: true }
-}
-
-/**
- * Select the runtime setting that wins under the configured merge strategy.
- */
-export function resolveRuntimeVersionByStrategy(
-  existingVersion: string | undefined,
-  incomingVersion: string | undefined,
-  strategy: MergeStrategy,
-): string | undefined {
-  if (strategy === 'overwrite') {
-    return incomingVersion ?? existingVersion
-  }
-
-  return existingVersion ?? incomingVersion
 }
