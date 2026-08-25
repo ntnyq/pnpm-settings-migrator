@@ -135,6 +135,53 @@ describe('migratePnpmSettings/compatibility', () => {
     })
   })
 
+  it('migrates documented pnpm v10 settings from .npmrc', async () => {
+    await writeNpmrc(
+      [
+        'audit-level=high',
+        'catalog-mode=strict',
+        'cleanup-unused-catalogs=true',
+        'state-dir=.pnpm-state',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+
+    expect(workspace).toMatchObject({
+      auditLevel: 'high',
+      catalogMode: 'strict',
+      cleanupUnusedCatalogs: true,
+      stateDir: '.pnpm-state',
+    })
+  })
+
+  it('keeps non-v10 settings in .npmrc when using v10 compatibility', async () => {
+    await writeNpmrc(
+      [
+        'audit=false',
+        'fetch-retry-timeout=1000',
+        'node-linker=hoisted',
+        'pm-on-fail=warn',
+        'virtual-store-only=true',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    const workspace = await readWorkspaceYaml()
+    const npmrc = await readWorkspaceFile('.npmrc')
+
+    expect(workspace).toMatchObject({ nodeLinker: 'hoisted' })
+    expect(workspace).not.toHaveProperty('audit')
+    expect(workspace).not.toHaveProperty('fetchRetryTimeout')
+    expect(workspace).not.toHaveProperty('pmOnFail')
+    expect(workspace).not.toHaveProperty('virtualStoreOnly')
+    expect(npmrc).toContain('audit=false')
+    expect(npmrc).toContain('fetch-retry-timeout=1000')
+    expect(npmrc).toContain('pm-on-fail=warn')
+    expect(npmrc).toContain('virtual-store-only=true')
+  })
+
   it('normalizes legacy build settings to allowBuilds in v11', async () => {
     await writePackageJson({
       name: 'test-workspace',

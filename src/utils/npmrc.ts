@@ -1,7 +1,7 @@
 import camelcaseKeys from 'camelcase-keys'
 import { readIniFile } from 'read-ini-file'
 import { kebabCase } from 'uncase'
-import { PNPM_SETTINGS_FIELDS } from '../constants'
+import { PNPM_V10_NPMRC_SETTINGS_FIELDS } from '../constants'
 import type { CompatibilityTarget, NpmRC } from '../types'
 import { fsReadFile, fsRemoveFile, fsWriteFile } from './fs'
 
@@ -167,7 +167,9 @@ export async function readMigratableNpmrc(
 
   if (compatibility === 'v10') {
     const pnpmSettingsFields = new Set(
-      PNPM_SETTINGS_FIELDS.map(field => normalizeNpmrcKey(kebabCase(field))),
+      PNPM_V10_NPMRC_SETTINGS_FIELDS.map(field =>
+        normalizeNpmrcKey(kebabCase(field)),
+      ),
     )
     const keys = Object.keys(raw).filter(key =>
       pnpmSettingsFields.has(normalizeNpmrcKey(key)),
