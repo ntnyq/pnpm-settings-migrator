@@ -59,6 +59,9 @@ v11 的 commands、flags、settings 和 lockfile format 整体延续。
   上游定义的 project-refused 设置。
 - `.npmrc` 与 `package.json#pnpm` 的未知、拒绝、跨版本和目标不支持字段均
   保留在原处并给出警告；`package.json` 只删除实际迁移的 `pnpm` 子键。
+- 清理会按最终 merge/discard/overwrite 结果确认值已落盘；没有替代项、发生
+  冲突或未进入最终 workspace 的源值继续保留。含凭据或动态插值的 registry
+  声明也会保留并警告。
 - `--replace-deprecated` 已覆盖 `audit`、`update`、`catalogPrune`、
   `virtualStoreType`、对象形式 `sideEffectsCache` 和无冲突的新版
   `registries` 声明。
@@ -66,8 +69,8 @@ v11 的 commands、flags、settings 和 lockfile format 整体延续。
   `packageConfigs`；v12 因不支持 `packageConfigs` 而保留源文件并提示。
 - 类型和回归测试已覆盖 `minimumReleaseAgeExcludePrune`、`tasks`、对象形式
   `sideEffectsCache`、`confirmModulesPurge` 与 v12-only `globalShims`。
-- CI 新增 pnpm 11.25.0 / 12.2.1 矩阵，逐一执行 `config list`、lockfile-only
-  install 和 frozen install。
+- CI 新增 pnpm 11.25.0 / 12.2.1 矩阵，先生成既有 lockfile，再逐一执行
+  `config list`、首次 lockfile-only 重解析和 frozen install 稳定性检查。
 
 ## 版本边界与真实性
 

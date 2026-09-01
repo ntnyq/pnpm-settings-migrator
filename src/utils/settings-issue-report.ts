@@ -71,4 +71,9 @@ export function reportSettingsIssues(
       `Kept subproject settings in ${source}: ${formatIssueKeys(issues.unsupported)}; ${destination}.`,
     )
   }
+  if (issues.unsafe.length) {
+    consola.warn(
+      `Kept unsafe registry settings in ${source}: ${formatIssueKeys(issues.unsafe)}. Remove credentials and dynamic URL interpolation before migrating them.`,
+    )
+  }
 }

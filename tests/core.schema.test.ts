@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import consola from 'consola'
+import { stripAnsi } from 'consola/utils'
+import { describe, expect, it, vi } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
+import { fsExists } from '../src/utils'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/versioned schema', () => {
@@ -208,6 +211,102 @@ describe('migratePnpmSettings/versioned schema', () => {
     expect(workspace).not.toHaveProperty('updateConfig')
   })
 
+  it.each([
+    ['discard', 'project', { enableGlobalVirtualStore: true }],
+    ['merge', 'project', { enableGlobalVirtualStore: true }],
+    ['overwrite', 'global', undefined],
+  ] as const)(
+    'keeps unapplied aliases under the %s strategy',
+    async (strategy, virtualStoreType, expectedPnpm) => {
+      await writeWorkspaceYaml('virtualStoreType: project\n')
+      await writePackageJson({
+        name: 'test-workspace',
+        pnpm: { enableGlobalVirtualStore: true },
+      })
+
+      await migratePnpmSettings({
+        compatibility: 'v11',
+        cwd: testDir,
+        replaceDeprecated: true,
+        strategy,
+      })
+
+      await expect(readWorkspaceYaml()).resolves.toMatchObject({
+        virtualStoreType,
+      })
+      const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+      expect(packageJson.pnpm).toStrictEqual(expectedPnpm)
+    },
+  )
+
+  it('keeps credentialed registry URLs out of the workspace', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        namedRegistries: {
+          corp: 'https://fake-user:fake-pass@registry.invalid/',
+        },
+        nodeLinker: 'isolated',
+        registries: {
+          'https://registry.invalid/': { token: 'fake-token' },
+        },
+      },
+    })
+    const warn = vi.spyOn(consola, 'warn').mockImplementation(() => {})
+
+    await migratePnpmSettings({
+      compatibility: 'v11',
+      cwd: testDir,
+      replaceDeprecated: true,
+    })
+
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      nodeLinker: 'isolated',
+    })
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+    expect(packageJson.pnpm).toStrictEqual({
+      namedRegistries: {
+        corp: 'https://fake-user:fake-pass@registry.invalid/',
+      },
+      registries: {
+        'https://registry.invalid/': { token: 'fake-token' },
+      },
+    })
+    const messages = warn.mock.calls.map(([message]) =>
+      stripAnsi(String(message)),
+    )
+    expect(messages).toContain(
+      'Kept unsafe registry settings in package.json#pnpm: "namedRegistries", "registries". Remove credentials and dynamic URL interpolation before migrating them.',
+    )
+
+    warn.mockRestore()
+  })
+
+  it('keeps dynamic registry URLs out of the workspace', async () => {
+    const dynamicRegistry = '$' + '{PRIVATE_REGISTRY_URL}'
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: {
+        nodeLinker: 'isolated',
+        registries: {
+          '@internal': dynamicRegistry,
+        },
+      },
+    })
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      nodeLinker: 'isolated',
+    })
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+    expect(packageJson.pnpm).toStrictEqual({
+      registries: {
+        '@internal': dynamicRegistry,
+      },
+    })
+  })
+
   it('keeps namedRegistries when one URL has multiple prefixes', async () => {
     await writePackageJson({
       name: 'test-workspace',
@@ -267,6 +366,112 @@ describe('migratePnpmSettings/versioned schema', () => {
     expect(npmrc).not.toContain('modules-dir=.modules')
     expect(npmrc).not.toContain('save-exact=true')
   })
+
+  it.each([
+    {
+      appNpmrcExists: true,
+      legacyNpmrcExists: false,
+      packageConfigs: { '@example/legacy': { saveExact: true } },
+      packages: ['packages/*'],
+      strategy: 'discard',
+    },
+    {
+      appNpmrcExists: false,
+      legacyNpmrcExists: false,
+      packageConfigs: {
+        '@example/app': { savePrefix: '^' },
+        '@example/legacy': { saveExact: true },
+      },
+      packages: ['packages/*', 'apps/*'],
+      strategy: 'merge',
+    },
+    {
+      appNpmrcExists: false,
+      legacyNpmrcExists: true,
+      packageConfigs: { '@example/app': { savePrefix: '^' } },
+      packages: ['apps/*'],
+      strategy: 'overwrite',
+    },
+  ] as const)(
+    'only migrates subprojects selected by the $strategy strategy',
+    async ({
+      appNpmrcExists,
+      legacyNpmrcExists,
+      packageConfigs,
+      packages,
+      strategy,
+    }) => {
+      await writeWorkspaceYaml('packages:\n  - packages/*\n')
+      await writePackageJson({
+        name: 'test-workspace',
+        pnpm: { packages: ['apps/*'] },
+        private: true,
+      })
+      await writeWorkspaceFile(
+        'packages/legacy/package.json',
+        JSON.stringify({ name: '@example/legacy', version: '1.0.0' }),
+      )
+      await writeWorkspaceFile('packages/legacy/.npmrc', 'save-exact=true\n')
+      await writeWorkspaceFile(
+        'apps/app/package.json',
+        JSON.stringify({ name: '@example/app', version: '1.0.0' }),
+      )
+      await writeWorkspaceFile('apps/app/.npmrc', 'save-prefix=^\n')
+
+      await migratePnpmSettings({
+        compatibility: 'v11',
+        cwd: testDir,
+        strategy,
+      })
+
+      const workspace = await readWorkspaceYaml()
+      expect(workspace.packages).toStrictEqual(packages)
+      expect(workspace.packageConfigs).toStrictEqual(packageConfigs)
+      await expect(fsExists(`${testDir}/packages/legacy/.npmrc`)).resolves.toBe(
+        legacyNpmrcExists,
+      )
+      await expect(fsExists(`${testDir}/apps/app/.npmrc`)).resolves.toBe(
+        appNpmrcExists,
+      )
+    },
+  )
+
+  it.each([
+    ['discard', false, true],
+    ['merge', false, true],
+    ['overwrite', true, false],
+  ] as const)(
+    'keeps conflicting project settings under the %s strategy',
+    async (strategy, saveExact, npmrcExists) => {
+      await writePackageJson({ name: 'test-workspace', private: true })
+      await writeWorkspaceYaml(
+        [
+          'packages:',
+          '  - packages/*',
+          'packageConfigs:',
+          '  "@example/app":',
+          '    saveExact: false',
+        ].join('\n'),
+      )
+      await writeWorkspaceFile(
+        'packages/app/package.json',
+        JSON.stringify({ name: '@example/app', version: '1.0.0' }),
+      )
+      await writeWorkspaceFile('packages/app/.npmrc', 'save-exact=true\n')
+
+      await migratePnpmSettings({
+        compatibility: 'v11',
+        cwd: testDir,
+        strategy,
+      })
+
+      const workspace = await readWorkspaceYaml()
+      expect(workspace.packageConfigs['@example/app'].saveExact).toBe(saveExact)
+      await expect(fsExists(`${testDir}/packages/app/.npmrc`)).resolves.toBe(
+        npmrcExists,
+      )
+    },
+  )
 
   it('keeps subproject .npmrc settings in v12', async () => {
     await writePackageJson({ name: 'test-workspace', private: true })

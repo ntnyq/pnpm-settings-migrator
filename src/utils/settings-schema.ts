@@ -23,6 +23,22 @@ const PNPM_V11_SETTINGS = new Set(PNPM_V11_WORKSPACE_SETTINGS_FIELDS)
 const PNPM_V12_ONLY_SETTINGS = new Set(PNPM_V12_ONLY_WORKSPACE_SETTINGS)
 const PNPM_V12_SETTINGS = new Set(PNPM_V12_WORKSPACE_SETTINGS_FIELDS)
 const PNPM_V10_SETTINGS = new Set(PNPM_V10_WORKSPACE_SETTINGS_FIELDS)
+const REGISTRY_SETTINGS = new Set([
+  'namedRegistries',
+  'registries',
+  'registriesByPrefix',
+  'registriesByScope',
+  'registry',
+  'registryOptionsByUrl',
+])
+const REGISTRY_CREDENTIAL_KEYS = new Set([
+  'auth',
+  'authtoken',
+  'password',
+  'token',
+  'tokenhelper',
+  'username',
+])
 const WORKSPACE_SCHEMA_DIRECTIVE = '$schema'
 
 /**
@@ -48,6 +64,11 @@ export interface SettingsIssues {
    * Settings recognized by pnpm but unsupported by a narrower destination.
    */
   unsupported: string[]
+
+  /**
+   * Registry settings containing credentials or other unsafe URL values.
+   */
+  unsafe: string[]
 
   /**
    * Settings not recognized by the selected pnpm major.
@@ -100,9 +121,49 @@ export function createSettingsIssues(): SettingsIssues {
     incompatible: [],
     nonCamelCase: [],
     refused: [],
+    unsafe: [],
     unknown: [],
     unsupported: [],
   }
+}
+
+function hasUrlCredentials(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return Boolean(url.username || url.password)
+  } catch {
+    return false
+  }
+}
+
+function isRegistryCredentialKey(key: string): boolean {
+  return REGISTRY_CREDENTIAL_KEYS.has(
+    key.replaceAll('-', '').replaceAll('_', '').toLowerCase(),
+  )
+}
+
+function isUnsafeRegistryUrl(value: string): boolean {
+  return value.includes('${') || hasUrlCredentials(value)
+}
+
+function containsUnsafeRegistryValue(
+  value: unknown,
+  checkCredentialKeys = false,
+): boolean {
+  if (typeof value === 'string') {
+    return isUnsafeRegistryUrl(value)
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  return Object.entries(value).some(
+    ([key, entryValue]) =>
+      (checkCredentialKeys && isRegistryCredentialKey(key)) ||
+      isUnsafeRegistryUrl(key) ||
+      containsUnsafeRegistryValue(entryValue, true),
+  )
 }
 
 function resolveCamelCaseKey(key: string): string {
@@ -145,6 +206,7 @@ interface ResolveSettingIssueOptions {
   key: string
   npmrc: boolean
   targetSettings: ReadonlySet<string>
+  value: unknown
 }
 
 function resolveSettingIssue({
@@ -153,12 +215,16 @@ function resolveSettingIssue({
   key,
   npmrc,
   targetSettings,
+  value,
 }: ResolveSettingIssueOptions): keyof SettingsIssues | undefined {
   if (!npmrc && key !== resolveCamelCaseKey(key)) {
     return 'nonCamelCase'
   }
   if (compatibility !== 'v10' && PROJECT_REFUSED_SETTINGS.has(key)) {
     return 'refused'
+  }
+  if (REGISTRY_SETTINGS.has(key) && containsUnsafeRegistryValue(value)) {
+    return 'unsafe'
   }
   if (!targetSettings.has(key)) {
     return isSettingFromAnotherMajor(key, compatibility)
@@ -205,6 +271,7 @@ export function selectPnpmSettings(
       key,
       npmrc: Boolean(options.npmrc),
       targetSettings,
+      value,
     })
 
     if (issue) {
@@ -313,6 +380,9 @@ export function assertCompatibleWorkspaceSettings(
   }
   if (issues.unknown.length) {
     problems.push(`unrecognized: ${formatIssueList(issues.unknown)}`)
+  }
+  if (issues.unsafe.length) {
+    problems.push(`unsafe registry URL: ${formatIssueList(issues.unsafe)}`)
   }
 
   if (problems.length) {

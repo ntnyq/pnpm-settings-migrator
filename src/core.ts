@@ -172,6 +172,7 @@ export async function migratePnpmSettings(
       npmrcPath,
       packageJson: packageJson.value,
       pnpmWorkspace: pnpmWorkspace.value,
+      strategy: options.strategy,
       yarnResolutions: options.yarnResolutions,
     })
     const { incomingSettings } = sources
@@ -253,6 +254,8 @@ export async function migratePnpmSettings(
       cleanNpmrc: options.cleanNpmrc,
       cleanPackageJson: options.cleanPackageJson,
       compatibility,
+      finalSettings: pnpmWorkspaceResult,
+      incomingSettings,
       npmrc: sources.npmrc,
       npmrcExists,
       npmrcPath,
@@ -264,6 +267,7 @@ export async function migratePnpmSettings(
       pnpmWorkspaceContent: finalYamlContent,
       pnpmWorkspacePath: pnpmWorkspaceYamlPath,
       projectNpmrcs: sources.projectNpmrcs,
+      runtimeVersion,
     })
 
     reportMigrationChanges(

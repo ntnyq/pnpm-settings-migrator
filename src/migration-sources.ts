@@ -1,7 +1,12 @@
 import consola from 'consola'
 import { relative } from 'pathe'
 import { NPMRC, PACKAGE_JSON } from './constants'
-import type { CompatibilityTarget, PackageJson, PnpmWorkspace } from './types'
+import type {
+  CompatibilityTarget,
+  MergeStrategy,
+  PackageJson,
+  PnpmWorkspace,
+} from './types'
 import {
   resolvePackageJsonSettings,
   type ResolvedPackageJsonSettings,
@@ -36,6 +41,7 @@ export interface ResolveMigrationSourcesOptions {
   npmrcPath: string
   packageJson: PackageJson
   pnpmWorkspace: PnpmWorkspace
+  strategy: MergeStrategy
   yarnResolutions: boolean
 }
 
@@ -56,6 +62,7 @@ export async function resolveMigrationSources(
     npmrcPath,
     packageJson,
     pnpmWorkspace,
+    strategy,
     yarnResolutions,
   } = options
   const npmrc = npmrcExists
@@ -85,7 +92,9 @@ export async function resolveMigrationSources(
   )
   const projectNpmrcs = await readProjectNpmrcMigrations(
     cwd,
-    collectWorkspacePackagePatterns(pnpmWorkspace, baseIncomingSettings),
+    collectWorkspacePackagePatterns(
+      mergeByStrategy(pnpmWorkspace, baseIncomingSettings, strategy),
+    ),
     compatibility,
   )
   for (const warning of projectNpmrcs.warnings) {

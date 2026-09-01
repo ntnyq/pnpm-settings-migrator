@@ -85,11 +85,14 @@ Notes:
   with a warning.
 - In `v11` and `v12`, auth/registry keys and project-refused machine settings
   such as `globalDir`, `stateDir`, `configDir`, and `scope` stay in `.npmrc`.
+- Registry declarations containing embedded credentials or dynamic `${...}`
+  URLs stay in their source with a warning.
 - In v11 workspaces, supported subproject `.npmrc` fields are moved to
   `packageConfigs` by package name. pnpm v11 accepts `hoist`, `modulesDir`,
   `overrides`, `saveExact`, and `savePrefix` there. pnpm v12 does not support
   `packageConfigs`, so subproject settings are retained with a warning.
-- Cleanup removes only source keys that were actually migrated.
+- Cleanup removes only source keys represented in the final workspace after
+  applying the selected merge strategy.
   Unrecognized, refused, incompatible, or otherwise unsupported
   `package.json#pnpm` child keys remain in `package.json`.
 - If no auth/registry lines remain after a v11 or v12 migration, the empty

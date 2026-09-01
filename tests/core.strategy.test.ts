@@ -5,8 +5,13 @@ import { migratePnpmSettings } from '../src/core'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/strategy', () => {
-  const { readWorkspaceYaml, testDir, writePackageJson, writeWorkspaceYaml } =
-    createTestWorkspace('strategy')
+  const {
+    readWorkspaceFile,
+    readWorkspaceYaml,
+    testDir,
+    writePackageJson,
+    writeWorkspaceYaml,
+  } = createTestWorkspace('strategy')
 
   it('throws for invalid strategy', async () => {
     await writePackageJson({
@@ -39,6 +44,26 @@ describe('migratePnpmSettings/strategy', () => {
 
     expect(workspace.packages).toStrictEqual(['packages/*'])
     expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
+  })
+
+  it('keeps source values that discard does not apply', async () => {
+    await writeWorkspaceYaml('packages:\n  - packages/*\n')
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { packages: ['apps/*'] },
+    })
+
+    await migratePnpmSettings({
+      compatibility: 'v11',
+      cwd: testDir,
+      strategy: 'discard',
+    })
+
+    await expect(readWorkspaceYaml()).resolves.toMatchObject({
+      packages: ['packages/*'],
+    })
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+    expect(packageJson.pnpm).toStrictEqual({ packages: ['apps/*'] })
   })
 
   it('reports only settings changed by the final merge result', async () => {

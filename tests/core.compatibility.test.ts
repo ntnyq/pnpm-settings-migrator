@@ -89,6 +89,26 @@ describe('migratePnpmSettings/compatibility', () => {
     expect(updatedNpmrc).not.toContain('save-exact=true')
   })
 
+  it('keeps removed .npmrc settings that have no replacement in v11', async () => {
+    await writeNpmrc(
+      [
+        'ignore-dep-scripts=true',
+        'ignore-patch-failures=true',
+        'node-linker=hoisted',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      nodeLinker: 'hoisted',
+    })
+    const npmrc = await readWorkspaceFile('.npmrc')
+    expect(npmrc).toContain('ignore-dep-scripts=true')
+    expect(npmrc).toContain('ignore-patch-failures=true')
+    expect(npmrc).not.toContain('node-linker=hoisted')
+  })
+
   it('keeps legacy npmrc whitelist behavior in v10 mode', async () => {
     await writeNpmrc(
       'node-linker=hoisted\nignored-optional-dependencies[]=fsevents',
@@ -375,7 +395,36 @@ describe('migratePnpmSettings/compatibility', () => {
       name: 'node',
       version: '22.15.0',
     })
+    expect(packageJson.pnpm).toStrictEqual({ ignoreDepScripts: true })
   })
+
+  it.each([
+    ['discard', '20.0.0', { useNodeVersion: '22.0.0' }],
+    ['merge', '20.0.0', { useNodeVersion: '22.0.0' }],
+    ['overwrite', '22.0.0', undefined],
+  ] as const)(
+    'keeps unapplied runtime settings under the %s strategy',
+    async (strategy, runtimeVersion, expectedPnpm) => {
+      await writeWorkspaceYaml('useNodeVersion: 20.0.0\n')
+      await writePackageJson({
+        name: 'test-workspace',
+        pnpm: { useNodeVersion: '22.0.0' },
+      })
+
+      await migratePnpmSettings({
+        compatibility: 'v11',
+        cwd: testDir,
+        strategy,
+      })
+
+      const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
+      expect(packageJson.devEngines.runtime).toStrictEqual({
+        name: 'node',
+        version: runtimeVersion,
+      })
+      expect(packageJson.pnpm).toStrictEqual(expectedPnpm)
+    },
+  )
 
   it('converts legacy node mirror entries from .npmrc in v11', async () => {
     await writeNpmrc(
@@ -406,9 +455,11 @@ describe('migratePnpmSettings/compatibility', () => {
 
     await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
     const workspace = await readWorkspaceYaml()
+    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
 
     expect(workspace.allowUnusedPatches).toBe(true)
     expect(workspace.ignorePatchFailures).toBeUndefined()
+    expect(packageJson.pnpm).toStrictEqual({ ignorePatchFailures: true })
   })
 
   it('auto-detects v11 from packageManager', async () => {

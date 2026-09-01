@@ -77,6 +77,17 @@ async function verifyVersion(version) {
       ].join('\n'),
     )
 
+    await runPnpm(version, fixtureDir, [
+      'install',
+      '--ignore-scripts',
+      '--lockfile-only',
+    ])
+    const initialLockfile = await readFile(
+      join(fixtureDir, 'pnpm-lock.yaml'),
+      'utf8',
+    )
+    assert.ok(initialLockfile.length > 0)
+
     await migratePnpmSettings({
       compatibility,
       cwd: fixtureDir,
@@ -129,11 +140,19 @@ async function verifyVersion(version) {
       '--ignore-scripts',
       '--lockfile-only',
     ])
+    const migratedLockfile = await readFile(
+      join(fixtureDir, 'pnpm-lock.yaml'),
+      'utf8',
+    )
     await runPnpm(version, fixtureDir, [
       'install',
       '--frozen-lockfile',
       '--ignore-scripts',
     ])
+    assert.equal(
+      await readFile(join(fixtureDir, 'pnpm-lock.yaml'), 'utf8'),
+      migratedLockfile,
+    )
 
     process.stdout.write(`pnpm ${version} compatibility verified\n`)
   } finally {

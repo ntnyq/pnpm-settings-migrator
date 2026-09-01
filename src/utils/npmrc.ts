@@ -4,7 +4,11 @@ import { kebabCase } from 'uncase'
 import { PNPM_V10_NPMRC_SETTINGS_FIELDS } from '../constants'
 import type { CompatibilityTarget, NpmRC } from '../types'
 import { fsReadFile, fsRemoveFile, fsWriteFile } from './fs'
-import { selectPnpmSettings, type SettingsIssues } from './settings-schema'
+import {
+  createSettingsIssues,
+  selectPnpmSettings,
+  type SettingsIssues,
+} from './settings-schema'
 
 /**
  * Authentication and registry keys that must remain in `.npmrc`.
@@ -59,16 +63,6 @@ export interface ReadMigratableNpmrcOptions {
    * Optional subset accepted by the destination, such as `packageConfigs`.
    */
   allowedFields?: readonly string[]
-}
-
-function createSettingsIssues(): SettingsIssues {
-  return {
-    incompatible: [],
-    nonCamelCase: [],
-    refused: [],
-    unknown: [],
-    unsupported: [],
-  }
 }
 
 function mergeSettingsIssues(
