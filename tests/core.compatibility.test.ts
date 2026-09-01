@@ -446,7 +446,7 @@ describe('migratePnpmSettings/compatibility', () => {
     ).toBe('v11')
   })
 
-  it('applies v11 settings migration and npmrc cleanup in v12 mode', async () => {
+  it('applies shared settings migration and npmrc cleanup in v12 mode', async () => {
     await writePackageJson({
       name: 'test-workspace',
       pnpm: { onlyBuiltDependencies: ['esbuild'] },

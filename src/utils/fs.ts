@@ -20,6 +20,10 @@ const FILE_PERMISSION_MODULUS = 0o1000
 
 /**
  * Resolve a filesystem path to a string suitable for a sibling temp file.
+ *
+ * @param path - Filesystem path to normalize
+ *
+ * @returns String path suitable for path manipulation
  */
 function resolvePathString(path: PathLike): string {
   if (path instanceof URL) {
@@ -31,6 +35,10 @@ function resolvePathString(path: PathLike): string {
 
 /**
  * Read an existing file's permission bits, if the file exists.
+ *
+ * @param path - Filesystem path to inspect
+ *
+ * @returns Unix permission bits, or `undefined` when the file does not exist
  */
 async function resolveExistingMode(
   path: PathLike,

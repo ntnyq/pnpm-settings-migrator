@@ -4,6 +4,8 @@ import { name, version } from '../package.json'
 
 /**
  * Create the command-line parser shared by the executable and parser tests.
+ *
+ * @returns Configured command-line parser
  */
 export function createCli(): CAC {
   const cli = cac(name)

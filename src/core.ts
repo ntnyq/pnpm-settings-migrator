@@ -1,29 +1,25 @@
 import consola from 'consola'
 import { resolve } from 'pathe'
 import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
+import { persistMigration } from './migration-persistence'
+import { resolveMigrationSources } from './migration-sources'
 import { resolveOptions } from './options'
-import type { Options, PackageJson, PnpmWorkspace } from './types'
+import type { Options, PnpmWorkspace } from './types'
 import {
+  assertCompatibleWorkspaceSettings,
   collectSettingsChanges,
   dim,
   formatRootSpacing,
   fsExists,
-  fsWriteFile,
   mergeByStrategy,
   migrateRuntimeToPackageJson,
   normalizeIncomingSettings,
-  pruneNpmrc,
-  readMigratableNpmrc,
   reportSettingsChanges,
   resolveCompatibilityTarget,
   resolveRuntimeVersionByStrategy,
   updateYamlDocument,
 } from './utils'
-import {
-  readPackageJson,
-  readPnpmWorkspace,
-  resolvePackageJsonSettings,
-} from './utils/config'
+import { readPackageJson, readPnpmWorkspace } from './utils/config'
 
 function hasSettingsSources(
   npmrcExists: boolean,
@@ -48,22 +44,25 @@ function hasSettingsSources(
 
 function hasMigratableSettings(sources: {
   existingSettingsChanged: boolean
-  packageJson: PackageJson
-  pnpmSettingsInNpmrc: PnpmWorkspace
+  npmrcKeys: string[]
+  packageJsonKeys: string[]
+  projectNpmrcKeys: string[]
   yarnResolutions: boolean
 }): boolean {
   const {
     existingSettingsChanged,
-    packageJson,
-    pnpmSettingsInNpmrc,
+    npmrcKeys,
+    packageJsonKeys,
+    projectNpmrcKeys,
     yarnResolutions,
   } = sources
 
   return Boolean(
     existingSettingsChanged ||
-    packageJson.pnpm ||
-    (yarnResolutions && packageJson.resolutions) ||
-    Object.keys(pnpmSettingsInNpmrc).length,
+    npmrcKeys.length ||
+    packageJsonKeys.length ||
+    projectNpmrcKeys.length ||
+    yarnResolutions,
   )
 }
 
@@ -104,10 +103,13 @@ function reportMigrationChanges(
  * @param rawOptions.cwd - Current working directory (default: process.cwd())
  * @param rawOptions.cleanNpmrc - Whether to remove pnpm settings from `.npmrc` (default: true)
  * @param rawOptions.cleanPackageJson - Whether to remove pnpm field from `package.json` (default: true)
+ * @param rawOptions.compatibility - Target pnpm major, or automatic detection (default: auto)
  * @param rawOptions.yarnResolutions - Whether to migrate resolutions field (default: true)
  * @param rawOptions.sortKeys - Whether to sort keys in output YAML (default: false)
  * @param rawOptions.newlineBetween - Add newlines between root keys (default: true)
+ * @param rawOptions.replaceDeprecated - Whether to replace deprecated settings (default: false)
  * @param rawOptions.showChanges - Show settings changes after migration (default: true)
+ * @param rawOptions.strategy - Conflict handling strategy (default: merge)
  *
  * @returns A promise that resolves when migration is complete
  *
@@ -162,23 +164,17 @@ export async function migratePnpmSettings(
       packageJson.value.devEngines?.packageManager,
     )
 
-    const npmrcMigratable = npmrcExists
-      ? await readMigratableNpmrc(npmrcPath, compatibility)
-      : { keys: [], settings: {} }
-    const pnpmSettingsInNpmrc = npmrcMigratable.settings
-
-    const pnpmSettingsInPackageJson = resolvePackageJsonSettings(
-      packageJson.value,
-      options.yarnResolutions,
-    )
-
-    // package.json keeps scalar precedence, while collection settings from both
-    // legacy sources are retained.
-    const incomingSettings = mergeByStrategy(
-      pnpmSettingsInPackageJson,
-      pnpmSettingsInNpmrc,
-      'merge',
-    )
+    assertCompatibleWorkspaceSettings(pnpmWorkspace.value, compatibility)
+    const sources = await resolveMigrationSources({
+      compatibility,
+      cwd: options.cwd,
+      npmrcExists,
+      npmrcPath,
+      packageJson: packageJson.value,
+      pnpmWorkspace: pnpmWorkspace.value,
+      yarnResolutions: options.yarnResolutions,
+    })
+    const { incomingSettings } = sources
 
     const [existingNormalization, incomingNormalization] = await Promise.all([
       normalizeIncomingSettings(pnpmWorkspace.value, {
@@ -219,9 +215,12 @@ export async function migratePnpmSettings(
     if (
       !hasMigratableSettings({
         existingSettingsChanged: existingNormalization.changed,
-        packageJson: packageJson.value,
-        pnpmSettingsInNpmrc,
-        yarnResolutions: options.yarnResolutions,
+        npmrcKeys: sources.npmrc.keys,
+        packageJsonKeys: sources.packageJson.keys,
+        projectNpmrcKeys: sources.projectNpmrcs.projects.flatMap(
+          project => project.migratable.keys,
+        ),
+        yarnResolutions: sources.packageJson.yarnResolutions,
       })
     ) {
       consola.warn('No pnpm settings fields to migrate')
@@ -250,34 +249,22 @@ export async function migratePnpmSettings(
       options.newlineBetween,
     )
 
-    let packageJsonChanged = runtimeMigration.changed
-
-    if (packageJsonExists && options.cleanPackageJson) {
-      if (packageJson.value.pnpm) {
-        packageJsonChanged = true
-      }
-      delete packageJson.value.pnpm
-
-      if (options.yarnResolutions && packageJson.value.resolutions) {
-        packageJsonChanged = true
-        delete packageJson.value.resolutions
-      }
-    }
-
-    // Persist destinations before removing either legacy source. A failed write
-    // can then leave duplicate settings, but never delete the only copy.
-    await fsWriteFile(pnpmWorkspaceYamlPath, finalYamlContent)
-
-    if (packageJsonExists && packageJsonChanged) {
-      await fsWriteFile(
-        packageJsonPath,
-        JSON.stringify(packageJson.value, null, packageJson.indent),
-      )
-    }
-
-    if (npmrcExists && options.cleanNpmrc) {
-      await pruneNpmrc(npmrcPath, compatibility, npmrcMigratable.keys)
-    }
+    await persistMigration({
+      cleanNpmrc: options.cleanNpmrc,
+      cleanPackageJson: options.cleanPackageJson,
+      compatibility,
+      npmrc: sources.npmrc,
+      npmrcExists,
+      npmrcPath,
+      packageJson,
+      packageJsonExists,
+      packageJsonPath,
+      packageJsonRuntimeChanged: runtimeMigration.changed,
+      packageJsonSettings: sources.packageJson,
+      pnpmWorkspaceContent: finalYamlContent,
+      pnpmWorkspacePath: pnpmWorkspaceYamlPath,
+      projectNpmrcs: sources.projectNpmrcs,
+    })
 
     reportMigrationChanges(
       options.showChanges,

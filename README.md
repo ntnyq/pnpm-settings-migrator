@@ -56,13 +56,13 @@ Compatibility target for migrated settings:
   (`pnpm@12+` => `v12`, `pnpm@11` => `v11`, otherwise `v10`)
 - `v10`: keep legacy settings as-is and migrate schema-aligned pnpm config keys from `.npmrc`
 - `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
-  and migrate all non auth/registry `.npmrc` entries to `pnpm-workspace.yaml`
-- `v12`: use the same settings-key migration as `v11`. Lockfile migration and
-  validation are outside this tool's scope.
+  and migrate recognized project settings from `.npmrc` to `pnpm-workspace.yaml`
+- `v12`: use the shared v11 schema plus the v12 delta, including
+  `globalShims`, while rejecting v11-only workspace settings.
 
-In `v11` and `v12` modes, normalization is applied both to settings read from
-legacy files and to deprecated settings already present in
-`pnpm-workspace.yaml`.
+In `v11` and `v12` modes, the migrator validates existing workspace keys,
+filters incoming settings against the selected schema, and applies required
+normalization to legacy files and `pnpm-workspace.yaml`.
 
 Automated v10 to v11 conversions include:
 
@@ -80,12 +80,18 @@ Automated v10 to v11 conversions include:
 
 Notes:
 
-- `.npmrc` migration is aligned with pnpm workspace config fields such as `node-linker`,
-  hoist settings, lockfile settings, store settings, proxy settings, and other pnpm
-  runtime/install options.
-- Workspace manifest-only fields such as `packages`, `catalog`, and `catalogs` are not
-  migrated from `.npmrc`.
-- In `v11` and `v12`, auth/registry-related keys still stay in `.npmrc`.
+- `.npmrc` migration is aligned with the target pnpm workspace schema. Unknown
+  keys and settings supported only by a different pnpm major stay in `.npmrc`
+  with a warning.
+- In `v11` and `v12`, auth/registry keys and project-refused machine settings
+  such as `globalDir`, `stateDir`, `configDir`, and `scope` stay in `.npmrc`.
+- In v11 workspaces, supported subproject `.npmrc` fields are moved to
+  `packageConfigs` by package name. pnpm v11 accepts `hoist`, `modulesDir`,
+  `overrides`, `saveExact`, and `savePrefix` there. pnpm v12 does not support
+  `packageConfigs`, so subproject settings are retained with a warning.
+- Cleanup removes only source keys that were actually migrated.
+  Unrecognized, refused, incompatible, or otherwise unsupported
+  `package.json#pnpm` child keys remain in `package.json`.
 - If no auth/registry lines remain after a v11 or v12 migration, the empty
   `.npmrc` is removed.
 - Values moved from `auditConfig.ignoreCves` still contain CVE IDs. Replace them
@@ -93,9 +99,10 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- pnpm 12 is currently a release candidate. Its removed
-  `pnpm install --resolution-only` CLI flag is outside this settings migrator's
-  scope; replace it with `pnpm peers check` in scripts before upgrading.
+- pnpm 12 is stable; this project verifies migrated output against pnpm 12.2.1
+  as well as pnpm 11.25.0. Its removed `pnpm install --resolution-only` CLI
+  flag is outside this settings migrator's scope; replace it with
+  `pnpm peers check` in scripts before upgrading.
 
 ### `--replace-deprecated`
 
@@ -108,6 +115,13 @@ Example conversions:
 
 - `allowNonAppliedPatches` -> `allowUnusedPatches`
 - `onlyBuiltDependencies` / `ignoredBuiltDependencies` / `neverBuiltDependencies` -> `allowBuilds`
+- `auditLevel` / `auditConfig` -> `audit`
+- `updateConfig` -> `update`
+- `cleanupUnusedCatalogs` -> `catalogPrune`
+- `enableGlobalVirtualStore` -> `virtualStoreType`
+- `sideEffectsCacheReadonly` / `remoteSideEffectsCache` -> structured
+  `sideEffectsCache`
+- non-conflicting `namedRegistries` aliases -> URL-keyed `registries`
 
 ### `--strategy`
 
@@ -147,7 +161,7 @@ Disable removing pnpm settings in `.npmrc` file.
 - **Type**: `boolean`
 - **Default behavior**: `cleanPackageJson=true` (use this flag to disable)
 
-Disable removing `pnpm` field in `package.json`.
+Disable removing migrated child keys from the `pnpm` field in `package.json`.
 
 ### `--no-newline-between`
 

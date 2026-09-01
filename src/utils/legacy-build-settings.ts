@@ -9,6 +9,13 @@ type LegacyBuildDependencyList =
 
 /**
  * Read packages listed by the legacy `onlyBuiltDependenciesFile` setting.
+ *
+ * @param cwd - Workspace root directory
+ * @param file - Path declared by the legacy setting
+ *
+ * @returns Validated package names, or an empty list when no file is declared
+ *
+ * @throws {TypeError} When the file does not contain an array of package names
  */
 async function readOnlyBuiltDependenciesFile(
   cwd: string,
@@ -33,6 +40,13 @@ async function readOnlyBuiltDependenciesFile(
 /**
  * Read and validate one legacy build dependency list. Configuration files are
  * external input, so their runtime shape can differ from its declared type.
+ *
+ * @param settings - Workspace settings containing the legacy list
+ * @param key - Legacy setting name to read
+ *
+ * @returns Validated package names, or an empty list when the setting is absent
+ *
+ * @throws {TypeError} When the setting is not an array of package names
  */
 function readLegacyBuildDependencyList(
   settings: PnpmWorkspace,
@@ -59,6 +73,11 @@ function readLegacyBuildDependencyList(
 
 /**
  * Build an `allowBuilds` map from legacy build-script settings.
+ *
+ * @param incomingSettings - Legacy settings to read and normalize
+ * @param cwd - Workspace root used to resolve dependency list files
+ *
+ * @returns Package permissions, or `undefined` when no legacy values exist
  */
 export async function collectAllowBuildsFromLegacy(
   incomingSettings: PnpmWorkspace,

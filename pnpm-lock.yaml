@@ -38,6 +38,9 @@ importers:
       read-ini-file:
         specifier: ^5.0.0
         version: 5.0.0
+      tinyglobby:
+        specifier: ^0.2.17
+        version: 0.2.17
       uncase:
         specifier: ^0.3.0
         version: 0.3.0

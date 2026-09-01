@@ -41,13 +41,16 @@
     "dev": "tsdown --watch",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "lint": "oxlint",
+    "lint": "run-s lint:*",
+    "lint:code": "oxlint",
+    "lint:comments": "node scripts/check-comments.mjs",
     "prepare": "husky",
     "prepublishOnly": "pnpm run build",
     "release": "run-s release:check release:version",
     "release:check": "run-s lint format:check typecheck test",
     "release:version": "bumpp",
     "test": "vitest",
+    "test:compatibility": "node scripts/verify-pnpm-compatibility.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -60,6 +63,7 @@
     "detect-indent": "^7.0.2",
     "pathe": "^2.0.3",
     "read-ini-file": "^5.0.0",
+    "tinyglobby": "^0.2.17",
     "uncase": "^0.3.0",
     "yaml": "^2.9.0"
   },

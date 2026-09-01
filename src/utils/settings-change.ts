@@ -88,6 +88,11 @@ export function collectSettingsChanges(
  *
  * This fallback deliberately gives up the exact LCS for unusually large
  * settings to keep reporting from exhausting memory after migration writes.
+ *
+ * @param beforeLines - YAML lines before migration
+ * @param afterLines - YAML lines after migration
+ *
+ * @returns Classified diff lines in display order
  */
 function createLinearLineDiff(
   beforeLines: string[],

@@ -1,5 +1,5 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { join } from 'pathe'
+import { dirname, join } from 'pathe'
 import { afterEach, beforeEach } from 'vitest'
 import { parse } from 'yaml'
 import { resolve } from '../scripts/utils'
@@ -7,6 +7,10 @@ import { fsReadFile } from '../src/utils'
 
 /**
  * Create isolated file helpers for one test file.
+ *
+ * @param scope - Unique suffix used for the temporary workspace directory
+ *
+ * @returns Test lifecycle hooks and file helpers for the isolated workspace
  */
 export function createTestWorkspace(scope: string) {
   const testDir = resolve(`tests/.tmp-${scope}`)
@@ -37,7 +41,9 @@ export function createTestWorkspace(scope: string) {
     name: string,
     content: string,
   ): Promise<void> {
-    await writeFile(join(testDir, name), content)
+    const path = join(testDir, name)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, content)
   }
 
   async function writePackageJson(data: unknown, indent = 2): Promise<void> {
@@ -52,12 +58,13 @@ export function createTestWorkspace(scope: string) {
   }
 
   return {
-    readWorkspaceFile,
-    readWorkspaceYaml,
     testDir,
+
     writeNpmrc,
     writePackageJson,
     writeWorkspaceFile,
     writeWorkspaceYaml,
+    readWorkspaceFile,
+    readWorkspaceYaml,
   }
 }

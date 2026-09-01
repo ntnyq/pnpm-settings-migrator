@@ -14,6 +14,8 @@ export interface UpdateYamlDocumentOptions {
 
 /**
  * Sort every mapping in a YAML node without replacing its comments or anchors.
+ *
+ * @param node - YAML node whose nested mappings should be sorted
  */
 function sortYamlMappings(node: Node | null): void {
   if (isMap(node)) {
@@ -41,6 +43,11 @@ function sortYamlMappings(node: Node | null): void {
 /**
  * Apply semantic root changes to the parsed document while retaining untouched
  * YAML nodes and their source metadata.
+ *
+ * @param document - Parsed YAML document to update in place
+ * @param options - Before/after settings and sorting preference
+ *
+ * @returns Nothing; the document is updated in place
  */
 export function updateYamlDocument(
   document: Document,
@@ -70,6 +77,11 @@ export function updateYamlDocument(
 
 /**
  * Normalize blank lines immediately before root mapping keys.
+ *
+ * @param content - Serialized workspace YAML
+ * @param newlineBetween - Whether root keys should be separated by blank lines
+ *
+ * @returns YAML with normalized root-key spacing
  */
 export function formatRootSpacing(
   content: string,

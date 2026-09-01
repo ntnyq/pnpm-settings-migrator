@@ -1,5 +1,6 @@
 import { PNPM_V11_REMOVED_SETTINGS } from '../constants'
 import type { CompatibilityTarget, PnpmWorkspace } from '../types'
+import { normalizeCurrentAliases } from './deprecated-settings'
 import { collectAllowBuildsFromLegacy } from './legacy-build-settings'
 
 /**
@@ -190,6 +191,9 @@ export async function normalizeIncomingSettings(
   }
 
   normalizeAuditConfig(incomingSettings, warnings)
+  if (replaceDeprecated) {
+    normalizeCurrentAliases(incomingSettings, warnings)
+  }
   const runtimeVersion = resolveRuntimeVersion(incomingSettings, warnings)
 
   if (incomingSettings.ignoreDepScripts !== undefined) {

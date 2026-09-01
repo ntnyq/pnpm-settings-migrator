@@ -2,8 +2,9 @@ import { defu } from 'defu'
 import detectIndent from 'detect-indent'
 import { Document, isMap, parseDocument } from 'yaml'
 import { DEFAULT_INDENT } from '../constants'
-import type { PackageJson, PnpmWorkspace } from '../types'
+import type { CompatibilityTarget, PackageJson, PnpmWorkspace } from '../types'
 import { fsReadFile } from './fs'
+import { selectPnpmSettings, type SettingsIssues } from './settings-schema'
 
 /**
  * Parsed `package.json` content and its detected indentation.
@@ -38,6 +39,31 @@ export interface ParsedPnpmWorkspace {
    * Parsed pnpm workspace settings.
    */
   value: PnpmWorkspace
+}
+
+/**
+ * Migratable settings selected from `package.json`.
+ */
+export interface ResolvedPackageJsonSettings {
+  /**
+   * Source settings left in place because the target cannot accept them.
+   */
+  issues: SettingsIssues
+
+  /**
+   * Original `package.json#pnpm` child keys selected for migration.
+   */
+  keys: string[]
+
+  /**
+   * Settings safe to merge into the target workspace manifest.
+   */
+  settings: PnpmWorkspace
+
+  /**
+   * Whether Yarn resolutions were selected for conversion to overrides.
+   */
+  yarnResolutions: boolean
 }
 
 /**
@@ -133,24 +159,37 @@ export async function readPnpmWorkspace(
  *
  * @param packageJson - Parsed package manifest
  * @param yarnResolutions - Whether to convert Yarn resolutions to pnpm overrides
+ * @param compatibility - Concrete pnpm compatibility target
  *
- * @returns Pnpm workspace settings resolved from the package manifest
+ * @returns Selected workspace settings and source cleanup metadata
  */
 export function resolvePackageJsonSettings(
   packageJson: PackageJson,
   yarnResolutions: boolean,
-): PnpmWorkspace {
-  const pnpmSettings: PnpmWorkspace =
-    yarnResolutions && packageJson.resolutions
-      ? {
-          ...packageJson.pnpm,
-          overrides: defu(packageJson.pnpm?.overrides, packageJson.resolutions),
-        }
-      : { ...packageJson.pnpm }
+  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+): ResolvedPackageJsonSettings {
+  const selected = selectPnpmSettings(
+    Object.fromEntries(Object.entries(packageJson.pnpm ?? {})),
+    compatibility,
+  )
+  const migrateYarnResolutions = Boolean(
+    yarnResolutions && packageJson.resolutions,
+  )
+  const pnpmSettings: PnpmWorkspace = migrateYarnResolutions
+    ? {
+        ...selected.settings,
+        overrides: defu(selected.settings.overrides, packageJson.resolutions),
+      }
+    : { ...selected.settings }
 
   if (pnpmSettings.overrides && !Object.keys(pnpmSettings.overrides).length) {
     delete pnpmSettings.overrides
   }
 
-  return pnpmSettings
+  return {
+    issues: selected.issues,
+    keys: selected.keys,
+    settings: pnpmSettings,
+    yarnResolutions: migrateYarnResolutions,
+  }
 }

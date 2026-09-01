@@ -31,7 +31,9 @@ single quotes, no semicolons, trailing commas, and an 80-column target. Keep ESM
 imports and strict TypeScript types. Use `camelCase` for functions and variables,
 `PascalCase` for types, and descriptive lower-case filenames such as
 `utils/npmrc.ts`. Let Oxfmt sort imports and package scripts rather than ordering
-them manually.
+them manually. Use multiline JSDoc for documentation comments; single-line block
+comments are forbidden in JavaScript and TypeScript files. Document every
+exported function with meaningful `@param` and `@returns` tags where applicable.
 
 ## Testing Guidelines
 

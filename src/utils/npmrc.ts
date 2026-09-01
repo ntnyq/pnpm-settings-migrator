@@ -4,6 +4,7 @@ import { kebabCase } from 'uncase'
 import { PNPM_V10_NPMRC_SETTINGS_FIELDS } from '../constants'
 import type { CompatibilityTarget, NpmRC } from '../types'
 import { fsReadFile, fsRemoveFile, fsWriteFile } from './fs'
+import { selectPnpmSettings, type SettingsIssues } from './settings-schema'
 
 /**
  * Authentication and registry keys that must remain in `.npmrc`.
@@ -40,9 +41,46 @@ export interface MigratableNpmrc {
   keys: string[]
 
   /**
+   * Settings left in `.npmrc`, grouped by the reason they cannot be migrated.
+   */
+  issues: SettingsIssues
+
+  /**
    * Parsed settings converted to camelCase keys.
    */
   settings: NpmRC
+}
+
+/**
+ * Options for narrowing `.npmrc` migration to a destination schema.
+ */
+export interface ReadMigratableNpmrcOptions {
+  /**
+   * Optional subset accepted by the destination, such as `packageConfigs`.
+   */
+  allowedFields?: readonly string[]
+}
+
+function createSettingsIssues(): SettingsIssues {
+  return {
+    incompatible: [],
+    nonCamelCase: [],
+    refused: [],
+    unknown: [],
+    unsupported: [],
+  }
+}
+
+function mergeSettingsIssues(
+  target: SettingsIssues,
+  source: SettingsIssues,
+  sourceKeys?: string[],
+): void {
+  for (const reason of Object.keys(target) as (keyof SettingsIssues)[]) {
+    if (source[reason].length) {
+      target[reason].push(...(sourceKeys ?? source[reason]))
+    }
+  }
 }
 
 /**
@@ -149,11 +187,12 @@ export async function pruneNpmrc(
  * Read `.npmrc` and return settings that should be migrated into workspace config.
  *
  * - `v10`: returns settings from the legacy whitelist.
- * - `v11+`: excludes auth/registry keys because pnpm still reads them from
- *   `.npmrc`.
+ * - `v11+`: selects target-schema settings and retains auth, registry,
+ *   refused, incompatible, and unknown keys.
  *
  * @param path - Absolute path to the `.npmrc` file
  * @param compatibility - Concrete pnpm compatibility target
+ * @param options - Optional destination-specific field restrictions
  *
  * @returns Migratable settings and their original `.npmrc` keys
  *
@@ -162,8 +201,10 @@ export async function pruneNpmrc(
 export async function readMigratableNpmrc(
   path: string,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  options: ReadMigratableNpmrcOptions = {},
 ): Promise<MigratableNpmrc> {
   const raw = (await readIniFile(path)) as NpmRC
+  const issues = createSettingsIssues()
 
   if (compatibility === 'v10') {
     const pnpmSettingsFields = new Set(
@@ -177,6 +218,7 @@ export async function readMigratableNpmrc(
     const migratable = Object.fromEntries(keys.map(key => [key, raw[key]]))
 
     return {
+      issues,
       keys,
       settings: camelcaseKeys(migratable),
     }
@@ -185,27 +227,44 @@ export async function readMigratableNpmrc(
   const migratable: NpmRC = {}
   const keys: string[] = []
   const nodeDownloadMirrors: Record<string, string> = {}
+  const nodeDownloadMirrorKeys: string[] = []
   for (const [key, value] of Object.entries(raw)) {
     if (!isNpmrcAuthOrRegistryKey(key)) {
-      keys.push(key)
-
       const nodeMirrorMatch = normalizeNpmrcKey(key).match(
         NODE_MIRROR_KEY_PATTERN,
       )
       if (nodeMirrorMatch?.groups?.channel) {
+        nodeDownloadMirrorKeys.push(key)
         nodeDownloadMirrors[nodeMirrorMatch.groups.channel] = String(value)
       } else {
-        migratable[key] = value
+        const selected = selectPnpmSettings({ [key]: value }, compatibility, {
+          allowedFields: options.allowedFields,
+          npmrc: true,
+        })
+        keys.push(...selected.keys)
+        Object.assign(migratable, selected.settings)
+        mergeSettingsIssues(issues, selected.issues)
       }
     }
   }
 
   const settings = camelcaseKeys(migratable)
   if (Object.keys(nodeDownloadMirrors).length) {
-    settings.nodeDownloadMirrors = nodeDownloadMirrors
+    const selected = selectPnpmSettings(
+      { nodeDownloadMirrors },
+      compatibility,
+      { allowedFields: options.allowedFields },
+    )
+    if (selected.keys.length) {
+      keys.push(...nodeDownloadMirrorKeys)
+      settings.nodeDownloadMirrors = nodeDownloadMirrors
+    } else {
+      mergeSettingsIssues(issues, selected.issues, nodeDownloadMirrorKeys)
+    }
   }
 
   return {
+    issues,
     keys,
     settings,
   }

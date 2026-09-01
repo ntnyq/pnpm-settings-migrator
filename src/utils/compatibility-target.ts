@@ -12,6 +12,10 @@ const PNPM_V12_MAJOR = 12
 
 /**
  * Resolve a pnpm major from a package manager declaration.
+ *
+ * @param hint - Package manager declaration to inspect
+ *
+ * @returns Detected pnpm major, or `undefined` when the hint does not match
  */
 function resolvePnpmMajor(hint: string | undefined): number | undefined {
   const match = hint?.match(/^pnpm@[\s<=>^~]*(?<major>\d+)(?:\.|\s|$)/u)
@@ -21,6 +25,10 @@ function resolvePnpmMajor(hint: string | undefined): number | undefined {
 
 /**
  * Normalize the single-or-array devEngines declaration.
+ *
+ * @param value - Optional single or multiple package manager declarations
+ *
+ * @returns Package manager declarations normalized to an array
  */
 function normalizePackageManagers(
   value: PackageManagerEngine | PackageManagerEngine[] | undefined,
