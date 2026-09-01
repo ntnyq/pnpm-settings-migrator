@@ -11,7 +11,9 @@ import { migratePnpmSettings } from '../dist/index.mjs'
 const execFileAsync = promisify(execFile)
 const DEFAULT_PNPM_VERSIONS = ['11.25.0', '12.2.1']
 const MAX_BUFFER_BYTES = 10_485_760
-const requestedVersions = process.argv.slice(2)
+const requestedVersions = process.argv
+  .slice(2)
+  .filter(argument => argument !== '--')
 const pnpmVersions = requestedVersions.length
   ? requestedVersions
   : DEFAULT_PNPM_VERSIONS
