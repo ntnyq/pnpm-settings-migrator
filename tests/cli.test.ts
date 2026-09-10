@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createCli } from '../src/cli-options'
+import { createCli } from '../src/cli/options'
 
 describe('cli options', () => {
   it('requires a value for --cwd', () => {

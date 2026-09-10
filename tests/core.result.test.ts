@@ -2,7 +2,7 @@ import consola from 'consola'
 import { join } from 'pathe'
 import { describe, expect, it, vi } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils'
+import { fsExists } from '../src/utils/fs'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/result', () => {

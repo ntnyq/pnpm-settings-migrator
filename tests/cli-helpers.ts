@@ -19,7 +19,7 @@ export function createTestCli(testDir: string) {
   beforeAll(async () => {
     await build({
       config: false,
-      entry: ['src/cli.ts'],
+      entry: { cli: 'src/cli/index.ts' },
       outDir: buildDir,
       platform: 'node',
       dts: false,

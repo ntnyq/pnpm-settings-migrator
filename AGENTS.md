@@ -4,12 +4,20 @@
 
 This repository ships both an ESM library and a CLI for migrating pnpm settings
 into `pnpm-workspace.yaml`. Source code lives in `src/`: `core.ts` coordinates
-migration, `options.ts` defines defaults, `constants.ts` lists supported fields,
-and `cli.ts` maps command-line flags. Keep reusable filesystem, npmrc, color, and
-merge logic in `src/utils/`. Tests live in `tests/`; shared setup and workspace
-helpers are in `tests/setup.ts` and `tests/helpers.ts`, while static sample data
-belongs in `tests/fixtures/`. Build configuration is at the repository root and
-generated output goes to `dist/`.
+migration and `index.ts` exposes the public library API. Group static constants
+in `src/constants/` and named types in `src/types/`, each with an `index.ts`
+that aggregates its modules. Keep the package's public type exports explicit in
+`src/index.ts`; internal types are not automatically part of the public API.
+Organize migration logic under `src/features/`: `compatibility/` handles version
+conversion, `sources/` reads and cleans configuration sources, `migration/`
+collects sources and persists results, and `settings/` validates settings and
+collects changes. `features/options.ts` resolves migration options. CLI parsing,
+execution, and terminal rendering belong in `src/cli/`; its entry is
+`src/cli/index.ts`, built as `dist/cli.mjs`. Keep reusable filesystem, color,
+merge, and YAML document helpers in `src/utils/`. Tests live in `tests/`;
+shared setup and workspace helpers are in `tests/setup.ts` and `tests/helpers.ts`,
+while static sample data belongs in `tests/fixtures/`. Build configuration is at
+the repository root and generated output goes to `dist/`.
 
 ## Build, Test, and Development Commands
 

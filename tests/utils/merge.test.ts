@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PnpmWorkspace } from '../../src/types'
-import { mergeByStrategy } from '../../src/utils'
+import { mergeByStrategy } from '../../src/utils/merge'
 
 describe('mergeByStrategy', () => {
   describe('discard strategy', () => {

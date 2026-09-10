@@ -1,25 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
-import { isMap, isNode, isScalar, isSeq } from 'yaml'
-import type { Document, Node } from 'yaml'
-import type { PnpmWorkspace } from '../types'
-
-/**
- * Inputs used to apply semantic workspace changes to a YAML document.
- */
-export interface UpdateYamlDocumentOptions {
-  /**
-   * Final settings to apply to changed root nodes.
-   */
-  after: PnpmWorkspace
-  /**
-   * Original settings used to identify changed and removed root nodes.
-   */
-  before: PnpmWorkspace
-  /**
-   * Whether to sort mapping keys recursively after applying changes.
-   */
-  sortKeys: boolean
-}
+import type { Node, Document } from 'yaml'
+import { isMap, isScalar, isNode, isSeq } from 'yaml'
+import type { UpdateYamlDocumentOptions } from '../types'
 
 /**
  * Sort every mapping in a YAML node without replacing its comments or anchors.

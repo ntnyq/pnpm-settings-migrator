@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { describe, expect, it, vi } from 'vitest'
-import { resolveOptions } from '../src/options'
+import { resolveOptions } from '../src/features/options'
 
 describe('resolveOptions', () => {
   it('resolves the default cwd at call time', () => {

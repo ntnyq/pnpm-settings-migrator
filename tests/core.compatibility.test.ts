@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
-import { fsExists, resolveCompatibilityTarget } from '../src/utils'
+import { resolveCompatibilityTarget } from '../src/features/compatibility/target'
+import { fsExists } from '../src/utils/fs'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/compatibility', () => {

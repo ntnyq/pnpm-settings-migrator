@@ -1,6 +1,6 @@
-import { isPlainObject, isUndefined } from '@ntnyq/utils'
+import { isUndefined, isPlainObject } from '@ntnyq/utils'
 import { defu } from 'defu'
-import type { MergeStrategy, PnpmWorkspace } from '../types'
+import type { PnpmWorkspace, MergeStrategy } from '../types'
 
 /**
  * Merge objects with priority to the first argument.

@@ -3,7 +3,7 @@ import { dirname, join } from 'pathe'
 import { afterEach, beforeEach } from 'vitest'
 import { parse } from 'yaml'
 import { resolve } from '../scripts/utils'
-import { fsReadFile } from '../src/utils'
+import { fsReadFile } from '../src/utils/fs'
 
 /**
  * Create isolated file helpers for one test file.

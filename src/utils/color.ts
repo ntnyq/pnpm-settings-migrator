@@ -1,5 +1,5 @@
-import { getColor } from 'consola/utils'
 import type { ColorFunction } from 'consola/utils'
+import { getColor } from 'consola/utils'
 
 /**
  * Apply dim terminal styling to a value.

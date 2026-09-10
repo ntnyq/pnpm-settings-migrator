@@ -6,8 +6,8 @@ import { createTestWorkspace } from './helpers'
  */
 const writeFailure = vi.hoisted(() => ({ packageJson: false }))
 
-vi.mock(import('../src/utils'), async importOriginal => {
-  const actual = await importOriginal<typeof import('../src/utils')>()
+vi.mock(import('../src/utils/fs'), async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/utils/fs')>()
 
   return {
     ...actual,

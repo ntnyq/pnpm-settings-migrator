@@ -1,22 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import type { PathLike } from 'node:fs'
 import {
-  access,
-  chmod,
-  readFile,
-  rename,
-  rm,
   stat,
+  access,
+  readFile,
+  rm,
   writeFile,
+  chmod,
+  rename,
 } from 'node:fs/promises'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { basename, dirname, join } from 'pathe'
-
-/**
- * Modulus that isolates Unix permission bits from a stat mode.
- */
-const FILE_PERMISSION_MODULUS = 0o1000
+import { join, dirname, basename } from 'pathe'
+import { FILE_PERMISSION_MODULUS } from '../constants'
 
 /**
  * Resolve a filesystem path to a string suitable for a sibling temp file.

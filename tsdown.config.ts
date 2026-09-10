@@ -10,7 +10,7 @@ export default defineConfig([
   {
     clean: true,
     dts: false,
-    entry: ['src/cli.ts'],
+    entry: { cli: 'src/cli/index.ts' },
     platform: 'node',
   },
 ])

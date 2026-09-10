@@ -1,22 +1,22 @@
 import { resolve } from 'pathe'
 import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
-import { persistMigration } from './migration-persistence'
-import { resolveMigrationSources } from './migration-sources'
-import { resolveOptions } from './options'
-import type { MigrationResult, Options, PnpmWorkspace } from './types'
 import {
-  assertCompatibleWorkspaceSettings,
-  collectSettingsChanges,
-  formatRootSpacing,
-  fsExists,
-  mergeByStrategy,
-  migrateRuntimeToPackageJson,
-  normalizeIncomingSettings,
+  resolveOptions,
+  readPackageJson,
+  readPnpmWorkspace,
   resolveCompatibilityTarget,
+  assertCompatibleWorkspaceSettings,
+  resolveMigrationSources,
+  normalizeIncomingSettings,
   resolveRuntimeVersionByStrategy,
-  updateYamlDocument,
-} from './utils'
-import { readPackageJson, readPnpmWorkspace } from './utils/config'
+  migrateRuntimeToPackageJson,
+  persistMigration,
+  collectSettingsChanges,
+} from './features'
+import type { Options, MigrationResult, PnpmWorkspace } from './types'
+import { fsExists } from './utils/fs'
+import { mergeByStrategy } from './utils/merge'
+import { updateYamlDocument, formatRootSpacing } from './utils/yaml-document'
 
 /**
  * Check whether source selection or workspace normalization requires a write.

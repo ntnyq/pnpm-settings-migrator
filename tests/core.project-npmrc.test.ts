@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils'
+import { fsExists } from '../src/utils/fs'
 import { createTestWorkspace } from './helpers'
 
 describe('migratePnpmSettings/project npmrc discovery', () => {
