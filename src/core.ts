@@ -4,7 +4,7 @@ import {
   resolveOptions,
   readPackageJson,
   readPnpmWorkspace,
-  resolveCompatibilityTarget,
+  resolvePnpmTarget,
   assertCompatibleWorkspaceSettings,
   resolveMigrationSources,
   normalizeIncomingSettings,
@@ -85,6 +85,7 @@ function assertCanMigrateRuntime(
  * @param rawOptions.cleanNpmrc - Whether to remove pnpm settings from `.npmrc` (default: true)
  * @param rawOptions.cleanPackageJson - Whether to remove pnpm field from `package.json` (default: true)
  * @param rawOptions.compatibility - Target pnpm major, or automatic detection (default: auto)
+ * @param rawOptions.targetVersion - Exact pnpm version overriding project declarations
  * @param rawOptions.yarnResolutions - Whether to migrate resolutions field (default: true)
  * @param rawOptions.sortKeys - Whether to sort keys in output YAML (default: false)
  * @param rawOptions.newlineBetween - Add newlines between root keys (default: true)
@@ -144,15 +145,17 @@ export async function migratePnpmSettings(
   ])
   const pnpmWorkspaceBefore = structuredClone(pnpmWorkspace.value)
 
-  const compatibility = resolveCompatibilityTarget(
-    options.compatibility,
-    packageJson.value.packageManager,
-    packageJson.value.devEngines?.packageManager,
-  )
+  const target = resolvePnpmTarget({
+    compatibility: options.compatibility,
+    targetVersion: options.targetVersion,
+    packageManager: packageJson.value.packageManager,
+    devPackageManager: packageJson.value.devEngines?.packageManager,
+  })
+  const { compatibility } = target
 
-  assertCompatibleWorkspaceSettings(pnpmWorkspace.value, compatibility)
+  assertCompatibleWorkspaceSettings(pnpmWorkspace.value, target)
   const sources = await resolveMigrationSources({
-    compatibility,
+    target,
     cwd: options.cwd,
     npmrcExists,
     npmrcPath,
@@ -162,6 +165,22 @@ export async function migratePnpmSettings(
     yarnResolutions: options.yarnResolutions,
   })
   const { incomingSettings } = sources
+  const destinationSettings = mergeByStrategy(
+    pnpmWorkspace.value,
+    incomingSettings,
+    options.strategy,
+  )
+  assertCompatibleWorkspaceSettings(destinationSettings, target)
+  if (
+    compatibility !== 'v11' &&
+    target.workspaceSettings.has('packageConfigs') &&
+    destinationSettings.packageConfigs !== undefined &&
+    destinationSettings.sharedWorkspaceLockfile !== false
+  ) {
+    throw new TypeError(
+      `pnpm ${target.version?.raw ?? compatibility.slice(1)} packageConfigs requires sharedWorkspaceLockfile: false in the merged workspace.`,
+    )
+  }
 
   const [existingNormalization, incomingNormalization] = await Promise.all([
     normalizeIncomingSettings(pnpmWorkspace.value, {

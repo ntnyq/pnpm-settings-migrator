@@ -104,39 +104,45 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
     )
   })
 
-  it.each([
-    ['discard', [{ match: ['@example/app'], saveExact: false }], true],
-    ['merge', [{ match: ['@example/app'], saveExact: false }], true],
-    ['overwrite', { '@example/app': { saveExact: true } }, false],
-  ] as const)(
-    'preserves project settings not applied to array packageConfigs under %s',
-    async (strategy, packageConfigs, npmrcExists) => {
-      await writePackageJson({ name: 'test-workspace', private: true })
-      await writeWorkspaceYaml(
-        [
-          'packages:',
-          '  - packages/*',
-          'packageConfigs:',
-          '  - match: ["@example/app"]',
-          '    saveExact: false',
-        ].join('\n'),
-      )
-      await writeWorkspaceFile(
-        'packages/app/package.json',
-        JSON.stringify({ name: '@example/app', version: '1.0.0' }),
-      )
-      await writeWorkspaceFile('packages/app/.npmrc', 'save-exact=true\n')
+  describe.each(['11.26.0', '12.4.0'] as const)(
+    'packageConfigs merging for %s',
+    targetVersion => {
+      it.each([
+        ['discard', [{ match: ['@example/app'], saveExact: false }], true],
+        ['merge', [{ match: ['@example/app'], saveExact: false }], true],
+        ['overwrite', { '@example/app': { saveExact: true } }, false],
+      ] as const)(
+        'preserves project settings not applied to array packageConfigs under %s',
+        async (strategy, packageConfigs, npmrcExists) => {
+          await writePackageJson({ name: 'test-workspace', private: true })
+          await writeWorkspaceYaml(
+            [
+              'sharedWorkspaceLockfile: false',
+              'packages:',
+              '  - packages/*',
+              'packageConfigs:',
+              '  - match: ["@example/app"]',
+              '    saveExact: false',
+            ].join('\n'),
+          )
+          await writeWorkspaceFile(
+            'packages/app/package.json',
+            JSON.stringify({ name: '@example/app', version: '1.0.0' }),
+          )
+          await writeWorkspaceFile('packages/app/.npmrc', 'save-exact=true\n')
 
-      await migratePnpmSettings({
-        compatibility: 'v11',
-        cwd: testDir,
-        strategy,
-      })
+          await migratePnpmSettings({
+            targetVersion,
+            cwd: testDir,
+            strategy,
+          })
 
-      const workspace = await readWorkspaceYaml()
-      expect(workspace.packageConfigs).toStrictEqual(packageConfigs)
-      await expect(fsExists(`${testDir}/packages/app/.npmrc`)).resolves.toBe(
-        npmrcExists,
+          const workspace = await readWorkspaceYaml()
+          expect(workspace.packageConfigs).toStrictEqual(packageConfigs)
+          await expect(
+            fsExists(`${testDir}/packages/app/.npmrc`),
+          ).resolves.toBe(npmrcExists)
+        },
       )
     },
   )

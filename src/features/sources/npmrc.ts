@@ -5,10 +5,12 @@ import {
   NPMRC_AUTH_OR_REGISTRY_KEYS,
   PNPM_V10_NPMRC_SETTINGS_FIELDS,
   NODE_MIRROR_KEY_PATTERN,
+  PROXY_SETTINGS,
 } from '../../constants'
 import type {
   SettingsIssues,
   CompatibilityTarget,
+  ResolvedPnpmTarget,
   ReadMigratableNpmrcOptions,
   MigratableNpmrc,
   NpmRC,
@@ -145,7 +147,7 @@ export async function pruneNpmrc(
  *   refused, incompatible, and unknown keys.
  *
  * @param path - Absolute path to the `.npmrc` file
- * @param compatibility - Concrete pnpm compatibility target
+ * @param target - Resolved pnpm version and field capabilities
  * @param options - Optional destination-specific field restrictions
  *
  * @returns Migratable settings and their original `.npmrc` keys
@@ -154,9 +156,10 @@ export async function pruneNpmrc(
  */
 export async function readMigratableNpmrc(
   path: string,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  target: ResolvedPnpmTarget,
   options: ReadMigratableNpmrcOptions = {},
 ): Promise<MigratableNpmrc> {
+  const { compatibility } = target
   const raw = (await readIniFile(path)) as NpmRC
   const issues = createSettingsIssues()
 
@@ -166,16 +169,21 @@ export async function readMigratableNpmrc(
         normalizeNpmrcKey(kebabCase(field)),
       ),
     )
-    const keys = Object.keys(raw).filter(key =>
-      pnpmSettingsFields.has(normalizeNpmrcKey(key)),
-    )
+    const keys = Object.keys(raw).filter(key => {
+      const canonicalKey = Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
+      if (
+        PROXY_SETTINGS.has(canonicalKey) &&
+        typeof raw[key] === 'string' &&
+        raw[key].includes('${')
+      ) {
+        issues.unsafe.push(key)
+        return false
+      }
+      return pnpmSettingsFields.has(normalizeNpmrcKey(key))
+    })
     const migratable = Object.fromEntries(keys.map(key => [key, raw[key]]))
 
-    return {
-      issues,
-      keys,
-      settings: camelcaseKeys(migratable),
-    }
+    return { issues, keys, settings: camelcaseKeys(migratable) }
   }
 
   const migratable: NpmRC = {}
@@ -191,7 +199,7 @@ export async function readMigratableNpmrc(
         nodeDownloadMirrorKeys.push(key)
         nodeDownloadMirrors[nodeMirrorMatch.groups.channel] = String(value)
       } else {
-        const selected = selectPnpmSettings({ [key]: value }, compatibility, {
+        const selected = selectPnpmSettings({ [key]: value }, target, {
           allowedFields: options.allowedFields,
           npmrc: true,
         })
@@ -204,11 +212,9 @@ export async function readMigratableNpmrc(
 
   const settings = camelcaseKeys(migratable)
   if (Object.keys(nodeDownloadMirrors).length) {
-    const selected = selectPnpmSettings(
-      { nodeDownloadMirrors },
-      compatibility,
-      { allowedFields: options.allowedFields },
-    )
+    const selected = selectPnpmSettings({ nodeDownloadMirrors }, target, {
+      allowedFields: options.allowedFields,
+    })
     if (selected.keys.length) {
       keys.push(...nodeDownloadMirrorKeys)
       settings.nodeDownloadMirrors = nodeDownloadMirrors

@@ -1,3 +1,4 @@
+import type { ResolvedPnpmTarget } from './compatibility'
 import type { ResolvedPackageJsonSettings, ParsedPackageJson } from './config'
 import type { MigratableNpmrc, ProjectNpmrcMigrations } from './npmrc'
 import type { CompatibilityTarget, MergeStrategy } from './options'
@@ -38,7 +39,7 @@ export interface ResolveMigrationSourcesOptions {
   /**
    * Concrete target used to select supported source settings.
    */
-  compatibility: Exclude<CompatibilityTarget, 'auto'>
+  target: ResolvedPnpmTarget
   /**
    * Workspace root used to discover subprojects and format source paths.
    */

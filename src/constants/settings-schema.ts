@@ -45,6 +45,17 @@ export const PNPM_V12_ONLY_SETTINGS = new Set(PNPM_V12_ONLY_WORKSPACE_SETTINGS)
 export const PNPM_V12_SETTINGS = new Set(PNPM_V12_WORKSPACE_SETTINGS_FIELDS)
 
 /**
+ * Proxy aliases whose environment placeholders are ignored in project YAML.
+ */
+export const PROXY_SETTINGS = new Set([
+  'httpProxy',
+  'httpsProxy',
+  'noProxy',
+  'proxy',
+  'noproxy',
+])
+
+/**
  * Allowed workspace fields for the v10 target.
  */
 export const PNPM_V10_SETTINGS = new Set(PNPM_V10_WORKSPACE_SETTINGS_FIELDS)

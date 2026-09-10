@@ -1,9 +1,14 @@
 import type { PnpmSettings } from '@pnpm/types'
+import type { PnpmSettingsV12 } from './pnpm-v12'
 
 /**
  * legacy `pnpm-workspace` types
  */
 export interface PnpmWorkspaceLegacy {
+  /**
+   * Whether workspace projects share a lockfile. pnpm defaults to true.
+   */
+  sharedWorkspaceLockfile?: boolean
   /**
    * Editor schema reference preserved outside pnpm setting validation.
    */
@@ -129,7 +134,8 @@ export interface PnpmSettingsV11 {
    */
   minimumReleaseAgeExcludePrune?: boolean
   /**
-   * Per-project settings accepted by v11 as matcher arrays or package-name maps.
+   * Per-project settings accepted by v11 and v12.4 as arrays or package-name maps.
+   * v12.4 requires sharedWorkspaceLockfile: false.
    */
   packageConfigs?:
     | {
@@ -150,32 +156,9 @@ export interface PnpmSettingsV11 {
 }
 
 /**
- * Policy used by pnpm v12's project-aware global shims.
- */
-export type GlobalShimPolicy = boolean | 'always' | 'auto' | 'prompt'
-
-/**
- * Settings introduced in pnpm v12.
- */
-export interface PnpmSettingsV12 {
-  /**
-   * Peer auto-installation policy accepted only by the v12 target.
-   */
-  autoInstallPeersFromHighestMatch?: boolean
-  /**
-   * External dependency names accepted only by the v12 target.
-   */
-  externalDependencies?: string[]
-  /**
-   * Project-aware global shim policies, or `false` to disable global shims.
-   */
-  globalShims?: false | Record<string, GlobalShimPolicy>
-}
-
-/**
  * `pnpm-workspace.yaml` types.
  */
-export type PnpmWorkspace = PnpmSettings &
+export type PnpmWorkspace = Omit<PnpmSettings, 'tasks'> &
   PnpmSettingsDeprecated &
   PnpmSettingsV11 &
   PnpmSettingsV12 &

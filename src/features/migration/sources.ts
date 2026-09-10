@@ -1,3 +1,4 @@
+import camelcaseKeys from 'camelcase-keys'
 import { relative } from 'pathe'
 import { NPMRC, PACKAGE_JSON } from '../../constants'
 import type {
@@ -25,7 +26,7 @@ export async function resolveMigrationSources(
   options: ResolveMigrationSourcesOptions,
 ): Promise<MigrationSources> {
   const {
-    compatibility,
+    target,
     cwd,
     npmrcExists,
     npmrcPath,
@@ -36,11 +37,11 @@ export async function resolveMigrationSources(
   } = options
   const warnings: string[] = []
   const npmrc = npmrcExists
-    ? await readMigratableNpmrc(npmrcPath, compatibility)
+    ? await readMigratableNpmrc(npmrcPath, target)
     : { issues: createSettingsIssues(), keys: [], settings: {} }
   warnings.push(
     ...formatSettingsIssues({
-      compatibility,
+      target,
       issues: npmrc.issues,
       source: NPMRC,
     }),
@@ -49,11 +50,11 @@ export async function resolveMigrationSources(
   const packageJsonSettings = resolvePackageJsonSettings(
     packageJson,
     yarnResolutions,
-    compatibility,
+    target,
   )
   warnings.push(
     ...formatSettingsIssues({
-      compatibility,
+      target,
       issues: packageJsonSettings.issues,
       source: `${PACKAGE_JSON}#pnpm`,
     }),
@@ -64,18 +65,45 @@ export async function resolveMigrationSources(
     npmrc.settings,
     'merge',
   )
+  const destination = mergeByStrategy(
+    pnpmWorkspace,
+    baseIncomingSettings,
+    strategy,
+  )
+  if (
+    target.compatibility !== 'v11' &&
+    target.workspaceSettings.has('packageConfigs') &&
+    destination.sharedWorkspaceLockfile !== false
+  ) {
+    for (const [source, selected] of [
+      [NPMRC, npmrc],
+      [`${PACKAGE_JSON}#pnpm`, packageJsonSettings],
+    ] as const) {
+      if (Object.hasOwn(selected.settings, 'packageConfigs')) {
+        delete selected.settings.packageConfigs
+        selected.keys = selected.keys.filter(
+          key =>
+            !Object.hasOwn(camelcaseKeys({ [key]: true }), 'packageConfigs'),
+        )
+        warnings.push(
+          `Kept packageConfigs in ${source}: pnpm ${target.version?.raw ?? target.compatibility.slice(1)} requires sharedWorkspaceLockfile: false in the merged workspace.`,
+        )
+      }
+    }
+  }
   const projectNpmrcs = await readProjectNpmrcMigrations(
     cwd,
-    collectWorkspacePackagePatterns(
-      mergeByStrategy(pnpmWorkspace, baseIncomingSettings, strategy),
-    ),
-    compatibility,
+    collectWorkspacePackagePatterns(destination),
+    {
+      target,
+      sharedWorkspaceLockfile: destination.sharedWorkspaceLockfile,
+    },
   )
   warnings.push(...projectNpmrcs.warnings)
   for (const project of projectNpmrcs.projects) {
     warnings.push(
       ...formatSettingsIssues({
-        compatibility,
+        target,
         issues: project.migratable.issues,
         projectConfig: true,
         source: relative(cwd, project.npmrcPath),

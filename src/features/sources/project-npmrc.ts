@@ -8,7 +8,7 @@ import {
 import type {
   PnpmWorkspace,
   ProjectManifestCandidate,
-  CompatibilityTarget,
+  ReadProjectNpmrcOptions,
   ProjectNpmrcMigrations,
   NpmRC,
   ProjectNpmrcMigration,
@@ -131,20 +131,22 @@ async function readProjectManifestCandidates(
 /**
  * Collect supported settings from subproject `.npmrc` files.
  *
- * pnpm v11 accepts five fields in `packageConfigs`. pnpm v12 does not support
- * `packageConfigs`, so its subproject settings are only reported and retained.
+ * pnpm v11 and v12.4 accept five fields in `packageConfigs`. v12.4 requires
+ * separate project lockfiles before these settings can be migrated.
  *
  * @param cwd - Workspace root directory
  * @param patterns - Workspace package patterns used to discover subprojects
- * @param compatibility - Concrete pnpm compatibility target
+ * @param options - Concrete target and effective destination lockfile mode
  *
  * @returns Migratable project settings, source metadata, and warnings
  */
 export async function readProjectNpmrcMigrations(
   cwd: string,
   patterns: string[],
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  options: ReadProjectNpmrcOptions,
 ): Promise<ProjectNpmrcMigrations> {
+  const { target, sharedWorkspaceLockfile } = options
+  const { compatibility } = target
   if (compatibility === 'v10') {
     return { packageConfigs: {}, projects: [], warnings: [] }
   }
@@ -163,7 +165,10 @@ export async function readProjectNpmrcMigrations(
   const packageConfigs: Record<string, NpmRC> = {}
   const projects: ProjectNpmrcMigration[] = []
   const allowedFields =
-    compatibility === 'v11' ? PNPM_V11_PACKAGE_CONFIG_FIELDS : []
+    target.workspaceSettings.has('packageConfigs') &&
+    (compatibility === 'v11' || sharedWorkspaceLockfile === false)
+      ? PNPM_V11_PACKAGE_CONFIG_FIELDS
+      : []
 
   const migrationResults = await Promise.all(
     [...candidatesByName].map(async ([projectName, namedCandidates]) => {
@@ -176,9 +181,18 @@ export async function readProjectNpmrcMigrations(
       }
 
       const [candidate] = namedCandidates
+      if (
+        target.workspaceSettings.has('packageConfigs') &&
+        compatibility !== 'v11' &&
+        sharedWorkspaceLockfile !== false
+      ) {
+        return {
+          warning: `${relative(cwd, candidate.npmrcPath)} was kept because pnpm ${target.version?.raw ?? target.compatibility.slice(1)} packageConfigs requires sharedWorkspaceLockfile: false.`,
+        }
+      }
       const migratable = await readMigratableNpmrc(
         candidate.npmrcPath,
-        compatibility,
+        target,
         { allowedFields },
       )
       return {

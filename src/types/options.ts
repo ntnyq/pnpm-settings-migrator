@@ -28,14 +28,21 @@ export interface Options {
 
   /**
    * pnpm compatibility target.
-   * - `auto`: detect from `packageManager` (fallback to `v10`)
+   * - `auto`: detect from package manager declarations (fallback to `v10`).
    * - `v10`: keep legacy v10 settings
    * - `v11`: normalize to v11-compatible settings
-   * - `v12`: normalize to v12-compatible settings
+   * - `v12`: normalize to v12 settings, using the detected minor capabilities
    *
    * @default 'auto'
    */
   compatibility?: CompatibilityTarget
+
+  /**
+   * Exact target pnpm version, overriding package manager declarations.
+   * Must agree with an explicit compatibility major. Ranges are not accepted.
+   * Prereleases retain the base major schema conservatively.
+   */
+  targetVersion?: string
 
   /**
    * Current working directory
@@ -84,3 +91,9 @@ export interface Options {
    */
   yarnResolutions?: boolean
 }
+
+/**
+ * Migration options with defaults applied and an optional exact target version.
+ */
+export type ResolvedOptions = Required<Omit<Options, 'targetVersion'>> &
+  Pick<Options, 'targetVersion'>

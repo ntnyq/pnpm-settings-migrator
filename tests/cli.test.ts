@@ -2,6 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { createCli } from '../src/cli/options'
 
 describe('cli options', () => {
+  it('parses an exact target version', () => {
+    const parsed = createCli().parse(
+      ['node', 'cli', '--target-version', '12.4.0'],
+      { run: false },
+    )
+    expect(parsed.options.targetVersion).toBe('12.4.0')
+  })
+
+  it('requires a value for --target-version', () => {
+    const cli = createCli()
+    cli.command('').action(() => {})
+    expect(() => cli.parse(['node', 'cli', '--target-version'])).toThrow(
+      'option `--target-version <version>` value is missing',
+    )
+  })
+
   it('requires a value for --cwd', () => {
     const cli = createCli()
     cli.command('').action(() => {})

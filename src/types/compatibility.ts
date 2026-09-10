@@ -1,4 +1,5 @@
 import type { CompatibilityTarget } from './options'
+import type { PackageManagerEngine } from './package-json'
 
 /**
  * Result of normalizing pnpm settings for a compatibility target.
@@ -80,3 +81,91 @@ export type LegacyBuildDependencyList =
   | 'ignoredBuiltDependencies'
   | 'neverBuiltDependencies'
   | 'onlyBuiltDependencies'
+
+/**
+ * Parsed exact pnpm version used only for capability evaluation.
+ */
+export interface PnpmVersion {
+  /**
+   * Original declaration including prerelease or build metadata.
+   */
+  raw: string
+  /**
+   * Major component of the version.
+   */
+  major: number
+  /**
+   * Minor component of the version.
+   */
+  minor: number
+  /**
+   * Patch component of the version.
+   */
+  patch: number
+  /**
+   * Prerelease identifiers, whose capabilities are not assumed.
+   */
+  prerelease?: string
+}
+
+/**
+ * Workspace and task fields introduced by a particular stable release.
+ */
+export interface PnpmSettingsCapability {
+  /**
+   * Earliest supported major, minor, and patch, in that order.
+   */
+  minimumVersion: readonly [number, number, number]
+  /**
+   * Top-level workspace fields enabled by this release.
+   */
+  workspaceFields: readonly string[]
+  /**
+   * Nested task fields enabled by this release.
+   */
+  taskFields: readonly string[]
+}
+
+/**
+ * Resolved major and field capabilities for one migration.
+ */
+export interface ResolvedPnpmTarget {
+  /**
+   * Major schema used for normalization and source cleanup.
+   */
+  compatibility: Exclude<CompatibilityTarget, 'auto'>
+  /**
+   * Confirmed exact version matching the selected major, when available.
+   */
+  version?: PnpmVersion
+  /**
+   * Workspace fields accepted by this target.
+   */
+  workspaceSettings: ReadonlySet<string>
+  /**
+   * Task fields accepted by this target.
+   */
+  taskSettings: ReadonlySet<string>
+}
+
+/**
+ * Explicit target and project declarations used to resolve pnpm capabilities.
+ */
+export interface ResolvePnpmTargetOptions {
+  /**
+   * Requested major schema or automatic detection.
+   */
+  compatibility: CompatibilityTarget
+  /**
+   * Exact version overriding the project declarations.
+   */
+  targetVersion?: string
+  /**
+   * Primary package manager declaration from package.json.
+   */
+  packageManager?: string
+  /**
+   * Fallback package manager declarations from devEngines.
+   */
+  devPackageManager?: PackageManagerEngine | PackageManagerEngine[]
+}

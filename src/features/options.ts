@@ -4,7 +4,13 @@ import {
   VALID_COMPATIBILITIES,
   VALID_STRATEGIES,
 } from '../constants'
-import type { CompatibilityTarget, MergeStrategy, Options } from '../types'
+import type {
+  CompatibilityTarget,
+  MergeStrategy,
+  Options,
+  ResolvedOptions,
+} from '../types'
+import { validateTargetVersion } from './compatibility/version'
 
 /**
  * Validate a compatibility target, falling back to the default when empty.
@@ -55,8 +61,8 @@ function resolveStrategy(strategy?: string): MergeStrategy {
 /**
  * Resolve and normalize migration options with defaults.
  *
- * This function takes partial options and returns a complete options object
- * with all properties set to either the provided value or the default value.
+ * Apply defaults to migration preferences and validate the optional exact
+ * target version against the selected compatibility major.
  *
  * @param options - Partial migration options
  *
@@ -73,10 +79,16 @@ function resolveStrategy(strategy?: string): MergeStrategy {
  * // { cleanNpmrc: false, cleanPackageJson: true, sortKeys: true, ... }
  * ```
  */
-export function resolveOptions(options: Options = {}): Required<Options> {
+export function resolveOptions(options: Options = {}): ResolvedOptions {
+  const compatibility = resolveCompatibility(options.compatibility)
+  const targetVersion = validateTargetVersion(
+    options.targetVersion,
+    compatibility,
+  )?.raw
   return {
     cleanNpmrc: options.cleanNpmrc ?? DEFAULT_OPTIONS.cleanNpmrc,
-    compatibility: resolveCompatibility(options.compatibility),
+    compatibility,
+    targetVersion,
     cwd: options.cwd ?? process.cwd(),
     newlineBetween: options.newlineBetween ?? DEFAULT_OPTIONS.newlineBetween,
     showChanges: options.showChanges ?? DEFAULT_OPTIONS.showChanges,

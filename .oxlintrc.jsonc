@@ -15,6 +15,7 @@
     "no-ternary": "off",
     "no-undefined": "off",
     "no-plusplus": "off",
+    "no-await-in-loop": "off",
     "no-implicit-coercion": "off",
     "require-await": "off",
     "sort-imports": "off",

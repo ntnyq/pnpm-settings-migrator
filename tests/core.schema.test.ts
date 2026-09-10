@@ -74,7 +74,7 @@ describe('migratePnpmSettings/versioned schema', () => {
 
     await expect(
       migratePnpmSettings({ compatibility: 'v12', cwd: testDir }),
-    ).rejects.toThrow('other pnpm major: "packageConfigs"')
+    ).rejects.toThrow('other pnpm version: "packageConfigs"')
     await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
       original,
     )

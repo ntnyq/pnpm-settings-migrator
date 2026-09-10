@@ -17,6 +17,10 @@ export function createCli(): CAC {
       'Compatibility target (auto, v10, v11, v12)',
     )
     .option(
+      '--target-version <version>',
+      'Exact target pnpm version (for example, 12.4.0)',
+    )
+    .option(
       '--replace-deprecated',
       'Replace deprecated pnpm settings with new ones and remove old keys',
     )

@@ -7,7 +7,7 @@ import type {
   PackageJson,
   ParsedPnpmWorkspace,
   PnpmWorkspace,
-  CompatibilityTarget,
+  ResolvedPnpmTarget,
   ResolvedPackageJsonSettings,
   CleanPackageJsonSettingsOptions,
 } from '../../types'
@@ -107,18 +107,18 @@ export async function readPnpmWorkspace(
  *
  * @param packageJson - Parsed package manifest
  * @param yarnResolutions - Whether to convert Yarn resolutions to pnpm overrides
- * @param compatibility - Concrete pnpm compatibility target
+ * @param target - Resolved pnpm version and field capabilities
  *
  * @returns Selected workspace settings and source cleanup metadata
  */
 export function resolvePackageJsonSettings(
   packageJson: PackageJson,
   yarnResolutions: boolean,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  target: ResolvedPnpmTarget,
 ): ResolvedPackageJsonSettings {
   const selected = selectPnpmSettings(
     Object.fromEntries(Object.entries(packageJson.pnpm ?? {})),
-    compatibility,
+    target,
   )
   const migrateYarnResolutions = Boolean(
     yarnResolutions && packageJson.resolutions,

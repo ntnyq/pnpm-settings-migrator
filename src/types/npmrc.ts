@@ -1,3 +1,4 @@
+import type { ResolvedPnpmTarget } from './compatibility'
 import type { SettingsIssues } from './settings'
 
 /**
@@ -28,6 +29,20 @@ export interface ReadMigratableNpmrcOptions {
    * Optional subset accepted by the destination, such as `packageConfigs`.
    */
   allowedFields?: readonly string[]
+}
+
+/**
+ * Effective workspace capabilities used when collecting project settings.
+ */
+export interface ReadProjectNpmrcOptions {
+  /**
+   * Concrete pnpm target selected for this migration.
+   */
+  target: ResolvedPnpmTarget
+  /**
+   * Lockfile mode after merging root sources with existing settings.
+   */
+  sharedWorkspaceLockfile?: boolean
 }
 
 /**

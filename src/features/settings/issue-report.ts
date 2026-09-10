@@ -1,3 +1,5 @@
+import camelcaseKeys from 'camelcase-keys'
+import { PROXY_SETTINGS } from '../../constants'
 import type { FormatSettingsIssuesOptions } from '../../types'
 
 /**
@@ -21,7 +23,8 @@ function formatIssueKeys(keys: string[]): string {
 export function formatSettingsIssues(
   options: FormatSettingsIssuesOptions,
 ): string[] {
-  const { compatibility, issues, projectConfig = false, source } = options
+  const { target, issues, projectConfig = false, source } = options
+  const version = target.version?.raw ?? target.compatibility.slice(1)
   const warnings: string[] = []
   if (issues.refused.length) {
     warnings.push(
@@ -30,7 +33,7 @@ export function formatSettingsIssues(
   }
   if (issues.incompatible.length) {
     warnings.push(
-      `Kept settings in ${source} that are incompatible with pnpm ${compatibility.slice(1)}: ${formatIssueKeys(issues.incompatible)}.`,
+      `Kept settings in ${source} that are incompatible with pnpm ${version}: ${formatIssueKeys(issues.incompatible)}.`,
     )
   }
   if (issues.nonCamelCase.length) {
@@ -40,22 +43,33 @@ export function formatSettingsIssues(
   }
   if (issues.unknown.length) {
     warnings.push(
-      `Kept settings in ${source} that pnpm ${compatibility.slice(1)} does not recognize: ${formatIssueKeys(issues.unknown)}.`,
+      `Kept settings in ${source} that pnpm ${version} does not recognize: ${formatIssueKeys(issues.unknown)}.`,
     )
   }
   if (issues.unsupported.length) {
     const destination =
-      projectConfig && compatibility === 'v12'
-        ? 'pnpm v12 does not support packageConfigs'
+      projectConfig && !target.workspaceSettings.has('packageConfigs')
+        ? 'packageConfigs requires a confirmed pnpm 12.4.0 or later stable version for this target'
         : 'packageConfigs only accepts hoist, modulesDir, overrides, saveExact, and savePrefix'
     warnings.push(
       `Kept subproject settings in ${source}: ${formatIssueKeys(issues.unsupported)}; ${destination}.`,
     )
   }
   if (issues.unsafe.length) {
-    warnings.push(
-      `Kept unsafe registry settings in ${source}: ${formatIssueKeys(issues.unsafe)}. Remove credentials and dynamic URL interpolation before migrating them.`,
+    const proxies = issues.unsafe.filter(key =>
+      PROXY_SETTINGS.has(Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key),
     )
+    const registries = issues.unsafe.filter(key => !proxies.includes(key))
+    if (proxies.length) {
+      warnings.push(
+        `Kept dynamic proxy settings in ${source}: ${formatIssueKeys(proxies)}. Project workspace configuration does not expand environment placeholders; use trusted global configuration or environment variables.`,
+      )
+    }
+    if (registries.length) {
+      warnings.push(
+        `Kept unsafe registry settings in ${source}: ${formatIssueKeys(registries)}. Remove credentials and dynamic URL interpolation before migrating them.`,
+      )
+    }
   }
   return warnings
 }

@@ -15,6 +15,39 @@ describe('cli output', () => {
   } = createTestWorkspace('cli-output')
   const runCli = createTestCli(testDir)
 
+  it('migrates using --target-version through the built CLI', async () => {
+    await writePackageJson({
+      packageManager: 'pnpm@10.34.5',
+      pnpm: { pipelineBase: 'main' },
+    })
+    const result = await runCli('--target-version', '12.4.0')
+    expect(result.code).toBe(0)
+    expect(result.stderr).toBe('')
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      pipelineBase: 'main',
+    })
+    expect(JSON.parse(await readWorkspaceFile('package.json'))).toStrictEqual({
+      packageManager: 'pnpm@10.34.5',
+    })
+  })
+
+  it('reports target-version conflicts without changing sources', async () => {
+    await writeNpmrc('node-linker=isolated\n')
+    const result = await runCli(
+      '--compatibility',
+      'v11',
+      '--target-version',
+      '12.4.0',
+    )
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'targetVersion 12.4.0 conflicts with compatibility v11',
+    )
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+      'node-linker=isolated\n',
+    )
+  })
+
   it('prints one line when no configuration files exist', async () => {
     await expect(runCli()).resolves.toStrictEqual({
       code: 0,

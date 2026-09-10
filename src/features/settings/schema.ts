@@ -1,7 +1,6 @@
 import camelcaseKeys from 'camelcase-keys'
 import {
   REGISTRY_CREDENTIAL_KEYS,
-  PNPM_V10_SETTINGS,
   PNPM_V11_SETTINGS,
   PNPM_V12_SETTINGS,
   PNPM_V12_ONLY_SETTINGS,
@@ -10,10 +9,14 @@ import {
   REGISTRY_SETTINGS,
   PNPM_V11_PACKAGE_CONFIG_FIELDS,
   WORKSPACE_SCHEMA_DIRECTIVE,
+  PNPM_VERSIONED_WORKSPACE_SETTINGS,
+  PNPM_VERSIONED_TASK_SETTINGS,
+  PROXY_SETTINGS,
 } from '../../constants'
 import type {
   SettingsIssues,
   CompatibilityTarget,
+  ResolvedPnpmTarget,
   ResolveSettingIssueOptions,
   SelectPnpmSettingsOptions,
   SelectedPnpmSettings,
@@ -116,41 +119,20 @@ function resolveCamelCaseKey(key: string): string {
 }
 
 /**
- * Select the workspace allowlist for a concrete compatibility target.
- *
- * @param compatibility - Concrete pnpm compatibility target
- *
- * @returns Lookup of settings accepted by the target schema
- *
- * @throws {TypeError} When the target is unsupported
- */
-function resolveTargetSettings(
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
-): ReadonlySet<string> {
-  switch (compatibility) {
-    case 'v10':
-      return PNPM_V10_SETTINGS
-    case 'v11':
-      return PNPM_V11_SETTINGS
-    case 'v12':
-      return PNPM_V12_SETTINGS
-    default:
-      throw new TypeError(`Unsupported compatibility target: ${compatibility}`)
-  }
-}
-
-/**
  * Classify a key absent from the target allowlist as a known cross-version field.
  *
  * @param key - Setting key already found missing from the target schema
  * @param compatibility - Concrete pnpm compatibility target
  *
- * @returns Whether another supported major recognizes the setting
+ * @returns Whether another supported version recognizes the setting
  */
-function isSettingFromAnotherMajor(
+function isSettingFromAnotherVersion(
   key: string,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
 ): boolean {
+  if (PNPM_VERSIONED_WORKSPACE_SETTINGS.has(key)) {
+    return true
+  }
   if (compatibility === 'v11') {
     return PNPM_V12_ONLY_SETTINGS.has(key)
   }
@@ -167,22 +149,21 @@ function isSettingFromAnotherMajor(
  *
  * @param options - Setting spelling, value, target schema, and field restrictions
  * @param options.allowedFields - Optional destination-specific allowlist
- * @param options.compatibility - Concrete pnpm compatibility target
+ * @param options.target - Resolved major and version capabilities
  * @param options.key - Setting key after any `.npmrc` spelling conversion
  * @param options.npmrc - Whether the source permits `.npmrc` spelling
- * @param options.targetSettings - Workspace allowlist for the target
  * @param options.value - Setting value inspected for unsafe registry content
  *
  * @returns Rejection category, or `undefined` when the setting is accepted
  */
 function resolveSettingIssue({
   allowedFields,
-  compatibility,
+  target,
   key,
   npmrc,
-  targetSettings,
   value,
 }: ResolveSettingIssueOptions): keyof SettingsIssues | undefined {
+  const { compatibility, workspaceSettings, taskSettings } = target
   if (!npmrc && key !== resolveCamelCaseKey(key)) {
     return 'nonCamelCase'
   }
@@ -192,8 +173,31 @@ function resolveSettingIssue({
   if (REGISTRY_SETTINGS.has(key) && containsUnsafeRegistryValue(value)) {
     return 'unsafe'
   }
-  if (!targetSettings.has(key)) {
-    return isSettingFromAnotherMajor(key, compatibility)
+  if (
+    PROXY_SETTINGS.has(key) &&
+    typeof value === 'string' &&
+    value.includes('${')
+  ) {
+    return 'unsafe'
+  }
+  if (
+    key === 'tasks' &&
+    value &&
+    typeof value === 'object' &&
+    Object.values(value).some(
+      task =>
+        task &&
+        typeof task === 'object' &&
+        Object.keys(task).some(
+          field =>
+            PNPM_VERSIONED_TASK_SETTINGS.has(field) && !taskSettings.has(field),
+        ),
+    )
+  ) {
+    return 'incompatible'
+  }
+  if (!workspaceSettings.has(key)) {
+    return isSettingFromAnotherVersion(key, compatibility)
       ? 'incompatible'
       : 'unknown'
   }
@@ -211,20 +215,19 @@ function resolveSettingIssue({
  * settings are reported but never returned for migration.
  *
  * @param rawSettings - Settings read from a legacy configuration source
- * @param compatibility - Concrete pnpm compatibility target
+ * @param target - Resolved pnpm version and field capabilities
  * @param options - Source spelling and destination field restrictions
  *
  * @returns Selected settings, original source keys, and rejected field groups
  */
 export function selectPnpmSettings(
   rawSettings: Record<string, unknown>,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  target: ResolvedPnpmTarget,
   options: SelectPnpmSettingsOptions = {},
 ): SelectedPnpmSettings {
   const issues = createSettingsIssues()
   const keys: string[] = []
   const settings: Record<string, unknown> = {}
-  const targetSettings = resolveTargetSettings(compatibility)
   const allowedFields = options.allowedFields
     ? new Set(options.allowedFields)
     : undefined
@@ -233,10 +236,9 @@ export function selectPnpmSettings(
     const key = options.npmrc ? resolveCamelCaseKey(originalKey) : originalKey
     const issue = resolveSettingIssue({
       allowedFields,
-      compatibility,
+      target,
       key,
       npmrc: Boolean(options.npmrc),
-      targetSettings,
       value,
     })
 
@@ -256,7 +258,7 @@ export function selectPnpmSettings(
 }
 
 /**
- * Validate v11 project settings in package-name maps or matcher arrays.
+ * Validate project settings in package-name maps or matcher arrays.
  *
  * @param settings - Workspace settings whose `packageConfigs` entries are checked
  *
@@ -268,6 +270,11 @@ function assertPackageConfigFields(settings: PnpmWorkspace): void {
   const { packageConfigs } = settings
   if (packageConfigs === undefined) {
     return
+  }
+  if (!packageConfigs || typeof packageConfigs !== 'object') {
+    throw new TypeError(
+      'packageConfigs must be a package-name map or matcher array.',
+    )
   }
 
   const allowedFields = new Set(PNPM_V11_PACKAGE_CONFIG_FIELDS)
@@ -323,13 +330,13 @@ function formatIssueList(keys: string[]): string {
 }
 
 /**
- * Assert that an existing workspace manifest matches the selected pnpm major.
+ * Assert that an existing workspace manifest matches the selected pnpm version.
  *
  * The migrator refuses to rewrite a manifest containing ignored settings so a
  * migration cannot silently preserve invalid output.
  *
  * @param settings - Existing workspace settings to validate
- * @param compatibility - Concrete pnpm compatibility target
+ * @param target - Resolved pnpm version and field capabilities
  *
  * @returns Nothing when all settings match the target schema
  *
@@ -337,9 +344,20 @@ function formatIssueList(keys: string[]): string {
  */
 export function assertCompatibleWorkspaceSettings(
   settings: PnpmWorkspace,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+  target: ResolvedPnpmTarget,
 ): void {
+  const { compatibility } = target
   if (compatibility === 'v10') {
+    const { issues } = selectPnpmSettings(
+      Object.fromEntries(Object.entries(settings)),
+      target,
+    )
+    const unsafeProxies = issues.unsafe.filter(key => PROXY_SETTINGS.has(key))
+    if (unsafeProxies.length) {
+      throw new TypeError(
+        `pnpm-workspace.yaml contains dynamic proxy settings: ${formatIssueList(unsafeProxies)}. Move them to trusted global configuration or environment variables.`,
+      )
+    }
     return
   }
 
@@ -348,14 +366,14 @@ export function assertCompatibleWorkspaceSettings(
       ([key]) => key !== WORKSPACE_SCHEMA_DIRECTIVE,
     ),
   )
-  const { issues } = selectPnpmSettings(manifestSettings, compatibility)
+  const { issues } = selectPnpmSettings(manifestSettings, target)
   const problems: string[] = []
 
   if (issues.refused.length) {
     problems.push(`refused: ${formatIssueList(issues.refused)}`)
   }
   if (issues.incompatible.length) {
-    problems.push(`other pnpm major: ${formatIssueList(issues.incompatible)}`)
+    problems.push(`other pnpm version: ${formatIssueList(issues.incompatible)}`)
   }
   if (issues.nonCamelCase.length) {
     problems.push(`not camelCase: ${formatIssueList(issues.nonCamelCase)}`)
@@ -364,16 +382,25 @@ export function assertCompatibleWorkspaceSettings(
     problems.push(`unrecognized: ${formatIssueList(issues.unknown)}`)
   }
   if (issues.unsafe.length) {
-    problems.push(`unsafe registry URL: ${formatIssueList(issues.unsafe)}`)
+    const proxies = issues.unsafe.filter(key => PROXY_SETTINGS.has(key))
+    const registries = issues.unsafe.filter(key => !PROXY_SETTINGS.has(key))
+    if (registries.length) {
+      problems.push(`unsafe registry URL: ${formatIssueList(registries)}`)
+    }
+    if (proxies.length) {
+      problems.push(
+        `dynamic proxy settings: ${formatIssueList(proxies)}; move them to trusted global configuration or environment variables`,
+      )
+    }
   }
 
   if (problems.length) {
     throw new TypeError(
-      `pnpm-workspace.yaml is incompatible with pnpm ${compatibility.slice(1)} (${problems.join('; ')}).`,
+      `pnpm-workspace.yaml is incompatible with pnpm ${target.version?.raw ?? compatibility.slice(1)} (${problems.join('; ')}).`,
     )
   }
 
-  if (compatibility === 'v11') {
+  if (target.workspaceSettings.has('packageConfigs')) {
     assertPackageConfigFields(settings)
   }
 }

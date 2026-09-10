@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -16,7 +16,13 @@ const execFileAsync = promisify(execFile)
 /**
  * pnpm releases checked when no versions are supplied on the command line.
  */
-const DEFAULT_PNPM_VERSIONS = ['11.25.0', '12.2.1']
+const DEFAULT_PNPM_VERSIONS = [
+  '11.25.0',
+  '11.26.0',
+  '12.2.1',
+  '12.3.4',
+  '12.4.0',
+]
 
 /**
  * Maximum buffered output per pnpm invocation, in bytes.
@@ -42,6 +48,7 @@ const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 /**
  * Run a specific pnpm release with deterministic CI and color settings.
+ * The launcher reads this repository; only the selected release reads the fixture.
  *
  * @param {string} version - pnpm release to run through `pnpm dlx`
  * @param {string} cwd - Absolute fixture workspace path
@@ -54,7 +61,15 @@ const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 async function runPnpm(version, cwd, args) {
   return execFileAsync(
     pnpmCommand,
-    ['dlx', `pnpm@${version}`, '--dir', cwd, ...args],
+    [
+      '--dir',
+      import.meta.dirname,
+      'dlx',
+      `pnpm@${version}`,
+      '--dir',
+      cwd,
+      ...args,
+    ],
     {
       cwd,
       env: {
@@ -85,6 +100,10 @@ async function verifyVersion(version) {
   )
 
   try {
+    assert.equal(
+      (await runPnpm(version, fixtureDir, ['--version'])).stdout.trim(),
+      version,
+    )
     const versionSpecificSettings =
       compatibility === 'v11'
         ? { confirmModulesPurge: false }
@@ -203,4 +222,110 @@ async function verifyVersion(version) {
   }
 }
 
-await Promise.all(pnpmVersions.map(version => verifyVersion(version)))
+/**
+ * Verify the pnpm 12.4 schema and project configuration with both entry shapes.
+ *
+ * @param {string} version - Exact pnpm 12.4 release to execute
+ *
+ * @returns A promise resolved after config reading, installation, and cleanup
+ */
+async function verifyMinorCapabilities(version) {
+  const fixtureDir = await mkdtemp(join(tmpdir(), 'pnpm-settings-minor-'))
+  const projectDir = join(fixtureDir, 'packages/app')
+  const projectSettings = {
+    saveExact: true,
+    savePrefix: '~',
+    modulesDir: '.modules',
+  }
+  const settings = {
+    cargo: { enabled: false },
+    python: { enabled: false },
+    pipelineBase: 'main',
+    pipelines: { ci: ['build'] },
+    tasks: {
+      build: {
+        outputs: [],
+        inputs: ['src/**'],
+        env: ['NODE_ENV'],
+        cache: false,
+        cargoTargetDir: 'target',
+      },
+    },
+    trustPolicyExcludePrune: true,
+    sharedWorkspaceLockfile: false,
+    packages: ['packages/*'],
+  }
+  try {
+    await mkdir(projectDir, { recursive: true })
+    await writeFile(
+      join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'app', version: '1.0.0' }),
+    )
+    for (const packageConfigs of [
+      { app: projectSettings },
+      [{ match: ['app'], ...projectSettings }],
+    ]) {
+      await rm(join(fixtureDir, 'pnpm-workspace.yaml'), { force: true })
+      await writeFile(
+        join(fixtureDir, 'package.json'),
+        JSON.stringify({
+          name: 'minor-capabilities',
+          packageManager: `pnpm@${version}`,
+          pnpm: { ...settings, packageConfigs },
+        }),
+      )
+      const result = await migratePnpmSettings({ cwd: fixtureDir })
+      assert.deepEqual(result.warnings, [])
+      const workspace = parse(
+        await readFile(join(fixtureDir, 'pnpm-workspace.yaml'), 'utf8'),
+      )
+      assert.deepEqual(workspace, { ...settings, packageConfigs })
+      const config = JSON.parse(
+        (await runPnpm(version, fixtureDir, ['config', 'list', '--json']))
+          .stdout,
+      )
+      assert.equal(config.trustPolicyExcludePrune, true)
+      assert.equal(config.sharedWorkspaceLockfile, false)
+      assert.deepEqual(config.pipelines, settings.pipelines)
+      assert.equal(config.tasks.build.cargoTargetDir, 'target')
+      await runPnpm(version, projectDir, [
+        'add',
+        'is-number',
+        '--ignore-scripts',
+      ])
+      const projectManifest = JSON.parse(
+        await readFile(join(projectDir, 'package.json'), 'utf8'),
+      )
+      assert.equal(projectManifest.dependencies['is-number'], '7.0.0')
+      const installedPackage = JSON.parse(
+        await readFile(
+          join(projectDir, '.modules/is-number/package.json'),
+          'utf8',
+        ),
+      )
+      assert.equal(installedPackage.version, '7.0.0')
+      await runPnpm(version, fixtureDir, [
+        'install',
+        '--ignore-scripts',
+        '--lockfile-only',
+      ])
+      await runPnpm(version, fixtureDir, [
+        'install',
+        '--ignore-scripts',
+        '--frozen-lockfile',
+      ])
+    }
+    process.stdout.write(`pnpm ${version} minor capabilities verified\n`)
+  } finally {
+    await rm(fixtureDir, { force: true, recursive: true })
+  }
+}
+
+await Promise.all(
+  pnpmVersions.map(async version => {
+    await verifyVersion(version)
+    if (version === '12.4.0') {
+      await verifyMinorCapabilities(version)
+    }
+  }),
+)

@@ -1,4 +1,4 @@
-import type { CompatibilityTarget } from './options'
+import type { ResolvedPnpmTarget } from './compatibility'
 import type { PnpmWorkspace } from './workspace'
 
 /**
@@ -6,7 +6,7 @@ import type { PnpmWorkspace } from './workspace'
  */
 export interface SettingsIssues {
   /**
-   * Settings recognized by a different pnpm major.
+   * Settings recognized by a different pnpm version.
    */
   incompatible: string[]
 
@@ -26,12 +26,12 @@ export interface SettingsIssues {
   unsupported: string[]
 
   /**
-   * Registry settings containing credentials or other unsafe URL values.
+   * Registry credentials, unsafe registry URLs, or dynamic proxy settings.
    */
   unsafe: string[]
 
   /**
-   * Settings not recognized by the selected pnpm major.
+   * Settings not recognized by the selected pnpm version.
    */
   unknown: string[]
 }
@@ -61,7 +61,7 @@ export interface SelectedPnpmSettings {
  */
 export interface SelectPnpmSettingsOptions {
   /**
-   * Optional destination-specific subset, such as v11 `packageConfigs`.
+   * Optional destination-specific subset, such as `packageConfigs`.
    */
   allowedFields?: readonly string[]
 
@@ -82,7 +82,7 @@ export interface ResolveSettingIssueOptions {
   /**
    * Concrete target used to distinguish refused and cross-version settings.
    */
-  compatibility: Exclude<CompatibilityTarget, 'auto'>
+  target: ResolvedPnpmTarget
   /**
    * Setting key after any `.npmrc` spelling conversion.
    */
@@ -91,10 +91,6 @@ export interface ResolveSettingIssueOptions {
    * Whether the source permits `.npmrc` spelling instead of manifest casing.
    */
   npmrc: boolean
-  /**
-   * Workspace allowlist for the selected compatibility target.
-   */
-  targetSettings: ReadonlySet<string>
   /**
    * Setting value inspected for unsafe registry configuration.
    */
@@ -108,7 +104,7 @@ export interface FormatSettingsIssuesOptions {
   /**
    * Concrete target used to explain cross-version settings.
    */
-  compatibility: Exclude<CompatibilityTarget, 'auto'>
+  target: ResolvedPnpmTarget
 
   /**
    * Issues produced by schema selection.
@@ -116,7 +112,7 @@ export interface FormatSettingsIssuesOptions {
   issues: SettingsIssues
 
   /**
-   * Whether the destination is a v11 `packageConfigs` entry.
+   * Whether the destination is a `packageConfigs` entry.
    */
   projectConfig?: boolean
 

@@ -85,19 +85,52 @@ Sort keys when write `pnpm-workspace.yaml`.
 - **Type**: `'auto' | 'v10' | 'v11' | 'v12'`
 - **Default**: `'auto'`
 
-Compatibility target for migrated settings:
+Compatibility major for migrated settings:
 
-- `auto`: infer from `packageManager` or `devEngines.packageManager`
-  (`pnpm@12+` => `v12`, `pnpm@11` => `v11`, otherwise `v10`)
-- `v10`: keep legacy settings as-is and migrate schema-aligned pnpm config keys from `.npmrc`
-- `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.)
-  and migrate recognized project settings from `.npmrc` to `pnpm-workspace.yaml`
-- `v12`: use the shared v11 schema plus the v12 delta, including
-  `globalShims`, while rejecting v11-only workspace settings.
+- `auto`: infer from `targetVersion`, `packageManager`, or
+  `devEngines.packageManager` (`pnpm@12+` => `v12`, `pnpm@11` => `v11`,
+  otherwise `v10`).
+- `v10`: keep legacy settings and migrate schema-aligned pnpm config keys from `.npmrc`.
+- `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.).
+- `v12`: use the v12 schema, including `globalShims`, and enable additional
+  fields according to the confirmed target version.
+
+An explicit major still uses a matching version from the project declarations.
+For example, `--compatibility v12` with `packageManager: "pnpm@12.4.0"` enables
+12.4 capabilities. A pin to another major supplies no minor capabilities for
+the selected major; use `--target-version` to state the intended release.
 
 In `v11` and `v12` modes, the migrator validates existing workspace keys,
-filters incoming settings against the selected schema, and applies required
-normalization to legacy files and `pnpm-workspace.yaml`.
+filters incoming settings against the resolved capabilities, and applies
+required normalization to legacy files and `pnpm-workspace.yaml`.
+
+### `--target-version`
+
+- **Type**: `string` (an exact version such as `'12.4.0'`)
+- **Default**: inferred from the project when possible
+
+Override the target pnpm version without changing the project's package manager
+pin. Resolution order is explicit `targetVersion`, then `packageManager`, then
+`devEngines.packageManager`. An explicit `compatibility` major must agree with
+`targetVersion`; conflicts fail before any files are written.
+
+```ts
+await migratePnpmSettings() // Infer the target from the project
+await migratePnpmSettings({ compatibility: 'v12' }) // Infer a matching minor
+await migratePnpmSettings({ targetVersion: '12.4.0' }) // Target this exact release
+```
+
+Version ranges are not accepted by `targetVersion`. Project ranges, conflicting
+`devEngines` entries, prereleases, and declarations without a confirmed matching
+version retain the base major schema. Build metadata on exact stable versions
+is accepted. Later stable minors automatically inherit known capabilities;
+there are no minor-specific compatibility options.
+
+For pnpm 12.4.0 and later stable v12 releases, the migrator additionally accepts
+`trustPolicyExcludePrune`, `python`, `cargo`, `pipelines`, `pipelineBase`, and
+`packageConfigs`, plus task fields `outputs`, `inputs`, `env`, `cache`, and
+`cargoTargetDir`. On older or unconfirmed targets, a `tasks` object containing
+these fields stays in its source as a whole.
 
 Automated v10 to v11 conversions include:
 
@@ -116,16 +149,26 @@ Automated v10 to v11 conversions include:
 Notes:
 
 - `.npmrc` migration is aligned with the target pnpm workspace schema. Unknown
-  keys and settings supported only by a different pnpm major stay in `.npmrc`
+  keys and settings supported only by a different pnpm version stay in `.npmrc`
   with a warning.
 - In `v11` and `v12`, auth/registry keys and project-refused machine settings
   such as `globalDir`, `stateDir`, `configDir`, and `scope` stay in `.npmrc`.
 - Registry declarations containing embedded credentials or dynamic `${...}`
   URLs stay in their source with a warning.
+- Dynamic `${...}` values in `httpProxy`, `httpsProxy`, `noProxy`, `proxy`, and
+  `noproxy` stay in their source for every target. Project YAML does not expand
+  these placeholders; configure them globally in trusted configuration or use
+  environment variables. Existing dynamic proxy settings in YAML block migration.
+  The migrator never expands and writes these values.
 - In v11 workspaces, supported subproject `.npmrc` fields are moved to
   `packageConfigs` by package name. pnpm v11 accepts `hoist`, `modulesDir`,
-  `overrides`, `saveExact`, and `savePrefix` there. pnpm v12 does not support
-  `packageConfigs`, so subproject settings are retained with a warning.
+  `overrides`, `saveExact`, and `savePrefix` there. pnpm 12.0–12.3 does not
+  support `packageConfigs`. Confirmed stable v12 targets from 12.4.0 accept both package-name maps
+  and matcher arrays, and migrates subproject settings only when the merged
+  workspace has `sharedWorkspaceLockfile: false`. Otherwise source settings
+  remain with a warning; existing `packageConfigs` blocks migration until the
+  effective lockfile mode is compatible. The migrator does not change this
+  mode automatically.
 - Cleanup removes only source keys represented in the final workspace after
   applying the selected merge strategy.
   Unrecognized, refused, incompatible, or otherwise unsupported
@@ -137,10 +180,29 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- pnpm 12 is stable; this project verifies migrated output against pnpm 12.2.1
-  as well as pnpm 11.25.0. Its removed `pnpm install --resolution-only` CLI
+- Compatibility checks cover pnpm 11.26.0, 12.3.4, and 12.4.0, retaining
+  11.25.0 and 12.2.1 regressions. As audited on 2026-09-10, 12.3.4 is npm
+  `latest` and 12.4.0 is on `next-12`; the project stays pinned to 12.3.4. Its removed `pnpm install --resolution-only` CLI
   flag is outside this settings migrator's scope; replace it with
   `pnpm peers check` in scripts before upgrading.
+
+For example, `--target-version 12.4.0` migrates this legacy configuration:
+
+```json
+{ "pnpm": { "pipelines": { "ci": ["build", "test"] }, "pipelineBase": "main" } }
+```
+
+into `pnpm-workspace.yaml` and removes the applied `pnpm` keys:
+
+```yaml
+pipelines:
+  ci: [build, test]
+pipelineBase: main
+```
+
+With `--target-version 12.3.4`, these settings remain in `package.json` with an
+incompatibility warning. See the [version audit](docs/research/pnpm-recent-settings-audit-2026-09-10.md)
+for the upstream release and schema references.
 
 ### `--replace-deprecated`
 
