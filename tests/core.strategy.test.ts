@@ -1,6 +1,4 @@
-import consola from 'consola'
-import { stripAnsi } from 'consola/utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
 import { createTestWorkspace } from './helpers'
 
@@ -74,48 +72,34 @@ describe('migratePnpmSettings/strategy', () => {
       name: 'test-workspace',
       pnpm: { overrides: { bar: '2.0.0' }, packages: ['apps/*'] },
     })
-    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
-    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
+    const result = await migratePnpmSettings({
+      cwd: testDir,
+      strategy: 'discard',
+    })
 
-    await migratePnpmSettings({ cwd: testDir, strategy: 'discard' })
-
-    expect(info).toHaveBeenCalledWith('1 setting changed')
-    const messages = log.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
-    expect(messages).toStrictEqual([
-      '  overrides:',
-      '    foo: 1.0.0',
-      '+   bar: 2.0.0',
+    expect(result.settingsChanges).toStrictEqual([
+      {
+        key: 'overrides',
+        before: { foo: '1.0.0' },
+        after: { foo: '1.0.0', bar: '2.0.0' },
+      },
     ])
-
-    info.mockRestore()
-    log.mockRestore()
   })
 
-  it('can hide the settings diff', async () => {
+  it('returns settings changes even when the CLI diff is hidden', async () => {
     await writeWorkspaceYaml('packages:\n  - packages/*\n')
     await writePackageJson({
       name: 'test-workspace',
       pnpm: { packages: ['apps/*'] },
     })
-    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
-    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
-
-    await migratePnpmSettings({
+    const result = await migratePnpmSettings({
       cwd: testDir,
       showChanges: false,
       strategy: 'overwrite',
     })
-
-    const messages = info.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
-    expect(messages).not.toContain('1 setting changed')
-    expect(log).not.toHaveBeenCalled()
-
-    info.mockRestore()
-    log.mockRestore()
+    expect(result.settingsChanges).toStrictEqual([
+      { key: 'packages', before: ['packages/*'], after: ['apps/*'] },
+    ])
   })
 
   it('uses overwrite strategy to prioritize incoming values', async () => {

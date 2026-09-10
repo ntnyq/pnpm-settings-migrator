@@ -1,10 +1,9 @@
 import process from 'node:process'
-import { consola } from 'consola'
-import { name, version } from '../package.json'
 import { createCli } from './cli-options'
+import { formatMigrationOutput } from './cli-output'
 import { migratePnpmSettings } from './core'
 import type { Options } from './types'
-import { bold, dim, green, magenta, red } from './utils'
+import { red } from './utils'
 
 const cli = createCli()
 
@@ -12,22 +11,17 @@ cli
   .command('')
   .usage('[options]')
   .action(async (options: Options) => {
-    try {
-      consola.log(`\n${bold(magenta(name))} ${dim(`v${version}`)}`)
-      consola.log(dim('\n--------------\n'))
-
-      await migratePnpmSettings(options)
-
-      consola.success(green('pnpm settings migrate has finished'))
-    } catch (err) {
-      consola.fail(red(String(err)))
-
-      if (err instanceof Error && err.stack) {
-        consola.fail(dim(err.stack?.split('\n').slice(1).join('\n')))
-      }
-
-      process.exit(1)
-    }
+    const result = await migratePnpmSettings(options)
+    process.stdout.write(
+      `${formatMigrationOutput(result, options.showChanges)}\n`,
+    )
   })
 
-cli.parse()
+try {
+  cli.parse(process.argv, { run: false })
+  await cli.runMatchedCommand()
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  process.stderr.write(`${red('✖')} ${message.trim()}\n`)
+  process.exitCode = 1
+}

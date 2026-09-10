@@ -1,6 +1,4 @@
-import consola from 'consola'
-import { stripAnsi } from 'consola/utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
 import { createTestWorkspace } from './helpers'
 
@@ -104,9 +102,7 @@ describe('migratePnpmSettings/deprecated settings', () => {
         },
       },
     })
-    const warn = vi.spyOn(consola, 'warn').mockImplementation(() => {})
-
-    await migratePnpmSettings({
+    const result = await migratePnpmSettings({
       compatibility: 'v11',
       cwd: testDir,
       replaceDeprecated: true,
@@ -118,14 +114,10 @@ describe('migratePnpmSettings/deprecated settings', () => {
         [registryUrl]: { prefix: 'mirror', scopes: ['@internal'] },
       },
     })
-    const messages = warn.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
+    const messages = result.warnings
     expect(messages).toContain(
       `namedRegistries was kept because ${registryUrl} already declares prefix mirror.`,
     )
-
-    warn.mockRestore()
   })
 
   it('merges default and scoped registry declarations by URL', async () => {

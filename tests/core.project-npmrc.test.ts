@@ -1,6 +1,4 @@
-import consola from 'consola'
-import { stripAnsi } from 'consola/utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
 import { fsExists } from '../src/utils'
 import { createTestWorkspace } from './helpers'
@@ -57,9 +55,10 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
       JSON.stringify({ version: '1.0.0' }),
     )
     await writeWorkspaceFile('packages/unnamed/.npmrc', 'save-exact=true\n')
-    const warn = vi.spyOn(consola, 'warn').mockImplementation(() => {})
-
-    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const result = await migratePnpmSettings({
+      compatibility: 'v11',
+      cwd: testDir,
+    })
 
     await expect(readWorkspaceYaml()).resolves.not.toHaveProperty(
       'packageConfigs',
@@ -67,14 +66,10 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
     await expect(readWorkspaceFile('packages/unnamed/.npmrc')).resolves.toBe(
       'save-exact=true\n',
     )
-    const messages = warn.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
+    const messages = result.warnings
     expect(messages).toContain(
       'packages/unnamed/.npmrc was kept because its package.json has no name for packageConfigs matching.',
     )
-
-    warn.mockRestore()
   })
 
   it('keeps project npmrc files when package names are duplicated', async () => {
@@ -89,9 +84,10 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
         writeWorkspaceFile(`packages/${project}/.npmrc`, 'save-exact=true\n'),
       ]),
     )
-    const warn = vi.spyOn(consola, 'warn').mockImplementation(() => {})
-
-    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
+    const result = await migratePnpmSettings({
+      compatibility: 'v11',
+      cwd: testDir,
+    })
 
     await expect(readWorkspaceYaml()).resolves.not.toHaveProperty(
       'packageConfigs',
@@ -102,14 +98,10 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
     await expect(readWorkspaceFile('packages/second/.npmrc')).resolves.toBe(
       'save-exact=true\n',
     )
-    const messages = warn.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
+    const messages = result.warnings
     expect(messages).toContain(
       'Subproject .npmrc files for duplicate package name "@example/duplicate" were kept: packages/first/package.json, packages/second/package.json.',
     )
-
-    warn.mockRestore()
   })
 
   it.each([

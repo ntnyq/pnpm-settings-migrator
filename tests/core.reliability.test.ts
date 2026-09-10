@@ -8,15 +8,23 @@ vi.mock(import('../src/utils'), async importOriginal => {
 
   return {
     ...actual,
-    fsWriteFile: vi.fn<typeof actual.fsWriteFile>(async (path, content) => {
-      if (writeFailure.packageJson && String(path).endsWith('/package.json')) {
-        throw Object.assign(new Error('simulated package.json write failure'), {
-          code: 'EACCES',
-        })
-      }
+    fsWriteFileIfChanged: vi.fn<typeof actual.fsWriteFileIfChanged>(
+      async (path, content) => {
+        if (
+          writeFailure.packageJson &&
+          String(path).endsWith('/package.json')
+        ) {
+          throw Object.assign(
+            new Error('simulated package.json write failure'),
+            {
+              code: 'EACCES',
+            },
+          )
+        }
 
-      await actual.fsWriteFile(path, content)
-    }),
+        return await actual.fsWriteFileIfChanged(path, content)
+      },
+    ),
   }
 })
 

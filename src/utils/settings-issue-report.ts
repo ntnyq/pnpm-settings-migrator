@@ -1,11 +1,10 @@
-import consola from 'consola'
 import type { CompatibilityTarget } from '../types'
 import type { SettingsIssues } from './settings-schema'
 
 /**
  * Context used to report settings retained in their source.
  */
-export interface ReportSettingsIssuesOptions {
+export interface FormatSettingsIssuesOptions {
   /**
    * Concrete target used to explain cross-version settings.
    */
@@ -32,33 +31,34 @@ function formatIssueKeys(keys: string[]): string {
 }
 
 /**
- * Report settings that were intentionally left in their source.
+ * Format warnings for settings that were intentionally left in their source.
  *
  * @param options - Retained settings and destination context
  *
- * @returns Nothing; warnings are written through consola
+ * @returns Warning messages in issue-category order
  */
-export function reportSettingsIssues(
-  options: ReportSettingsIssuesOptions,
-): void {
+export function formatSettingsIssues(
+  options: FormatSettingsIssuesOptions,
+): string[] {
   const { compatibility, issues, projectConfig = false, source } = options
+  const warnings: string[] = []
   if (issues.refused.length) {
-    consola.warn(
+    warnings.push(
       `Kept project-refused settings in ${source}: ${formatIssueKeys(issues.refused)}. Configure machine settings globally and current-run paths on the command line.`,
     )
   }
   if (issues.incompatible.length) {
-    consola.warn(
+    warnings.push(
       `Kept settings in ${source} that are incompatible with pnpm ${compatibility.slice(1)}: ${formatIssueKeys(issues.incompatible)}.`,
     )
   }
   if (issues.nonCamelCase.length) {
-    consola.warn(
+    warnings.push(
       `Kept non-camelCase settings in ${source}: ${formatIssueKeys(issues.nonCamelCase)}. Workspace manifest keys must use camelCase.`,
     )
   }
   if (issues.unknown.length) {
-    consola.warn(
+    warnings.push(
       `Kept settings in ${source} that pnpm ${compatibility.slice(1)} does not recognize: ${formatIssueKeys(issues.unknown)}.`,
     )
   }
@@ -67,13 +67,14 @@ export function reportSettingsIssues(
       projectConfig && compatibility === 'v12'
         ? 'pnpm v12 does not support packageConfigs'
         : 'packageConfigs only accepts hoist, modulesDir, overrides, saveExact, and savePrefix'
-    consola.warn(
+    warnings.push(
       `Kept subproject settings in ${source}: ${formatIssueKeys(issues.unsupported)}; ${destination}.`,
     )
   }
   if (issues.unsafe.length) {
-    consola.warn(
+    warnings.push(
       `Kept unsafe registry settings in ${source}: ${formatIssueKeys(issues.unsafe)}. Remove credentials and dynamic URL interpolation before migrating them.`,
     )
   }
+  return warnings
 }

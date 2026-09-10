@@ -1,9 +1,14 @@
 import camelcaseKeys from 'camelcase-keys'
-import type { CompatibilityTarget, PnpmWorkspace } from './types'
-import { fsWriteFile, pruneNpmrc } from './utils'
 import type {
-  ParsedPackageJson,
-  ResolvedPackageJsonSettings,
+  CompatibilityTarget,
+  MigrationResult,
+  PnpmWorkspace,
+} from './types'
+import { fsWriteFileIfChanged, pruneNpmrc } from './utils'
+import {
+  cleanPackageJsonSettings,
+  type ParsedPackageJson,
+  type ResolvedPackageJsonSettings,
 } from './utils/config'
 import type { MigratableNpmrc } from './utils/npmrc'
 import type { ProjectNpmrcMigrations } from './utils/project-npmrc'
@@ -52,38 +57,6 @@ export interface PersistMigrationOptions {
   pnpmWorkspacePath: string
   projectNpmrcs: ProjectNpmrcMigrations
   runtimeVersion?: string
-}
-
-interface CleanPackageJsonSettingsOptions {
-  migratedKeys: string[]
-  packageJson: ParsedPackageJson
-  settings: ResolvedPackageJsonSettings
-  yarnResolutionsApplied: boolean
-}
-
-function cleanPackageJsonSettings({
-  migratedKeys,
-  packageJson,
-  settings,
-  yarnResolutionsApplied,
-}: CleanPackageJsonSettingsOptions): boolean {
-  let changed = false
-  if (packageJson.value.pnpm) {
-    for (const key of migratedKeys) {
-      Reflect.deleteProperty(packageJson.value.pnpm, key)
-      changed = true
-    }
-    if (!Object.keys(packageJson.value.pnpm).length) {
-      delete packageJson.value.pnpm
-    }
-  }
-
-  if (settings.yarnResolutions && yarnResolutionsApplied) {
-    changed = true
-    delete packageJson.value.resolutions
-  }
-
-  return changed
 }
 
 function containsMigratedValue(actual: unknown, expected: unknown): boolean {
@@ -249,16 +222,21 @@ function selectAppliedProjectKeys(
   })
 }
 
+type PersistenceResult = Pick<
+  MigrationResult,
+  'changedFiles' | 'sourceSettingsCleaned' | 'packageJsonRuntimeChanged'
+>
+
 /**
  * Persist destinations before pruning any legacy source file.
  *
  * @param options - Destination files, selected sources, and cleanup policy
  *
- * @returns A promise that resolves after destinations and sources are persisted
+ * @returns Changed file paths and applied cleanup/runtime changes
  */
 export async function persistMigration(
   options: PersistMigrationOptions,
-): Promise<void> {
+): Promise<PersistenceResult> {
   const {
     cleanNpmrc,
     cleanPackageJson,
@@ -308,31 +286,51 @@ export async function persistMigration(
         })
       : false
 
+  const result: PersistenceResult = {
+    changedFiles: [],
+    sourceSettingsCleaned: packageJsonSettingsChanged,
+    packageJsonRuntimeChanged,
+  }
+
   // A failed destination write can leave duplicates, but source values remain.
-  await fsWriteFile(pnpmWorkspacePath, pnpmWorkspaceContent)
+  if (await fsWriteFileIfChanged(pnpmWorkspacePath, pnpmWorkspaceContent)) {
+    result.changedFiles.push(pnpmWorkspacePath)
+  }
 
   if (
     packageJsonExists &&
     (packageJsonRuntimeChanged || packageJsonSettingsChanged)
   ) {
-    await fsWriteFile(
+    await fsWriteFileIfChanged(
       packageJsonPath,
       JSON.stringify(packageJson.value, null, packageJson.indent),
     )
+    result.changedFiles.push(packageJsonPath)
   }
 
   if (!cleanNpmrc) {
-    return
+    return result
   }
 
   const pruneTasks = projectNpmrcs.projects.flatMap(project => {
     const appliedKeys = selectAppliedProjectKeys(project, finalSettings)
     return appliedKeys.length
-      ? [pruneNpmrc(project.npmrcPath, compatibility, appliedKeys)]
+      ? [
+          pruneNpmrc(project.npmrcPath, compatibility, appliedKeys).then(
+            () => project.npmrcPath,
+          ),
+        ]
       : []
   })
   if (npmrcExists && appliedNpmrcKeys.length) {
-    pruneTasks.push(pruneNpmrc(npmrcPath, compatibility, appliedNpmrcKeys))
+    pruneTasks.push(
+      pruneNpmrc(npmrcPath, compatibility, appliedNpmrcKeys).then(
+        () => npmrcPath,
+      ),
+    )
   }
-  await Promise.all(pruneTasks)
+  const cleanedNpmrcPaths = await Promise.all(pruneTasks)
+  result.changedFiles.push(...cleanedNpmrcPaths)
+  result.sourceSettingsCleaned ||= cleanedNpmrcPaths.length > 0
+  return result
 }

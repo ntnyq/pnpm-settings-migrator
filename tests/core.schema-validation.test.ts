@@ -94,7 +94,12 @@ describe('migratePnpmSettings/schema validation', () => {
 
     await expect(
       migratePnpmSettings({ compatibility: 'v11', cwd: testDir }),
-    ).resolves.toBeUndefined()
+    ).resolves.toMatchObject({
+      hasConfigurationFiles: true,
+      changedFiles: [],
+      settingsChanges: [],
+      warnings: [],
+    })
     await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
       original,
     )

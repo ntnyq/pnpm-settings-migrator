@@ -1,5 +1,4 @@
 import { isDeepStrictEqual } from 'node:util'
-import consola from 'consola'
 import { stringify } from 'yaml'
 import type { PnpmWorkspace } from '../types'
 import { dim, green, red } from './color'
@@ -258,30 +257,26 @@ export function createSettingsDiffLines(
 }
 
 /**
- * Print a summary and GitHub-style YAML diff for every changed setting.
+ * Format a colored YAML diff, with one blank line between changed settings.
  *
- * @param changes - Root setting changes to report
+ * @param changes - Root setting changes to format
  *
- * @returns Nothing; output is written through consola
+ * @returns Diff text without leading or trailing blank lines
  */
-export function reportSettingsChanges(changes: SettingsChange[]): void {
-  consola.info(
-    `${changes.length} ${changes.length === 1 ? 'setting' : 'settings'} changed`,
-  )
-
-  for (const [index, change] of changes.entries()) {
-    if (index > 0) {
-      consola.log('')
-    }
-
-    for (const line of createSettingsDiffLines(change)) {
-      if (line.kind === 'added') {
-        consola.log(green(`+ ${line.value}`))
-      } else if (line.kind === 'removed') {
-        consola.log(red(`- ${line.value}`))
-      } else {
-        consola.log(dim(`  ${line.value}`))
-      }
-    }
-  }
+export function formatSettingsChanges(changes: SettingsChange[]): string {
+  return changes
+    .map(change =>
+      createSettingsDiffLines(change)
+        .map(line => {
+          if (line.kind === 'added') {
+            return green(`+ ${line.value}`)
+          }
+          if (line.kind === 'removed') {
+            return red(`- ${line.value}`)
+          }
+          return dim(`  ${line.value}`)
+        })
+        .join('\n'),
+    )
+    .join('\n\n')
 }

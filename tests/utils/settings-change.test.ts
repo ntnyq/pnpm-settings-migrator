@@ -1,10 +1,9 @@
-import consola from 'consola'
 import { stripAnsi } from 'consola/utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   collectSettingsChanges,
   createSettingsDiffLines,
-  reportSettingsChanges,
+  formatSettingsChanges,
 } from '../../src/utils/settings-change'
 
 describe('settings changes', () => {
@@ -111,38 +110,26 @@ describe('settings changes', () => {
     ])
   })
 
-  it('reports the change count and a colored multi-line diff', () => {
-    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
-    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
-
-    reportSettingsChanges([
-      { after: ['apps/*'], before: ['packages/*'], key: 'packages' },
-    ])
-
-    expect(info).toHaveBeenCalledWith('1 setting changed')
-    const messages = log.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
+  it('formats colored settings blocks with consistent spacing', () => {
+    expect(
+      stripAnsi(
+        formatSettingsChanges([
+          { after: ['apps/*'], before: ['packages/*'], key: 'packages' },
+          { after: true, before: undefined, key: 'saveExact' },
+        ]),
+      ),
+    ).toBe(
+      [
+        '  packages:',
+        '-   - packages/*',
+        '+   - apps/*',
+        '',
+        '+ saveExact: true',
+      ].join('\n'),
     )
-    expect(messages).toStrictEqual([
-      '  packages:',
-      '-   - packages/*',
-      '+   - apps/*',
-    ])
-
-    info.mockRestore()
-    log.mockRestore()
   })
 
-  it('reports zero changes without detail lines', () => {
-    const info = vi.spyOn(consola, 'info').mockImplementation(() => {})
-    const log = vi.spyOn(consola, 'log').mockImplementation(() => {})
-
-    reportSettingsChanges([])
-
-    expect(info).toHaveBeenCalledWith('0 settings changed')
-    expect(log).not.toHaveBeenCalled()
-
-    info.mockRestore()
-    log.mockRestore()
+  it('formats no diff for zero changes', () => {
+    expect(formatSettingsChanges([])).toBe('')
   })
 })

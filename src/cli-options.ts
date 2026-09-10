@@ -32,7 +32,10 @@ export function createCli(): CAC {
       '--no-newline-between',
       'Disable adding newlines between each root keys',
     )
-    .option('--no-show-changes', 'Disable showing settings changes')
+    .option(
+      '--no-show-changes',
+      'Hide settings diff (keep summary and warnings)',
+    )
     .option('--no-clean-npmrc', 'Disable removing pnpm settings in .npmrc file')
     .option(
       '--no-clean-package-json',

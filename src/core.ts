@@ -1,46 +1,22 @@
-import consola from 'consola'
 import { resolve } from 'pathe'
 import { NPMRC, PACKAGE_JSON, PNPM_WORKSPACE_YAML } from './constants'
 import { persistMigration } from './migration-persistence'
 import { resolveMigrationSources } from './migration-sources'
 import { resolveOptions } from './options'
-import type { Options, PnpmWorkspace } from './types'
+import type { MigrationResult, Options, PnpmWorkspace } from './types'
 import {
   assertCompatibleWorkspaceSettings,
   collectSettingsChanges,
-  dim,
   formatRootSpacing,
   fsExists,
   mergeByStrategy,
   migrateRuntimeToPackageJson,
   normalizeIncomingSettings,
-  reportSettingsChanges,
   resolveCompatibilityTarget,
   resolveRuntimeVersionByStrategy,
   updateYamlDocument,
 } from './utils'
 import { readPackageJson, readPnpmWorkspace } from './utils/config'
-
-function hasSettingsSources(
-  npmrcExists: boolean,
-  packageJsonExists: boolean,
-  pnpmWorkspaceExists: boolean,
-): boolean {
-  if (!npmrcExists) {
-    consola.info(`${dim(NPMRC)} not found`)
-  }
-
-  if (!packageJsonExists) {
-    consola.info(`${dim(PACKAGE_JSON)} not found`)
-  }
-
-  if (npmrcExists || packageJsonExists || pnpmWorkspaceExists) {
-    return true
-  }
-
-  consola.warn('No pnpm settings files to migrate')
-  return false
-}
 
 function hasMigratableSettings(sources: {
   existingSettingsChanged: boolean
@@ -77,18 +53,6 @@ function assertCanMigrateRuntime(
   }
 }
 
-function reportMigrationChanges(
-  showChanges: boolean,
-  before: PnpmWorkspace = {},
-  after: PnpmWorkspace = {},
-): void {
-  if (!showChanges) {
-    return
-  }
-
-  reportSettingsChanges(collectSettingsChanges(before, after))
-}
-
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
  *
@@ -108,10 +72,10 @@ function reportMigrationChanges(
  * @param rawOptions.sortKeys - Whether to sort keys in output YAML (default: false)
  * @param rawOptions.newlineBetween - Add newlines between root keys (default: true)
  * @param rawOptions.replaceDeprecated - Whether to replace deprecated settings (default: false)
- * @param rawOptions.showChanges - Show settings changes after migration (default: true)
+ * @param rawOptions.showChanges - CLI display preference; does not affect the result
  * @param rawOptions.strategy - Conflict handling strategy (default: merge)
  *
- * @returns A promise that resolves when migration is complete
+ * @returns Settings changes, changed files, cleanup status, and warnings; no logs are emitted
  *
  * @throws {Error} When file operations fail or JSON/YAML parsing errors occur
  *
@@ -130,153 +94,154 @@ function reportMigrationChanges(
  */
 export async function migratePnpmSettings(
   rawOptions: Options = {},
-): Promise<void> {
-  try {
-    const options = resolveOptions(rawOptions)
+): Promise<MigrationResult> {
+  const options = resolveOptions(rawOptions)
 
-    const npmrcPath = resolve(options.cwd, NPMRC)
-    const packageJsonPath = resolve(options.cwd, PACKAGE_JSON)
-    const pnpmWorkspaceYamlPath = resolve(options.cwd, PNPM_WORKSPACE_YAML)
+  const npmrcPath = resolve(options.cwd, NPMRC)
+  const packageJsonPath = resolve(options.cwd, PACKAGE_JSON)
+  const pnpmWorkspaceYamlPath = resolve(options.cwd, PNPM_WORKSPACE_YAML)
 
-    const [npmrcExists, packageJsonExists, pnpmWorkspaceExists] =
-      await Promise.all([
-        fsExists(npmrcPath),
-        fsExists(packageJsonPath),
-        fsExists(pnpmWorkspaceYamlPath),
-      ])
-
-    if (
-      !hasSettingsSources(npmrcExists, packageJsonExists, pnpmWorkspaceExists)
-    ) {
-      reportMigrationChanges(options.showChanges)
-      return
-    }
-
-    const [packageJson, pnpmWorkspace] = await Promise.all([
-      readPackageJson(packageJsonPath, packageJsonExists),
-      readPnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceExists),
+  const [npmrcExists, packageJsonExists, pnpmWorkspaceExists] =
+    await Promise.all([
+      fsExists(npmrcPath),
+      fsExists(packageJsonPath),
+      fsExists(pnpmWorkspaceYamlPath),
     ])
-    const pnpmWorkspaceBefore = structuredClone(pnpmWorkspace.value)
 
-    const compatibility = resolveCompatibilityTarget(
-      options.compatibility,
-      packageJson.value.packageManager,
-      packageJson.value.devEngines?.packageManager,
-    )
+  const result: MigrationResult = {
+    hasConfigurationFiles:
+      npmrcExists || packageJsonExists || pnpmWorkspaceExists,
+    settingsChanges: [],
+    changedFiles: [],
+    sourceSettingsCleaned: false,
+    packageJsonRuntimeChanged: false,
+    warnings: [],
+  }
+  if (!result.hasConfigurationFiles) {
+    return result
+  }
 
-    assertCompatibleWorkspaceSettings(pnpmWorkspace.value, compatibility)
-    const sources = await resolveMigrationSources({
+  const [packageJson, pnpmWorkspace] = await Promise.all([
+    readPackageJson(packageJsonPath, packageJsonExists),
+    readPnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceExists),
+  ])
+  const pnpmWorkspaceBefore = structuredClone(pnpmWorkspace.value)
+
+  const compatibility = resolveCompatibilityTarget(
+    options.compatibility,
+    packageJson.value.packageManager,
+    packageJson.value.devEngines?.packageManager,
+  )
+
+  assertCompatibleWorkspaceSettings(pnpmWorkspace.value, compatibility)
+  const sources = await resolveMigrationSources({
+    compatibility,
+    cwd: options.cwd,
+    npmrcExists,
+    npmrcPath,
+    packageJson: packageJson.value,
+    pnpmWorkspace: pnpmWorkspace.value,
+    strategy: options.strategy,
+    yarnResolutions: options.yarnResolutions,
+  })
+  const { incomingSettings } = sources
+
+  const [existingNormalization, incomingNormalization] = await Promise.all([
+    normalizeIncomingSettings(pnpmWorkspace.value, {
       compatibility,
       cwd: options.cwd,
-      npmrcExists,
-      npmrcPath,
-      packageJson: packageJson.value,
-      pnpmWorkspace: pnpmWorkspace.value,
-      strategy: options.strategy,
-      yarnResolutions: options.yarnResolutions,
-    })
-    const { incomingSettings } = sources
-
-    const [existingNormalization, incomingNormalization] = await Promise.all([
-      normalizeIncomingSettings(pnpmWorkspace.value, {
-        compatibility,
-        cwd: options.cwd,
-        replaceDeprecated: options.replaceDeprecated,
-      }),
-      normalizeIncomingSettings(incomingSettings, {
-        compatibility,
-        cwd: options.cwd,
-        replaceDeprecated: options.replaceDeprecated,
-      }),
-    ])
-
-    for (const warning of [
-      ...existingNormalization.warnings,
-      ...incomingNormalization.warnings,
-    ]) {
-      consola.warn(warning)
-    }
-
-    const runtimeVersion = resolveRuntimeVersionByStrategy(
-      existingNormalization.runtimeVersion,
-      incomingNormalization.runtimeVersion,
-      options.strategy,
-    )
-
-    assertCanMigrateRuntime(runtimeVersion, packageJsonExists)
-
-    const runtimeMigration = migrateRuntimeToPackageJson(
-      packageJson.value,
-      runtimeVersion,
-    )
-    if (runtimeMigration.warning) {
-      consola.warn(runtimeMigration.warning)
-    }
-
-    if (
-      !hasMigratableSettings({
-        existingSettingsChanged: existingNormalization.changed,
-        npmrcKeys: sources.npmrc.keys,
-        packageJsonKeys: sources.packageJson.keys,
-        projectNpmrcKeys: sources.projectNpmrcs.projects.flatMap(
-          project => project.migratable.keys,
-        ),
-        yarnResolutions: sources.packageJson.yarnResolutions,
-      })
-    ) {
-      consola.warn('No pnpm settings fields to migrate')
-      reportMigrationChanges(options.showChanges)
-      return
-    }
-
-    // Merge based on strategy
-    const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
-      pnpmWorkspace.value,
-      incomingSettings,
-      options.strategy,
-    )
-
-    updateYamlDocument(pnpmWorkspace.document, {
-      after: pnpmWorkspaceResult,
-      before: pnpmWorkspaceBefore,
-      sortKeys: options.sortKeys,
-    })
-    const yamlContent = pnpmWorkspace.document.toString({
-      indent: pnpmWorkspace.indent,
-    })
-
-    const finalYamlContent = formatRootSpacing(
-      yamlContent,
-      options.newlineBetween,
-    )
-
-    await persistMigration({
-      cleanNpmrc: options.cleanNpmrc,
-      cleanPackageJson: options.cleanPackageJson,
+      replaceDeprecated: options.replaceDeprecated,
+    }),
+    normalizeIncomingSettings(incomingSettings, {
       compatibility,
-      finalSettings: pnpmWorkspaceResult,
-      incomingSettings,
-      npmrc: sources.npmrc,
-      npmrcExists,
-      npmrcPath,
-      packageJson,
-      packageJsonExists,
-      packageJsonPath,
-      packageJsonRuntimeChanged: runtimeMigration.changed,
-      packageJsonSettings: sources.packageJson,
-      pnpmWorkspaceContent: finalYamlContent,
-      pnpmWorkspacePath: pnpmWorkspaceYamlPath,
-      projectNpmrcs: sources.projectNpmrcs,
-      runtimeVersion,
-    })
+      cwd: options.cwd,
+      replaceDeprecated: options.replaceDeprecated,
+    }),
+  ])
 
-    reportMigrationChanges(
-      options.showChanges,
+  result.warnings.push(
+    ...sources.warnings,
+    ...existingNormalization.warnings,
+    ...incomingNormalization.warnings,
+  )
+
+  const runtimeVersion = resolveRuntimeVersionByStrategy(
+    existingNormalization.runtimeVersion,
+    incomingNormalization.runtimeVersion,
+    options.strategy,
+  )
+
+  assertCanMigrateRuntime(runtimeVersion, packageJsonExists)
+
+  const runtimeMigration = migrateRuntimeToPackageJson(
+    packageJson.value,
+    runtimeVersion,
+  )
+  if (runtimeMigration.warning) {
+    result.warnings.push(runtimeMigration.warning)
+  }
+
+  if (
+    !hasMigratableSettings({
+      existingSettingsChanged: existingNormalization.changed,
+      npmrcKeys: sources.npmrc.keys,
+      packageJsonKeys: sources.packageJson.keys,
+      projectNpmrcKeys: sources.projectNpmrcs.projects.flatMap(
+        project => project.migratable.keys,
+      ),
+      yarnResolutions: sources.packageJson.yarnResolutions,
+    })
+  ) {
+    return result
+  }
+
+  // Merge based on strategy
+  const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
+    pnpmWorkspace.value,
+    incomingSettings,
+    options.strategy,
+  )
+
+  updateYamlDocument(pnpmWorkspace.document, {
+    after: pnpmWorkspaceResult,
+    before: pnpmWorkspaceBefore,
+    sortKeys: options.sortKeys,
+  })
+  const yamlContent = pnpmWorkspace.document.toString({
+    indent: pnpmWorkspace.indent,
+  })
+
+  const finalYamlContent = formatRootSpacing(
+    yamlContent,
+    options.newlineBetween,
+  )
+
+  const persistence = await persistMigration({
+    cleanNpmrc: options.cleanNpmrc,
+    cleanPackageJson: options.cleanPackageJson,
+    compatibility,
+    finalSettings: pnpmWorkspaceResult,
+    incomingSettings,
+    npmrc: sources.npmrc,
+    npmrcExists,
+    npmrcPath,
+    packageJson,
+    packageJsonExists,
+    packageJsonPath,
+    packageJsonRuntimeChanged: runtimeMigration.changed,
+    packageJsonSettings: sources.packageJson,
+    pnpmWorkspaceContent: finalYamlContent,
+    pnpmWorkspacePath: pnpmWorkspaceYamlPath,
+    projectNpmrcs: sources.projectNpmrcs,
+    runtimeVersion,
+  })
+
+  return {
+    ...result,
+    ...persistence,
+    settingsChanges: collectSettingsChanges(
       pnpmWorkspaceBefore,
       pnpmWorkspaceResult,
-    )
-  } catch (err) {
-    consola.error('Failed to migrate pnpm settings:', err)
-    throw err
+    ),
   }
 }

@@ -1,6 +1,4 @@
-import consola from 'consola'
-import { stripAnsi } from 'consola/utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../src/core'
 import { fsExists } from '../src/utils'
 import { createTestWorkspace } from './helpers'
@@ -252,9 +250,7 @@ describe('migratePnpmSettings/versioned schema', () => {
         },
       },
     })
-    const warn = vi.spyOn(consola, 'warn').mockImplementation(() => {})
-
-    await migratePnpmSettings({
+    const result = await migratePnpmSettings({
       compatibility: 'v11',
       cwd: testDir,
       replaceDeprecated: true,
@@ -272,14 +268,10 @@ describe('migratePnpmSettings/versioned schema', () => {
         'https://registry.invalid/': { token: 'fake-token' },
       },
     })
-    const messages = warn.mock.calls.map(([message]) =>
-      stripAnsi(String(message)),
-    )
+    const messages = result.warnings
     expect(messages).toContain(
       'Kept unsafe registry settings in package.json#pnpm: "namedRegistries", "registries". Remove credentials and dynamic URL interpolation before migrating them.',
     )
-
-    warn.mockRestore()
   })
 
   it('keeps dynamic registry URLs out of the workspace', async () => {

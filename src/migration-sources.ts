@@ -1,4 +1,3 @@
-import consola from 'consola'
 import { relative } from 'pathe'
 import { NPMRC, PACKAGE_JSON } from './constants'
 import type {
@@ -18,13 +17,14 @@ import {
   readProjectNpmrcMigrations,
   type ProjectNpmrcMigrations,
 } from './utils/project-npmrc'
-import { reportSettingsIssues } from './utils/settings-issue-report'
+import { formatSettingsIssues } from './utils/settings-issue-report'
 import { createSettingsIssues } from './utils/settings-schema'
 
 /**
  * Sources and merged incoming settings resolved for one migration.
  */
 export interface MigrationSources {
+  warnings: string[]
   incomingSettings: PnpmWorkspace
   npmrc: MigratableNpmrc
   packageJson: ResolvedPackageJsonSettings
@@ -46,7 +46,7 @@ export interface ResolveMigrationSourcesOptions {
 }
 
 /**
- * Read, schema-filter, report, and merge all legacy settings sources.
+ * Read, schema-filter, and merge legacy settings while collecting warnings.
  *
  * @param options - Migration target and source configuration
  *
@@ -65,25 +65,30 @@ export async function resolveMigrationSources(
     strategy,
     yarnResolutions,
   } = options
+  const warnings: string[] = []
   const npmrc = npmrcExists
     ? await readMigratableNpmrc(npmrcPath, compatibility)
     : { issues: createSettingsIssues(), keys: [], settings: {} }
-  reportSettingsIssues({
-    compatibility,
-    issues: npmrc.issues,
-    source: NPMRC,
-  })
+  warnings.push(
+    ...formatSettingsIssues({
+      compatibility,
+      issues: npmrc.issues,
+      source: NPMRC,
+    }),
+  )
 
   const packageJsonSettings = resolvePackageJsonSettings(
     packageJson,
     yarnResolutions,
     compatibility,
   )
-  reportSettingsIssues({
-    compatibility,
-    issues: packageJsonSettings.issues,
-    source: `${PACKAGE_JSON}#pnpm`,
-  })
+  warnings.push(
+    ...formatSettingsIssues({
+      compatibility,
+      issues: packageJsonSettings.issues,
+      source: `${PACKAGE_JSON}#pnpm`,
+    }),
+  )
 
   const baseIncomingSettings = mergeByStrategy(
     packageJsonSettings.settings,
@@ -97,16 +102,16 @@ export async function resolveMigrationSources(
     ),
     compatibility,
   )
-  for (const warning of projectNpmrcs.warnings) {
-    consola.warn(warning)
-  }
+  warnings.push(...projectNpmrcs.warnings)
   for (const project of projectNpmrcs.projects) {
-    reportSettingsIssues({
-      compatibility,
-      issues: project.migratable.issues,
-      projectConfig: true,
-      source: relative(cwd, project.npmrcPath),
-    })
+    warnings.push(
+      ...formatSettingsIssues({
+        compatibility,
+        issues: project.migratable.issues,
+        projectConfig: true,
+        source: relative(cwd, project.npmrcPath),
+      }),
+    )
   }
 
   const npmrcSettings = mergeByStrategy(
@@ -118,6 +123,7 @@ export async function resolveMigrationSources(
   )
 
   return {
+    warnings,
     incomingSettings: mergeByStrategy(
       packageJsonSettings.settings,
       npmrcSettings,

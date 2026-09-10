@@ -13,8 +13,15 @@ describe('migratePnpmSettings/base', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('base')
 
-  it('warns when no .npmrc or package.json exists', async () => {
-    await expect(migratePnpmSettings({ cwd: testDir })).resolves.toBeUndefined()
+  it('returns an empty result when no configuration files exist', async () => {
+    await expect(migratePnpmSettings({ cwd: testDir })).resolves.toStrictEqual({
+      hasConfigurationFiles: false,
+      settingsChanges: [],
+      changedFiles: [],
+      sourceSettingsCleaned: false,
+      packageJsonRuntimeChanged: false,
+      warnings: [],
+    })
   })
 
   it('migrates pnpm settings from package.json', async () => {
@@ -263,11 +270,18 @@ describe('migratePnpmSettings/base', () => {
     expect(withoutBreaks).not.toContain('\n\npeerDependencyRules:')
   })
 
-  it('warns when no migratable settings exist', async () => {
+  it('returns no changes when no migratable settings exist', async () => {
     await writePackageJson({ name: 'test-workspace', version: '1.0.0' })
     await writeNpmrc('registry=https://registry.npmjs.org/')
 
-    await expect(migratePnpmSettings({ cwd: testDir })).resolves.toBeUndefined()
+    await expect(migratePnpmSettings({ cwd: testDir })).resolves.toStrictEqual({
+      hasConfigurationFiles: true,
+      settingsChanges: [],
+      changedFiles: [],
+      sourceSettingsCleaned: false,
+      packageJsonRuntimeChanged: false,
+      warnings: [],
+    })
 
     const workspaceExists = await fsExists(`${testDir}/pnpm-workspace.yaml`)
     expect(workspaceExists).toBe(false)

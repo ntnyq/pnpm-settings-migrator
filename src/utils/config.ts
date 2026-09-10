@@ -193,3 +193,41 @@ export function resolvePackageJsonSettings(
     yarnResolutions: migrateYarnResolutions,
   }
 }
+
+interface CleanPackageJsonSettingsOptions {
+  migratedKeys: string[]
+  packageJson: ParsedPackageJson
+  settings: ResolvedPackageJsonSettings
+  yarnResolutionsApplied: boolean
+}
+
+/**
+ * Remove only legacy package settings already applied to their destination.
+ *
+ * @param options - Parsed manifest, applied source keys, and resolutions status
+ *
+ * @returns Whether legacy settings were removed from the manifest
+ */
+export function cleanPackageJsonSettings(
+  options: CleanPackageJsonSettingsOptions,
+): boolean {
+  const { migratedKeys, packageJson, settings, yarnResolutionsApplied } =
+    options
+  let changed = false
+  if (packageJson.value.pnpm) {
+    for (const key of migratedKeys) {
+      Reflect.deleteProperty(packageJson.value.pnpm, key)
+      changed = true
+    }
+    if (!Object.keys(packageJson.value.pnpm).length) {
+      delete packageJson.value.pnpm
+    }
+  }
+
+  if (settings.yarnResolutions && yarnResolutionsApplied) {
+    changed = true
+    delete packageJson.value.resolutions
+  }
+
+  return changed
+}

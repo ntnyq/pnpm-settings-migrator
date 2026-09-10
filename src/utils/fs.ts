@@ -121,3 +121,25 @@ export async function fsWriteFile(
     await rm(temporaryPath, { force: true })
   }
 }
+
+/**
+ * Write a normalized text file only when its contents differ or it is missing.
+ *
+ * @param path - Destination file path
+ * @param content - Text content to normalize and write
+ *
+ * @returns Whether the destination file was created or changed
+ */
+export async function fsWriteFileIfChanged(
+  path: string,
+  content: string,
+): Promise<boolean> {
+  if (
+    (await fsExists(path)) &&
+    (await fsReadFile(path)) === `${content.trimEnd()}\n`
+  ) {
+    return false
+  }
+  await fsWriteFile(path, content)
+  return true
+}

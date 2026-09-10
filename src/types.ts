@@ -1,3 +1,7 @@
+import type { SettingsChange } from './utils/settings-change'
+
+export type { SettingsChange } from './utils/settings-change'
+
 import type { PnpmSettings } from '@pnpm/types'
 
 /**
@@ -60,7 +64,8 @@ export interface Options {
   replaceDeprecated?: boolean
 
   /**
-   * Whether to show a settings diff after migration
+   * Whether the CLI shows a settings diff after migration.
+   * Library calls always return changes without printing output.
    *
    * @default true
    */
@@ -279,3 +284,38 @@ export type PnpmWorkspace = PnpmSettings &
   PnpmSettingsV11 &
   PnpmSettingsV12 &
   PnpmWorkspaceLegacy
+
+/**
+ * Completed migration outcome, independent of CLI display preferences.
+ */
+export interface MigrationResult {
+  /**
+   * Whether any root configuration file was found.
+   */
+  hasConfigurationFiles: boolean
+
+  /**
+   * Changed root settings in pnpm-workspace.yaml.
+   */
+  settingsChanges: SettingsChange[]
+
+  /**
+   * Absolute paths of files whose contents changed or that were created or removed.
+   */
+  changedFiles: string[]
+
+  /**
+   * Whether applied legacy settings were removed from any source file.
+   */
+  sourceSettingsCleaned: boolean
+
+  /**
+   * Whether the Node.js runtime destination in package.json changed.
+   */
+  packageJsonRuntimeChanged: boolean
+
+  /**
+   * Issues requiring attention, in discovery order.
+   */
+  warnings: string[]
+}

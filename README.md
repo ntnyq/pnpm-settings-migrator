@@ -19,7 +19,8 @@ After migration, the CLI reports how many root settings changed and shows a
 GitHub-style YAML diff. Removed lines are red and added lines are green:
 
 ```text
-ℹ 2 settings changed
+✔ 2 settings changed
+
   packages:
     - packages/*
 +   - apps/*
@@ -28,6 +29,40 @@ GitHub-style YAML diff. Removed lines are red and added lines are green:
     foo: 1.0.0
 +   bar: 2.0.0
 ```
+
+When nothing needs updating, the only output is:
+
+```text
+ℹ No changes needed.
+```
+
+The CLI no longer prints a startup banner, missing optional files, a zero-change
+count, or a duplicate completion message. Use `--version` to see the version.
+Warnings are reserved for settings requiring attention. Information blocks have
+one blank line between them, with no extra blank lines at the start or end.
+
+Other outcomes are reported according to the files actually changed:
+
+- No configuration files: `ℹ No configuration files found.`
+- Source cleanup with no settings diff: `✔ Migration completed. Source settings cleaned up.`
+- Runtime migration with no settings diff: `✔ Migration completed. Node.js runtime updated in package.json.`
+- File formatting changes with no settings diff: `✔ Migration completed. Configuration files updated.`
+- Failure: one error report and exit code `1`.
+
+## Library usage
+
+```ts
+import { migratePnpmSettings } from 'pnpm-settings-migrator'
+
+const result = await migratePnpmSettings({ cwd: '/path/to/workspace' })
+```
+
+Library calls now return a `MigrationResult` and do not print logs. The result
+contains `settingsChanges` (before/after root workspace settings), `changedFiles`
+(absolute paths, including created or removed files), `sourceSettingsCleaned`,
+`packageJsonRuntimeChanged`, `hasConfigurationFiles`, and `warnings`. Errors are
+thrown to the caller. Consumers that relied on console output should render the
+returned changes and warnings themselves.
 
 ## CLI Options
 
@@ -149,8 +184,8 @@ Disable migrating `resolutions` field in `package.json`.
 - **Type**: `boolean`
 - **Default behavior**: `showChanges=true` (use this flag to disable)
 
-Disable showing the settings diff after migration. Library consumers can set
-`showChanges: false`.
+Hide the settings diff while keeping the outcome summary and warnings. This is a
+CLI display preference; library results always include settings changes.
 
 ### `--no-clean-npmrc`
 
