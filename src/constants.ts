@@ -1,5 +1,16 @@
+/**
+ * Legacy npm configuration filename used at workspace and project roots.
+ */
 export const NPMRC = '.npmrc'
+
+/**
+ * Package manifest filename used for legacy settings and runtime declarations.
+ */
 export const PACKAGE_JSON = 'package.json'
+
+/**
+ * Workspace manifest filename used as the migration destination.
+ */
 export const PNPM_WORKSPACE_YAML = 'pnpm-workspace.yaml'
 
 /**
@@ -162,7 +173,9 @@ export const PNPM_V10_NPMRC_SETTINGS_FIELDS: readonly string[] = [
   'workspaceConcurrency',
 ]
 
-// Removed in pnpm v11
+/**
+ * Legacy settings removed during normalization for pnpm v11 and newer.
+ */
 export const PNPM_V11_REMOVED_SETTINGS: readonly string[] = [
   'allowNonAppliedPatches',
   'executionEnv',

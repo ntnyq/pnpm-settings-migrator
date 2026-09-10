@@ -24,19 +24,46 @@ export function createTestWorkspace(scope: string) {
     await rm(testDir, { force: true, recursive: true })
   })
 
+  /**
+   * Read a UTF-8 file from the isolated test workspace.
+   *
+   * @param name - File path relative to the test workspace
+   *
+   * @returns File contents without parsing
+   */
   async function readWorkspaceFile(name: string): Promise<string> {
     return fsReadFile(join(testDir, name))
   }
 
+  /**
+   * Parse the migrated workspace manifest for settings assertions.
+   *
+   * @returns Workspace settings read from `pnpm-workspace.yaml`
+   */
   async function readWorkspaceYaml(): Promise<Record<string, any>> {
     const content = await fsReadFile(join(testDir, 'pnpm-workspace.yaml'))
     return parse(content) as Record<string, any>
   }
 
+  /**
+   * Write the root `.npmrc` fixture without normalizing its contents.
+   *
+   * @param content - Raw npm configuration used by the test
+   *
+   * @returns A promise that resolves after the fixture is written
+   */
   async function writeNpmrc(content: string): Promise<void> {
     await writeFile(join(testDir, '.npmrc'), content)
   }
 
+  /**
+   * Write a workspace fixture, creating parent directories for subprojects.
+   *
+   * @param name - File path relative to the test workspace
+   * @param content - Raw fixture contents
+   *
+   * @returns A promise that resolves after the fixture is written
+   */
   async function writeWorkspaceFile(
     name: string,
     content: string,
@@ -46,6 +73,14 @@ export function createTestWorkspace(scope: string) {
     await writeFile(path, content)
   }
 
+  /**
+   * Serialize the root package manifest with test-controlled indentation.
+   *
+   * @param data - Package manifest fixture to serialize
+   * @param indent - Number of spaces used for JSON indentation
+   *
+   * @returns A promise that resolves after the manifest is written
+   */
   async function writePackageJson(data: unknown, indent = 2): Promise<void> {
     await writeFile(
       join(testDir, 'package.json'),
@@ -53,6 +88,13 @@ export function createTestWorkspace(scope: string) {
     )
   }
 
+  /**
+   * Write raw workspace YAML for migration and formatting assertions.
+   *
+   * @param content - Workspace manifest fixture, including comments and spacing
+   *
+   * @returns A promise that resolves after the manifest is written
+   */
   async function writeWorkspaceYaml(content: string): Promise<void> {
     await writeFile(join(testDir, 'pnpm-workspace.yaml'), content)
   }

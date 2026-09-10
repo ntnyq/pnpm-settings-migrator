@@ -31,6 +31,13 @@ export function createTestCli(testDir: string) {
     await rm(buildDir, { recursive: true, force: true })
   })
 
+  /**
+   * Run the built CLI in the test workspace and capture its unstyled output.
+   *
+   * @param args - Additional command-line arguments after the workspace option
+   *
+   * @returns Process exit code, standard output, and standard error
+   */
   async function runCli(
     ...args: string[]
   ): Promise<{ code: number | null; stdout: string; stderr: string }> {

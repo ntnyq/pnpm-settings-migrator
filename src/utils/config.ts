@@ -194,10 +194,25 @@ export function resolvePackageJsonSettings(
   }
 }
 
+/**
+ * Applied source settings and mutable manifest used for package cleanup.
+ */
 interface CleanPackageJsonSettingsOptions {
+  /**
+   * Original `pnpm` child keys confirmed eligible for removal.
+   */
   migratedKeys: string[]
+  /**
+   * Parsed package manifest whose legacy fields are removed in place.
+   */
   packageJson: ParsedPackageJson
+  /**
+   * Source selection metadata identifying whether Yarn resolutions were included.
+   */
   settings: ResolvedPackageJsonSettings
+  /**
+   * Whether selected Yarn resolutions survived merging into workspace overrides.
+   */
   yarnResolutionsApplied: boolean
 }
 

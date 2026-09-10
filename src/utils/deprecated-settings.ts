@@ -107,12 +107,33 @@ function normalizeSideEffectsCache(settings: PnpmWorkspace): void {
   Reflect.deleteProperty(settings, 'sideEffectsCacheReadonly')
 }
 
+/**
+ * URL-keyed registry options preserved while converting legacy named registries.
+ */
 interface RegistryDeclaration {
+  /**
+   * Canonical alias prefix assigned to this registry URL.
+   */
   prefix?: string
+  /**
+   * Package scopes routed to this URL, including `@` for the default registry.
+   */
   scopes?: string[]
+  /**
+   * Additional registry options preserved during alias normalization.
+   */
   [key: string]: unknown
 }
 
+/**
+ * Add a scope to a registry URL without duplicating existing scope assignments.
+ *
+ * @param declarations - Registry declarations to update in place
+ * @param url - Registry URL used as the declaration key
+ * @param scope - Package scope, or `@` for the default registry
+ *
+ * @returns Nothing; the URL's declaration is created or updated in place
+ */
 function addRegistryScope(
   declarations: Record<string, RegistryDeclaration>,
   url: string,

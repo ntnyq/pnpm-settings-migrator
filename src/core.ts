@@ -18,6 +18,13 @@ import {
 } from './utils'
 import { readPackageJson, readPnpmWorkspace } from './utils/config'
 
+/**
+ * Check whether source selection or workspace normalization requires a write.
+ *
+ * @param sources - Selected source keys and normalization status
+ *
+ * @returns Whether any settings were selected or normalized
+ */
 function hasMigratableSettings(sources: {
   existingSettingsChanged: boolean
   npmrcKeys: string[]
@@ -42,6 +49,16 @@ function hasMigratableSettings(sources: {
   )
 }
 
+/**
+ * Require an existing package manifest before moving a Node.js runtime setting.
+ *
+ * @param runtimeVersion - Legacy runtime version selected for migration
+ * @param packageJsonExists - Whether the destination package manifest exists
+ *
+ * @returns Nothing when no runtime is selected or its destination exists
+ *
+ * @throws {Error} When a runtime is selected without a package manifest
+ */
 function assertCanMigrateRuntime(
   runtimeVersion: string | undefined,
   packageJsonExists: boolean,

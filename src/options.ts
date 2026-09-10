@@ -16,7 +16,14 @@ const DEFAULT_OPTIONS: Required<Omit<Options, 'cwd'>> = {
   yarnResolutions: true,
 }
 
+/**
+ * Accepted conflict strategies used to validate migration options.
+ */
 const VALID_STRATEGIES: MergeStrategy[] = ['discard', 'merge', 'overwrite']
+
+/**
+ * Accepted compatibility targets, including automatic version detection.
+ */
 const VALID_COMPATIBILITIES: CompatibilityTarget[] = [
   'auto',
   'v10',
@@ -24,6 +31,15 @@ const VALID_COMPATIBILITIES: CompatibilityTarget[] = [
   'v12',
 ]
 
+/**
+ * Validate a compatibility target, falling back to the default when empty.
+ *
+ * @param compatibility - User-provided compatibility target
+ *
+ * @returns Validated target or the default automatic detection mode
+ *
+ * @throws {Error} When the target is not supported
+ */
 function resolveCompatibility(compatibility?: string): CompatibilityTarget {
   if (!compatibility) {
     return DEFAULT_OPTIONS.compatibility
@@ -38,6 +54,15 @@ function resolveCompatibility(compatibility?: string): CompatibilityTarget {
   )
 }
 
+/**
+ * Validate a conflict strategy, falling back to the default when empty.
+ *
+ * @param strategy - User-provided conflict strategy
+ *
+ * @returns Validated strategy or the default merge strategy
+ *
+ * @throws {Error} When the strategy is not supported
+ */
 function resolveStrategy(strategy?: string): MergeStrategy {
   if (!strategy) {
     return DEFAULT_OPTIONS.strategy

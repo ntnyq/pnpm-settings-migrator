@@ -7,8 +7,17 @@ import type { PnpmWorkspace } from '../types'
  * Inputs used to apply semantic workspace changes to a YAML document.
  */
 export interface UpdateYamlDocumentOptions {
+  /**
+   * Final settings to apply to changed root nodes.
+   */
   after: PnpmWorkspace
+  /**
+   * Original settings used to identify changed and removed root nodes.
+   */
   before: PnpmWorkspace
+  /**
+   * Whether to sort mapping keys recursively after applying changes.
+   */
   sortKeys: boolean
 }
 

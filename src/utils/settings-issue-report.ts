@@ -26,6 +26,13 @@ export interface FormatSettingsIssuesOptions {
   source: string
 }
 
+/**
+ * Quote retained setting keys for a source-specific warning.
+ *
+ * @param keys - Original source keys reported by schema selection
+ *
+ * @returns Comma-separated JSON-quoted setting names
+ */
 function formatIssueKeys(keys: string[]): string {
   return keys.map(key => JSON.stringify(key)).join(', ')
 }

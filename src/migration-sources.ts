@@ -24,10 +24,25 @@ import { createSettingsIssues } from './utils/settings-schema'
  * Sources and merged incoming settings resolved for one migration.
  */
 export interface MigrationSources {
+  /**
+   * Source selection and project discovery warnings in discovery order.
+   */
   warnings: string[]
+  /**
+   * Combined legacy settings before compatibility normalization.
+   */
   incomingSettings: PnpmWorkspace
+  /**
+   * Root `.npmrc` settings and original keys used for cleanup.
+   */
   npmrc: MigratableNpmrc
+  /**
+   * Selected package settings and Yarn resolutions cleanup metadata.
+   */
   packageJson: ResolvedPackageJsonSettings
+  /**
+   * Subproject settings and source metadata for `packageConfigs` migration.
+   */
   projectNpmrcs: ProjectNpmrcMigrations
 }
 
@@ -35,13 +50,37 @@ export interface MigrationSources {
  * Context needed to collect legacy settings sources.
  */
 export interface ResolveMigrationSourcesOptions {
+  /**
+   * Concrete target used to select supported source settings.
+   */
   compatibility: Exclude<CompatibilityTarget, 'auto'>
+  /**
+   * Workspace root used to discover subprojects and format source paths.
+   */
   cwd: string
+  /**
+   * Whether the root `.npmrc` should be read.
+   */
   npmrcExists: boolean
+  /**
+   * Absolute path to the root `.npmrc`.
+   */
   npmrcPath: string
+  /**
+   * Parsed root package manifest containing legacy settings.
+   */
   packageJson: PackageJson
+  /**
+   * Existing workspace settings used to resolve effective package patterns.
+   */
   pnpmWorkspace: PnpmWorkspace
+  /**
+   * Conflict strategy used when resolving workspace package patterns.
+   */
   strategy: MergeStrategy
+  /**
+   * Whether to select Yarn resolutions for conversion to pnpm overrides.
+   */
   yarnResolutions: boolean
 }
 

@@ -174,6 +174,9 @@ const PNPM_V11_ADDITIONAL_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
   'yes',
 ]
 
+/**
+ * Lookup used to exclude machine and invocation settings from workspace fields.
+ */
 const refusedProjectSettings = new Set(PNPM_PROJECT_REFUSED_SETTINGS)
 
 /**
@@ -203,6 +206,9 @@ export const PNPM_V12_ONLY_WORKSPACE_SETTINGS: readonly string[] = [
   'globalShims',
 ]
 
+/**
+ * Lookup used to remove v11-only fields from the v12 workspace allowlist.
+ */
 const v11OnlyWorkspaceSettings = new Set(PNPM_V11_ONLY_WORKSPACE_SETTINGS)
 
 /**

@@ -47,12 +47,31 @@ export interface ProjectNpmrcMigrations {
   warnings: string[]
 }
 
+/**
+ * Named workspace project with an `.npmrc`, pending duplicate-name checks.
+ */
 interface ProjectManifestCandidate {
+  /**
+   * Absolute path to the discovered project's `.npmrc`.
+   */
   npmrcPath: string
+  /**
+   * Absolute manifest path used to identify duplicate-name conflicts.
+   */
   packageJsonPath: string
+  /**
+   * Declared package name used for `packageConfigs` matching.
+   */
   projectName: string
 }
 
+/**
+ * Convert workspace directory patterns to manifest globs, preserving exclusions.
+ *
+ * @param patterns - Workspace package directory patterns
+ *
+ * @returns Corresponding `package.json` globs in source order
+ */
 function resolvePackageJsonPatterns(patterns: string[]): string[] {
   return patterns.map(pattern => {
     const negated = pattern.startsWith('!')
@@ -88,6 +107,16 @@ export function collectWorkspacePackagePatterns(
   ]
 }
 
+/**
+ * Discover named subprojects with `.npmrc` files and report unnamed projects.
+ *
+ * @param cwd - Workspace root excluded from subproject discovery
+ * @param patterns - Workspace package directory patterns
+ *
+ * @returns Candidates and missing-name warnings in sorted manifest-path order
+ *
+ * @throws {Error} When manifest discovery, reading, or parsing fails
+ */
 async function readProjectManifestCandidates(
   cwd: string,
   patterns: string[],

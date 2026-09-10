@@ -65,6 +65,15 @@ export interface ReadMigratableNpmrcOptions {
   allowedFields?: readonly string[]
 }
 
+/**
+ * Append selection issues while optionally restoring original `.npmrc` keys.
+ *
+ * @param target - Issue collection to update in place
+ * @param source - Issues returned by schema selection
+ * @param sourceKeys - Original keys used in place of each nonempty source group
+ *
+ * @returns Nothing; issue keys are appended to the target collection
+ */
 function mergeSettingsIssues(
   target: SettingsIssues,
   source: SettingsIssues,

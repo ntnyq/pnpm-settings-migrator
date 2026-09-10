@@ -8,17 +8,49 @@ import { promisify } from 'node:util'
 import { parse } from 'yaml'
 import { migratePnpmSettings } from '../dist/index.mjs'
 
+/**
+ * Promise-based process runner used to capture pnpm output and failures.
+ */
 const execFileAsync = promisify(execFile)
+
+/**
+ * pnpm releases checked when no versions are supplied on the command line.
+ */
 const DEFAULT_PNPM_VERSIONS = ['11.25.0', '12.2.1']
+
+/**
+ * Maximum buffered output per pnpm invocation, in bytes.
+ */
 const MAX_BUFFER_BYTES = 10_485_760
+
+/**
+ * Explicit version arguments after removing the package-script separator.
+ */
 const requestedVersions = process.argv
   .slice(2)
   .filter(argument => argument !== '--')
+/**
+ * Effective release matrix used by this compatibility verification run.
+ */
 const pnpmVersions = requestedVersions.length
   ? requestedVersions
   : DEFAULT_PNPM_VERSIONS
+/**
+ * Platform-specific pnpm executable used to launch each requested release.
+ */
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
+/**
+ * Run a specific pnpm release with deterministic CI and color settings.
+ *
+ * @param {string} version - pnpm release to run through `pnpm dlx`
+ * @param {string} cwd - Absolute fixture workspace path
+ * @param {string[]} args - Arguments passed to the selected pnpm release
+ *
+ * @returns Captured standard output and standard error
+ *
+ * @throws {Error} When pnpm cannot start or exits unsuccessfully
+ */
 async function runPnpm(version, cwd, args) {
   return execFileAsync(
     pnpmCommand,
@@ -35,6 +67,17 @@ async function runPnpm(version, cwd, args) {
   )
 }
 
+/**
+ * Verify migration, source retention, and frozen installation with a pnpm release.
+ *
+ * The temporary workspace is removed even when an assertion or command fails.
+ *
+ * @param {string} version - pnpm v11 or v12 release to verify
+ *
+ * @returns A promise that resolves after verification and fixture cleanup
+ *
+ * @throws {Error} When migration, pnpm commands, or compatibility assertions fail
+ */
 async function verifyVersion(version) {
   const compatibility = version.startsWith('11.') ? 'v11' : 'v12'
   const fixtureDir = await mkdtemp(

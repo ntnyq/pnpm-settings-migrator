@@ -10,6 +10,9 @@ import {
 } from '../settings-fields'
 import type { CompatibilityTarget, PnpmWorkspace } from '../types'
 
+/**
+ * Legacy npmrc fields plus manifest-only fields accepted by the v10 selector.
+ */
 const PNPM_V10_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
   ...PNPM_V10_NPMRC_SETTINGS_FIELDS,
   'catalog',
@@ -17,12 +20,39 @@ const PNPM_V10_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
   'packages',
 ]
 
+/**
+ * Fields rejected from project manifests for v11 and newer targets.
+ */
 const PROJECT_REFUSED_SETTINGS = new Set(PNPM_PROJECT_REFUSED_SETTINGS)
+
+/**
+ * Fields reported as incompatible when selecting settings for v12.
+ */
 const PNPM_V11_ONLY_SETTINGS = new Set(PNPM_V11_ONLY_WORKSPACE_SETTINGS)
+
+/**
+ * Allowed workspace fields for the v11 target.
+ */
 const PNPM_V11_SETTINGS = new Set(PNPM_V11_WORKSPACE_SETTINGS_FIELDS)
+
+/**
+ * Fields reported as incompatible when selecting settings for v11.
+ */
 const PNPM_V12_ONLY_SETTINGS = new Set(PNPM_V12_ONLY_WORKSPACE_SETTINGS)
+
+/**
+ * Allowed workspace fields for the v12 target.
+ */
 const PNPM_V12_SETTINGS = new Set(PNPM_V12_WORKSPACE_SETTINGS_FIELDS)
+
+/**
+ * Allowed workspace fields for the v10 target.
+ */
 const PNPM_V10_SETTINGS = new Set(PNPM_V10_WORKSPACE_SETTINGS_FIELDS)
+
+/**
+ * Registry settings inspected for credentials and dynamic URL interpolation.
+ */
 const REGISTRY_SETTINGS = new Set([
   'namedRegistries',
   'registries',
@@ -31,6 +61,9 @@ const REGISTRY_SETTINGS = new Set([
   'registry',
   'registryOptionsByUrl',
 ])
+/**
+ * Normalized credential field names that must not move into workspace YAML.
+ */
 const REGISTRY_CREDENTIAL_KEYS = new Set([
   'auth',
   'authtoken',
@@ -39,6 +72,9 @@ const REGISTRY_CREDENTIAL_KEYS = new Set([
   'tokenhelper',
   'username',
 ])
+/**
+ * Editor schema directive excluded from pnpm setting validation.
+ */
 const WORKSPACE_SCHEMA_DIRECTIVE = '$schema'
 
 /**
@@ -127,6 +163,13 @@ export function createSettingsIssues(): SettingsIssues {
   }
 }
 
+/**
+ * Detect embedded user information in a parseable URL.
+ *
+ * @param value - Potential registry URL
+ *
+ * @returns Whether URL parsing succeeds and exposes a username or password
+ */
 function hasUrlCredentials(value: string): boolean {
   try {
     const url = new URL(value)
@@ -136,16 +179,38 @@ function hasUrlCredentials(value: string): boolean {
   }
 }
 
+/**
+ * Match credential fields regardless of case, hyphens, or underscores.
+ *
+ * @param key - Registry declaration field name
+ *
+ * @returns Whether the normalized key identifies credential configuration
+ */
 function isRegistryCredentialKey(key: string): boolean {
   return REGISTRY_CREDENTIAL_KEYS.has(
     key.replaceAll('-', '').replaceAll('_', '').toLowerCase(),
   )
 }
 
+/**
+ * Detect registry strings that embed credentials or environment placeholders.
+ *
+ * @param value - Registry URL or declaration key to inspect
+ *
+ * @returns Whether the string must stay out of the workspace manifest
+ */
 function isUnsafeRegistryUrl(value: string): boolean {
   return value.includes('${') || hasUrlCredentials(value)
 }
 
+/**
+ * Inspect nested registry declarations for unsafe URLs and credential fields.
+ *
+ * @param value - Registry setting value or nested declaration
+ * @param checkCredentialKeys - Whether field names at this level are credentials
+ *
+ * @returns Whether any nested value or key is unsafe to migrate
+ */
 function containsUnsafeRegistryValue(
   value: unknown,
   checkCredentialKeys = false,
@@ -166,10 +231,26 @@ function containsUnsafeRegistryValue(
   )
 }
 
+/**
+ * Resolve the manifest spelling used to select an incoming setting.
+ *
+ * @param key - Original setting key
+ *
+ * @returns CamelCase key, falling back to the original if conversion is empty
+ */
 function resolveCamelCaseKey(key: string): string {
   return Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
 }
 
+/**
+ * Select the workspace allowlist for a concrete compatibility target.
+ *
+ * @param compatibility - Concrete pnpm compatibility target
+ *
+ * @returns Lookup of settings accepted by the target schema
+ *
+ * @throws {TypeError} When the target is unsupported
+ */
 function resolveTargetSettings(
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
 ): ReadonlySet<string> {
@@ -185,6 +266,14 @@ function resolveTargetSettings(
   }
 }
 
+/**
+ * Classify a key absent from the target allowlist as a known cross-version field.
+ *
+ * @param key - Setting key already found missing from the target schema
+ * @param compatibility - Concrete pnpm compatibility target
+ *
+ * @returns Whether another supported major recognizes the setting
+ */
 function isSettingFromAnotherMajor(
   key: string,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
@@ -200,15 +289,49 @@ function isSettingFromAnotherMajor(
   return PNPM_V11_SETTINGS.has(key) || PNPM_V12_SETTINGS.has(key)
 }
 
+/**
+ * Setting value and destination restrictions needed to classify a rejection.
+ */
 interface ResolveSettingIssueOptions {
+  /**
+   * Optional narrower allowlist imposed by the destination.
+   */
   allowedFields?: ReadonlySet<string>
+  /**
+   * Concrete target used to distinguish refused and cross-version settings.
+   */
   compatibility: Exclude<CompatibilityTarget, 'auto'>
+  /**
+   * Setting key after any `.npmrc` spelling conversion.
+   */
   key: string
+  /**
+   * Whether the source permits `.npmrc` spelling instead of manifest casing.
+   */
   npmrc: boolean
+  /**
+   * Workspace allowlist for the selected compatibility target.
+   */
   targetSettings: ReadonlySet<string>
+  /**
+   * Setting value inspected for unsafe registry configuration.
+   */
   value: unknown
 }
 
+/**
+ * Resolve the first reason a setting cannot be migrated to its destination.
+ *
+ * @param options - Setting spelling, value, target schema, and field restrictions
+ * @param options.allowedFields - Optional destination-specific allowlist
+ * @param options.compatibility - Concrete pnpm compatibility target
+ * @param options.key - Setting key after any `.npmrc` spelling conversion
+ * @param options.npmrc - Whether the source permits `.npmrc` spelling
+ * @param options.targetSettings - Workspace allowlist for the target
+ * @param options.value - Setting value inspected for unsafe registry content
+ *
+ * @returns Rejection category, or `undefined` when the setting is accepted
+ */
 function resolveSettingIssue({
   allowedFields,
   compatibility,
@@ -289,6 +412,15 @@ export function selectPnpmSettings(
   }
 }
 
+/**
+ * Validate v11 project settings in package-name maps or matcher arrays.
+ *
+ * @param settings - Workspace settings whose `packageConfigs` entries are checked
+ *
+ * @returns Nothing when project settings are absent or valid
+ *
+ * @throws {TypeError} When an entry has an invalid shape or unsupported fields
+ */
 function assertPackageConfigFields(settings: PnpmWorkspace): void {
   const { packageConfigs } = settings
   if (packageConfigs === undefined) {
@@ -336,6 +468,13 @@ function assertPackageConfigFields(settings: PnpmWorkspace): void {
   }
 }
 
+/**
+ * Quote setting keys for an existing-workspace validation error.
+ *
+ * @param keys - Rejected setting names in discovery order
+ *
+ * @returns Comma-separated JSON-quoted setting names
+ */
 function formatIssueList(keys: string[]): string {
   return keys.map(key => JSON.stringify(key)).join(', ')
 }

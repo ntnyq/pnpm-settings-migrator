@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createTestWorkspace } from './helpers'
 
+/**
+ * Hoisted failure switch used to verify source retention after a write error.
+ */
 const writeFailure = vi.hoisted(() => ({ packageJson: false }))
 
 vi.mock(import('../src/utils'), async importOriginal => {

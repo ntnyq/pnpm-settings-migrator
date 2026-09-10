@@ -1,6 +1,13 @@
 import type { MigrationResult } from './types'
 import { bold, formatSettingsChanges, green } from './utils'
 
+/**
+ * Describe the migration outcome, prioritizing settings changes over cleanup.
+ *
+ * @param result - Completed migration outcome
+ *
+ * @returns One terminal summary line without a trailing newline
+ */
 function formatMigrationSummary(result: MigrationResult): string {
   if (!result.hasConfigurationFiles) {
     return 'ℹ No configuration files found.'

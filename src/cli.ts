@@ -5,6 +5,9 @@ import { migratePnpmSettings } from './core'
 import type { Options } from './types'
 import { red } from './utils'
 
+/**
+ * Command-line parser configured with the executable's migration action.
+ */
 const cli = createCli()
 
 cli

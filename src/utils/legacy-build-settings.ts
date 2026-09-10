@@ -2,6 +2,9 @@ import { resolve } from 'pathe'
 import type { PnpmWorkspace } from '../types'
 import { fsReadFile } from './fs'
 
+/**
+ * Legacy package-name lists converted into per-package `allowBuilds` permissions.
+ */
 type LegacyBuildDependencyList =
   | 'ignoredBuiltDependencies'
   | 'neverBuiltDependencies'
