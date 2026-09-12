@@ -182,17 +182,28 @@ export async function migratePnpmSettings(
     )
   }
 
+  const normalizedPackageJsonSettings = structuredClone(
+    Object.fromEntries(
+      sources.packageJson.keys.map(key => [
+        key,
+        Reflect.get(packageJson.value.pnpm ?? {}, key),
+      ]),
+    ),
+  )
+  const normalizedNpmrcSettings = structuredClone(sources.npmrc.settings)
+  const normalizationOptions = {
+    compatibility,
+    cwd: options.cwd,
+    replaceDeprecated: options.replaceDeprecated,
+  }
   const [existingNormalization, incomingNormalization] = await Promise.all([
-    normalizeIncomingSettings(pnpmWorkspace.value, {
-      compatibility,
-      cwd: options.cwd,
-      replaceDeprecated: options.replaceDeprecated,
-    }),
-    normalizeIncomingSettings(incomingSettings, {
-      compatibility,
-      cwd: options.cwd,
-      replaceDeprecated: options.replaceDeprecated,
-    }),
+    normalizeIncomingSettings(pnpmWorkspace.value, normalizationOptions),
+    normalizeIncomingSettings(incomingSettings, normalizationOptions),
+    normalizeIncomingSettings(
+      normalizedPackageJsonSettings,
+      normalizationOptions,
+    ),
+    normalizeIncomingSettings(normalizedNpmrcSettings, normalizationOptions),
   ])
 
   result.warnings.push(
@@ -214,6 +225,11 @@ export async function migratePnpmSettings(
     runtimeVersion,
   )
   if (runtimeMigration.warning) {
+    if (existingNormalization.runtimeVersion) {
+      throw new Error(
+        `Cannot remove the workspace runtime setting: ${runtimeMigration.warning}`,
+      )
+    }
     result.warnings.push(runtimeMigration.warning)
   }
 
@@ -257,7 +273,8 @@ export async function migratePnpmSettings(
     cleanPackageJson: options.cleanPackageJson,
     compatibility,
     finalSettings: pnpmWorkspaceResult,
-    incomingSettings,
+    normalizedPackageJsonSettings,
+    normalizedNpmrcSettings,
     npmrc: sources.npmrc,
     npmrcExists,
     npmrcPath,
@@ -265,6 +282,7 @@ export async function migratePnpmSettings(
     packageJsonExists,
     packageJsonPath,
     packageJsonRuntimeChanged: runtimeMigration.changed,
+    runtimeApplied: runtimeMigration.applied,
     packageJsonSettings: sources.packageJson,
     pnpmWorkspaceContent: finalYamlContent,
     pnpmWorkspacePath: pnpmWorkspaceYamlPath,

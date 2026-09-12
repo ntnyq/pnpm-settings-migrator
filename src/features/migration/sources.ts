@@ -53,6 +53,7 @@ export async function resolveMigrationSources(
     target,
   )
   warnings.push(
+    ...packageJsonSettings.warnings,
     ...formatSettingsIssues({
       target,
       issues: packageJsonSettings.issues,
@@ -121,10 +122,8 @@ export async function resolveMigrationSources(
 
   return {
     warnings,
-    incomingSettings: mergeByStrategy(
-      packageJsonSettings.settings,
-      npmrcSettings,
-      'merge',
+    incomingSettings: structuredClone(
+      mergeByStrategy(packageJsonSettings.settings, npmrcSettings, 'merge'),
     ),
     npmrc,
     packageJson: packageJsonSettings,

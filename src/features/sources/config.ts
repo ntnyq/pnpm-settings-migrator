@@ -13,6 +13,7 @@ import type {
 } from '../../types'
 import { fsReadFile } from '../../utils/fs'
 import { selectPnpmSettings } from '../settings/schema'
+import { resolveYarnResolutions } from './yarn-resolutions'
 
 /**
  * Resolve the indentation width for a YAML document.
@@ -120,13 +121,14 @@ export function resolvePackageJsonSettings(
     Object.fromEntries(Object.entries(packageJson.pnpm ?? {})),
     target,
   )
-  const migrateYarnResolutions = Boolean(
-    yarnResolutions && packageJson.resolutions,
+  const resolutions = resolveYarnResolutions(
+    yarnResolutions ? packageJson.resolutions : undefined,
   )
+  const migrateYarnResolutions = Object.keys(resolutions.selectors).length > 0
   const pnpmSettings: PnpmWorkspace = migrateYarnResolutions
     ? {
         ...selected.settings,
-        overrides: defu(selected.settings.overrides, packageJson.resolutions),
+        overrides: defu(selected.settings.overrides, resolutions.overrides),
       }
     : { ...selected.settings }
 
@@ -139,6 +141,8 @@ export function resolvePackageJsonSettings(
     keys: selected.keys,
     settings: pnpmSettings,
     yarnResolutions: migrateYarnResolutions,
+    yarnResolutionSelectors: resolutions.selectors,
+    warnings: resolutions.warnings,
   }
 }
 
@@ -152,8 +156,7 @@ export function resolvePackageJsonSettings(
 export function cleanPackageJsonSettings(
   options: CleanPackageJsonSettingsOptions,
 ): boolean {
-  const { migratedKeys, packageJson, settings, yarnResolutionsApplied } =
-    options
+  const { migratedKeys, packageJson, migratedResolutionKeys } = options
   let changed = false
   if (packageJson.value.pnpm) {
     for (const key of migratedKeys) {
@@ -165,9 +168,14 @@ export function cleanPackageJsonSettings(
     }
   }
 
-  if (settings.yarnResolutions && yarnResolutionsApplied) {
+  if (packageJson.value.resolutions && migratedResolutionKeys.length) {
+    for (const key of migratedResolutionKeys) {
+      Reflect.deleteProperty(packageJson.value.resolutions, key)
+    }
     changed = true
-    delete packageJson.value.resolutions
+    if (!Object.keys(packageJson.value.resolutions).length) {
+      delete packageJson.value.resolutions
+    }
   }
 
   return changed

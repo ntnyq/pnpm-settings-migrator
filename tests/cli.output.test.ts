@@ -15,6 +15,40 @@ describe('cli output', () => {
   } = createTestWorkspace('cli-output')
   const runCli = createTestCli(testDir)
 
+  it('never prints scheme-relative registry credentials', async () => {
+    await writePackageJson({
+      pnpm: {
+        registry: '//user:review-secret@registry.example.test/',
+        saveExact: true,
+      },
+    })
+
+    const result = await runCli('--compatibility', 'v12')
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('unsafe registry')
+    expect(`${result.stdout}${result.stderr}`).not.toContain('review-secret')
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      saveExact: true,
+    })
+  })
+
+  it('retains unsupported Yarn selectors with a clear warning', async () => {
+    await writePackageJson({ resolutions: { 'parent/**/child': '1.0.0' } })
+
+    const result = await runCli()
+
+    expect(result).toStrictEqual({
+      code: 0,
+      stderr: '',
+      stdout:
+        'WARN Kept Yarn resolution "parent/**/child" in package.json: its selector cannot be translated safely to pnpm overrides.\n\nℹ No changes needed.\n',
+    })
+    expect(
+      JSON.parse(await readWorkspaceFile('package.json')).resolutions,
+    ).toStrictEqual({ 'parent/**/child': '1.0.0' })
+  })
+
   it('migrates using --target-version through the built CLI', async () => {
     await writePackageJson({
       packageManager: 'pnpm@10.34.5',

@@ -46,6 +46,11 @@ export interface NormalizeSettingsOptions {
  */
 export interface RuntimeMigrationResult {
   /**
+   * Whether the selected runtime is represented in the destination manifest.
+   */
+  applied: boolean
+
+  /**
    * Whether the package manifest was mutated.
    */
   changed: boolean

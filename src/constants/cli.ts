@@ -8,4 +8,4 @@ export const MAX_LCS_CELLS = 1_000_000
  * printed in a migration report.
  */
 export const URL_USERINFO_PATTERN =
-  /(?<scheme>[a-z][a-z\d+.-]*:\/\/)[^/\s@]+@/giu
+  /(?<scheme>(?:[a-z][a-z\d+.-]*:)?\/\/)[^/\s@]+@/giu

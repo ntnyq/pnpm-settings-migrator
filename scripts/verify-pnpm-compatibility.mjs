@@ -124,6 +124,7 @@ async function verifyVersion(version) {
             ...versionSpecificSettings,
           },
           private: true,
+          resolutions: { '**/is-number': '7.0.0' },
           version: '1.0.0',
         },
         null,
@@ -184,6 +185,7 @@ async function verifyVersion(version) {
       customMetadata: { preserve: true },
       globalDir: '.machine-global',
     })
+    assert.equal(packageJson.resolutions, undefined)
     const npmrc = await readFile(join(fixtureDir, '.npmrc'), 'utf8')
     assert.match(npmrc, /global-dir=.machine-global/u)
     assert.match(npmrc, /third-party-setting=preserve/u)

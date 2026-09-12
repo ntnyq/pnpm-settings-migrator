@@ -108,7 +108,7 @@ function resolveReplacementSettingKey(
  *
  * @param options - Selected source keys, normalized settings, and runtime status
  * @param options.finalSettings - Workspace settings after merging
- * @param options.incomingSettings - Combined source settings after normalization
+ * @param options.normalizedSettings - This source's settings after normalization
  * @param options.keys - Original source keys selected for migration
  * @param options.npmrc - Whether source keys use `.npmrc` spelling
  * @param options.runtimeApplied - Whether the selected runtime was applied
@@ -119,7 +119,7 @@ function resolveReplacementSettingKey(
  */
 function selectAppliedRootKeys({
   finalSettings,
-  incomingSettings,
+  normalizedSettings,
   keys,
   npmrc = false,
   runtimeApplied,
@@ -130,7 +130,7 @@ function selectAppliedRootKeys({
     const targetKey = npmrc
       ? (Object.keys(camelcaseKeys({ [sourceKey]: true }))[0] ?? sourceKey)
       : sourceKey
-    if (!Object.hasOwn(incomingSettings, targetKey)) {
+    if (!Object.hasOwn(normalizedSettings, targetKey)) {
       if (targetKey === 'executionEnv' || targetKey === 'useNodeVersion') {
         const sourceRuntimeVersion = resolveSourceRuntimeVersion(
           sourceSettings,
@@ -152,19 +152,22 @@ function selectAppliedRootKeys({
         targetKey,
         npmrc,
       )
-      if (!replacementKey || !Object.hasOwn(incomingSettings, replacementKey)) {
+      if (
+        !replacementKey ||
+        !Object.hasOwn(normalizedSettings, replacementKey)
+      ) {
         return true
       }
 
       return containsMigratedValue(
         Reflect.get(finalSettings, replacementKey),
-        Reflect.get(incomingSettings, replacementKey),
+        Reflect.get(normalizedSettings, replacementKey),
       )
     }
 
     return containsMigratedValue(
       Reflect.get(finalSettings, targetKey),
-      Reflect.get(incomingSettings, targetKey),
+      Reflect.get(normalizedSettings, targetKey),
     )
   })
 }
@@ -243,7 +246,8 @@ export async function persistMigration(
     cleanPackageJson,
     compatibility,
     finalSettings,
-    incomingSettings,
+    normalizedPackageJsonSettings,
+    normalizedNpmrcSettings,
     npmrc,
     npmrcExists,
     npmrcPath,
@@ -256,34 +260,44 @@ export async function persistMigration(
     pnpmWorkspacePath,
     projectNpmrcs,
     runtimeVersion,
+    runtimeApplied,
   } = options
   const appliedPackageJsonKeys = selectAppliedRootKeys({
     finalSettings,
-    incomingSettings,
+    normalizedSettings: normalizedPackageJsonSettings,
     keys: packageJsonSettings.keys,
-    runtimeApplied: packageJsonRuntimeChanged,
+    runtimeApplied,
     runtimeVersion,
     sourceSettings: packageJsonSettings.settings,
   })
   const appliedNpmrcKeys = selectAppliedRootKeys({
     finalSettings,
-    incomingSettings,
+    normalizedSettings: normalizedNpmrcSettings,
     keys: npmrc.keys,
     npmrc: true,
-    runtimeApplied: packageJsonRuntimeChanged,
+    runtimeApplied,
     runtimeVersion,
     sourceSettings: npmrc.settings,
   })
-  const yarnResolutionsApplied =
-    packageJsonSettings.yarnResolutions &&
-    containsMigratedValue(finalSettings.overrides, incomingSettings.overrides)
+  const migratedResolutionKeys = Object.entries(
+    packageJsonSettings.yarnResolutionSelectors,
+  )
+    .filter(([key, selector]) =>
+      containsMigratedValue(
+        finalSettings.overrides?.[selector],
+        packageJson.value.resolutions?.[key],
+      ),
+    )
+    .map(([key]) => key)
+  const runtimeContent = packageJsonRuntimeChanged
+    ? JSON.stringify(packageJson.value, null, packageJson.indent)
+    : undefined
   const packageJsonSettingsChanged =
     packageJsonExists && cleanPackageJson
       ? cleanPackageJsonSettings({
           migratedKeys: appliedPackageJsonKeys,
           packageJson,
-          settings: packageJsonSettings,
-          yarnResolutionsApplied,
+          migratedResolutionKeys,
         })
       : false
 
@@ -293,20 +307,26 @@ export async function persistMigration(
     packageJsonRuntimeChanged,
   }
 
-  // A failed destination write can leave duplicates, but source values remain.
+  // Stage the runtime destination without pruning any package source settings.
+  if (packageJsonExists && runtimeContent !== undefined) {
+    if (await fsWriteFileIfChanged(packageJsonPath, runtimeContent)) {
+      result.changedFiles.push(packageJsonPath)
+    }
+  }
+
+  // Both migration directions now retain their source if a destination fails.
   if (await fsWriteFileIfChanged(pnpmWorkspacePath, pnpmWorkspaceContent)) {
     result.changedFiles.push(pnpmWorkspacePath)
   }
 
-  if (
-    packageJsonExists &&
-    (packageJsonRuntimeChanged || packageJsonSettingsChanged)
-  ) {
+  if (packageJsonExists && packageJsonSettingsChanged) {
     await fsWriteFileIfChanged(
       packageJsonPath,
       JSON.stringify(packageJson.value, null, packageJson.indent),
     )
-    result.changedFiles.push(packageJsonPath)
+    if (!result.changedFiles.includes(packageJsonPath)) {
+      result.changedFiles.push(packageJsonPath)
+    }
   }
 
   if (!cleanNpmrc) {

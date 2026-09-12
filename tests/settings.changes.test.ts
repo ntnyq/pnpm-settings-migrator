@@ -7,6 +7,18 @@ import {
 import { collectSettingsChanges } from '../src/features/settings/changes'
 
 describe('settings changes', () => {
+  it('redacts credentials from scheme-relative proxy URLs', () => {
+    expect(
+      createSettingsDiffLines({
+        key: 'httpsProxy',
+        before: undefined,
+        after: '//user:secret@proxy.example.test/',
+      }),
+    ).toStrictEqual([
+      { kind: 'added', value: 'httpsProxy: //***@proxy.example.test/' },
+    ])
+  })
+
   it('collects changed root settings', () => {
     const changes = collectSettingsChanges(
       {

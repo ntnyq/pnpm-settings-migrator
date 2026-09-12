@@ -172,8 +172,18 @@ Notes:
   does not apply to v11. The migrator does not change this mode automatically.
 - Cleanup removes only source keys represented in the final workspace after
   applying the selected merge strategy.
+  Each source is checked against its own values, including deprecated-key
+  replacements. Conflicting values in `.npmrc`, `package.json#pnpm`, or Yarn
+  resolutions remain in their original source.
   Unrecognized, refused, incompatible, or otherwise unsupported
   `package.json#pnpm` child keys remain in `package.json`.
+- Runtime migration writes `devEngines.runtime` before removing a workspace
+  runtime declaration. A failed write preserves source settings for retry.
+  If an existing runtime declaration conflicts with a workspace runtime, migration
+  stops before writing any files. An identical Node.js declaration is reused.
+- YAML aliases remain when their anchors are unchanged and precede them.
+  If replacement, removal, or sorting would invalidate an alias, its original
+  value is written explicitly so unrelated settings keep their values.
 - If no auth/registry lines remain after a v11 or v12 migration, the empty
   `.npmrc` is removed.
 - Values moved from `auditConfig.ignoreCves` still contain CVE IDs. Replace them
@@ -241,6 +251,22 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 - **Default behavior**: `yarnResolutions=true` (use this flag to disable)
 
 Disable migrating `resolutions` field in `package.json`.
+
+By default, plain package names are copied to pnpm overrides and global Yarn
+selectors are translated: `**/foo` becomes `foo`, and `**/@scope/foo` becomes
+`@scope/foo`. Path-specific selectors such as `parent/child` and
+`parent/**/child` remain in `resolutions` with a warning. Conflicting selectors
+that translate to the same pnpm key also remain for manual resolution.
+Only individual resolutions whose values reach the final workspace are removed.
+
+For example, an unsupported selector is now reported and retained instead of
+being copied into an override that prevents pnpm from installing:
+
+```text
+WARN Kept Yarn resolution "parent/**/child" in package.json: its selector cannot be translated safely to pnpm overrides.
+
+ℹ No changes needed.
+```
 
 ### `--no-show-changes`
 

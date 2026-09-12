@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { isUndefined, isPlainObject } from '@ntnyq/utils'
 import { defu } from 'defu'
 import type { PnpmWorkspace, MergeStrategy } from '../types'
@@ -63,7 +64,17 @@ function mergeWithArrayDedupe(
       result[key] = incomingValue
     } else if (Array.isArray(existingValue) && Array.isArray(incomingValue)) {
       // Both are arrays - merge and deduplicate
-      result[key] = Array.from(new Set([...existingValue, ...incomingValue]))
+      const items: unknown[] = Array.from(
+        new Set([...existingValue, ...incomingValue]),
+      )
+      result[key] = items.filter(
+        (item, index) =>
+          !item ||
+          typeof item !== 'object' ||
+          !items
+            .slice(0, index)
+            .some(previous => isDeepStrictEqual(previous, item)),
+      )
     } else if (isPlainObject(existingValue) && isPlainObject(incomingValue)) {
       // Both are objects - recursively merge
       result[key] = mergeWithArrayDedupe(

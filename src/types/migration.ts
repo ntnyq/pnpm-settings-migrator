@@ -91,9 +91,13 @@ export interface PersistMigrationOptions {
    */
   finalSettings: PnpmWorkspace
   /**
-   * Combined source settings after compatibility normalization.
+   * Package settings normalized independently from all other sources.
    */
-  incomingSettings: PnpmWorkspace
+  normalizedPackageJsonSettings: PnpmWorkspace
+  /**
+   * Root npmrc settings normalized independently from all other sources.
+   */
+  normalizedNpmrcSettings: PnpmWorkspace
   /**
    * Root `.npmrc` settings and original keys selected for migration.
    */
@@ -122,6 +126,10 @@ export interface PersistMigrationOptions {
    * Whether runtime migration already mutated the package manifest.
    */
   packageJsonRuntimeChanged: boolean
+  /**
+   * Whether the selected runtime is represented by the manifest declaration.
+   */
+  runtimeApplied: boolean
   /**
    * Selected package settings before normalization, used to verify cleanup.
    */
@@ -153,9 +161,9 @@ export interface SelectAppliedRootKeysOptions {
    */
   finalSettings: PnpmWorkspace
   /**
-   * Combined source settings after normalization and replacement.
+   * This source's settings after normalization and replacement.
    */
-  incomingSettings: PnpmWorkspace
+  normalizedSettings: PnpmWorkspace
   /**
    * Original source keys selected for migration.
    */

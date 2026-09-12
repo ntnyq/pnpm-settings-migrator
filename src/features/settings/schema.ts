@@ -47,7 +47,7 @@ export function createSettingsIssues(): SettingsIssues {
  */
 function hasUrlCredentials(value: string): boolean {
   try {
-    const url = new URL(value)
+    const url = new URL(value.startsWith('//') ? `https:${value}` : value)
     return Boolean(url.username || url.password)
   } catch {
     return false

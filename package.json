@@ -63,7 +63,7 @@
     "read-ini-file": "^5.0.0",
     "tinyglobby": "^0.2.17",
     "uncase": "^0.3.0",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
@@ -84,5 +84,5 @@
   "engines": {
     "node": "^22.19.0 || >=24.11.0"
   },
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "pnpm@12.4.1"
 }

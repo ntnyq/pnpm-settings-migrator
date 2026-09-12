@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
-import type { Node, Document } from 'yaml'
-import { isMap, isScalar, isNode, isSeq } from 'yaml'
+import type { Alias, Node, Document } from 'yaml'
+import { isMap, isScalar, isNode, isSeq, visit } from 'yaml'
 import type { UpdateYamlDocumentOptions } from '../types'
 
 /**
@@ -45,6 +45,36 @@ export function updateYamlDocument(
   options: UpdateYamlDocumentOptions,
 ): void {
   const { after, before, sortKeys } = options
+  const replacedNodes = new Set<Node>()
+  for (const key of Object.keys(before)) {
+    if (
+      !Object.hasOwn(after, key) ||
+      !isDeepStrictEqual(Reflect.get(before, key), Reflect.get(after, key))
+    ) {
+      const node = document.get(key, true)
+      if (isNode(node)) {
+        visit(node, {
+          Node: (_, child) => {
+            replacedNodes.add(child)
+          },
+        })
+      }
+    }
+  }
+  const aliasTargets = new Map<Alias, ReturnType<Alias['resolve']>>()
+  const aliasValues = new Map<Alias, Node>()
+  visit(document, {
+    Alias: (_, node) => {
+      aliasTargets.set(node, node.resolve(document))
+      const value = document.createNode(node.toJS(document), {
+        aliasDuplicateObjects: false,
+      })
+      value.comment = node.comment
+      value.commentBefore = node.commentBefore
+      value.spaceBefore = node.spaceBefore
+      aliasValues.set(node, value)
+    },
+  })
 
   for (const key of Object.keys(before)) {
     if (!Object.hasOwn(after, key)) {
@@ -64,6 +94,25 @@ export function updateYamlDocument(
   if (sortKeys) {
     sortYamlMappings(document.contents)
   }
+
+  // Keep valid aliases, but materialize the original value if their target was
+  // replaced, removed, or moved after them. Reusing a changed anchor would also
+  // silently change settings in otherwise untouched roots.
+  visit(document, {
+    Alias: (_, node) => {
+      const target = aliasTargets.get(node)
+      if (
+        node.resolve(document) !== target ||
+        (target && replacedNodes.has(target))
+      ) {
+        const value = aliasValues.get(node)
+        if (value && sortKeys) {
+          sortYamlMappings(value)
+        }
+        return value
+      }
+    },
+  })
 }
 
 /**

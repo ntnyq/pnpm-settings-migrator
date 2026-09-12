@@ -36,12 +36,3 @@ export const red: ColorFunction = getColor('red')
  * @returns ANSI-styled string
  */
 export const bold: ColorFunction = getColor('bold')
-
-/**
- * Apply magenta terminal styling to a value.
- *
- * @param text - Text or number to style
- *
- * @returns ANSI-styled string
- */
-export const magenta: ColorFunction = getColor('magenta')

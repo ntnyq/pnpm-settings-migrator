@@ -61,6 +61,16 @@ export interface ResolvedPackageJsonSettings {
    * Whether Yarn resolutions were selected for conversion to overrides.
    */
   yarnResolutions: boolean
+
+  /**
+   * Original Yarn selectors mapped to their supported pnpm override selectors.
+   */
+  yarnResolutionSelectors: Record<string, string>
+
+  /**
+   * Yarn selectors retained because they cannot be translated safely.
+   */
+  warnings: string[]
 }
 
 /**
@@ -76,13 +86,27 @@ export interface CleanPackageJsonSettingsOptions {
    */
   packageJson: ParsedPackageJson
   /**
-   * Source selection metadata identifying whether Yarn resolutions were included.
+   * Original Yarn resolution keys whose translated values reached the destination.
    */
-  settings: ResolvedPackageJsonSettings
+  migratedResolutionKeys: string[]
+}
+
+/**
+ * Supported Yarn translations and warnings for selectors retained in the source.
+ */
+export interface ResolvedYarnResolutions {
   /**
-   * Whether selected Yarn resolutions survived merging into workspace overrides.
+   * Values keyed by pnpm-compatible selectors.
    */
-  yarnResolutionsApplied: boolean
+  overrides: Record<string, string>
+  /**
+   * Original selector to destination selector mapping used for safe cleanup.
+   */
+  selectors: Record<string, string>
+  /**
+   * Unsupported or ambiguous selector diagnostics, without resolution values.
+   */
+  warnings: string[]
 }
 
 /**
