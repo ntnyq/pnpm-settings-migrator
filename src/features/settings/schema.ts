@@ -10,7 +10,6 @@ import {
   PNPM_V11_PACKAGE_CONFIG_FIELDS,
   WORKSPACE_SCHEMA_DIRECTIVE,
   PNPM_VERSIONED_WORKSPACE_SETTINGS,
-  PNPM_VERSIONED_TASK_SETTINGS,
   PROXY_SETTINGS,
 } from '../../constants'
 import type {
@@ -188,10 +187,7 @@ function resolveSettingIssue({
       task =>
         task &&
         typeof task === 'object' &&
-        Object.keys(task).some(
-          field =>
-            PNPM_VERSIONED_TASK_SETTINGS.has(field) && !taskSettings.has(field),
-        ),
+        Object.keys(task).some(field => !taskSettings.has(field)),
     )
   ) {
     return 'incompatible'

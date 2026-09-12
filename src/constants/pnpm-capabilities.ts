@@ -27,10 +27,3 @@ export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
 export const PNPM_VERSIONED_WORKSPACE_SETTINGS = new Set(
   PNPM_SETTINGS_CAPABILITIES.flatMap(capability => capability.workspaceFields),
 )
-
-/**
- * Known task fields that require a confirmed version.
- */
-export const PNPM_VERSIONED_TASK_SETTINGS = new Set(
-  PNPM_SETTINGS_CAPABILITIES.flatMap(capability => capability.taskFields),
-)

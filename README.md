@@ -160,15 +160,16 @@ Notes:
   these placeholders; configure them globally in trusted configuration or use
   environment variables. Existing dynamic proxy settings in YAML block migration.
   The migrator never expands and writes these values.
-- In v11 workspaces, supported subproject `.npmrc` fields are moved to
-  `packageConfigs` by package name. pnpm v11 accepts `hoist`, `modulesDir`,
-  `overrides`, `saveExact`, and `savePrefix` there. pnpm 12.0–12.3 does not
-  support `packageConfigs`. Confirmed stable v12 targets from 12.4.0 accept both package-name maps
-  and matcher arrays, and migrates subproject settings only when the merged
-  workspace has `sharedWorkspaceLockfile: false`. Otherwise source settings
-  remain with a warning; existing `packageConfigs` blocks migration until the
-  effective lockfile mode is compatible. The migrator does not change this
-  mode automatically.
+- pnpm v11 and confirmed stable v12 targets from 12.4.0 accept `packageConfigs`
+  as package-name maps or matcher arrays, with `hoist`, `modulesDir`,
+  `overrides`, `saveExact`, and `savePrefix`. Supported subproject `.npmrc`
+  fields are moved there by package name. pnpm 12.0–12.3 does not support
+  `packageConfigs`.
+- For v12 targets from 12.4.0, migrating `packageConfigs` or subproject settings
+  requires `sharedWorkspaceLockfile: false` in the merged workspace. Otherwise
+  source settings remain with a warning; existing `packageConfigs` blocks
+  migration until the effective lockfile mode is compatible. This restriction
+  does not apply to v11. The migrator does not change this mode automatically.
 - Cleanup removes only source keys represented in the final workspace after
   applying the selected merge strategy.
   Unrecognized, refused, incompatible, or otherwise unsupported

@@ -50,7 +50,7 @@ const packageConfigsForms = [
       savePrefix: '~',
     },
   ],
-]
+] satisfies NonNullable<PnpmWorkspace['packageConfigs']>[]
 
 describe('workspace public types', () => {
   it('exports expanded task types through the workspace contract', () => {
@@ -94,6 +94,66 @@ describe('migratePnpmSettings/recent settings', () => {
       original,
     )
   })
+
+  describe.each(['11.26.0', '12.3.4', '12.4.0'])(
+    'unknown task fields for pnpm %s',
+    targetVersion => {
+      it('rejects an existing workspace before changing any files', async () => {
+        const original = stringify({
+          tasks: { build: { concurrency: 2, outputz: ['dist/**'] } },
+        })
+        await writeWorkspaceYaml(original)
+        await writePackageJson({ pnpm: { saveExact: true } })
+        await writeNpmrc('node-linker=isolated')
+        const originalManifest = await readWorkspaceFile('package.json')
+
+        await expect(
+          migratePnpmSettings({ cwd: testDir, targetVersion }),
+        ).rejects.toThrow('other pnpm version: "tasks"')
+
+        await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+          original,
+        )
+        await expect(readWorkspaceFile('package.json')).resolves.toBe(
+          originalManifest,
+        )
+        await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+          'node-linker=isolated',
+        )
+      })
+
+      it.each(['discard', 'merge', 'overwrite'] as const)(
+        'retains invalid source tasks with the %s strategy',
+        async strategy => {
+          const tasks = {
+            build: { concurrency: 2, outputz: ['dist/**'] },
+          }
+          const existingTasks = { build: { dependsOn: ['^build'] } }
+          await writePackageJson({
+            pnpm: { tasks, nodeLinker: 'isolated' },
+          })
+          await writeWorkspaceYaml(stringify({ tasks: existingTasks }))
+
+          const result = await migratePnpmSettings({
+            cwd: testDir,
+            targetVersion,
+            strategy,
+          })
+
+          expect(result.warnings).toStrictEqual([
+            `Kept settings in package.json#pnpm that are incompatible with pnpm ${targetVersion}: "tasks".`,
+          ])
+          await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+            tasks: existingTasks,
+            nodeLinker: 'isolated',
+          })
+          expect(
+            JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+          ).toStrictEqual({ tasks })
+        },
+      )
+    },
+  )
 
   it.each(['v10', 'v11', 'v12'] as const)(
     'retains new source fields for %s',

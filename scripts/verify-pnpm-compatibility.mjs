@@ -230,8 +230,6 @@ async function verifyVersion(version) {
  * @returns A promise resolved after config reading, installation, and cleanup
  */
 async function verifyMinorCapabilities(version) {
-  const fixtureDir = await mkdtemp(join(tmpdir(), 'pnpm-settings-minor-'))
-  const projectDir = join(fixtureDir, 'packages/app')
   const projectSettings = {
     saveExact: true,
     savePrefix: '~',
@@ -255,17 +253,18 @@ async function verifyMinorCapabilities(version) {
     sharedWorkspaceLockfile: false,
     packages: ['packages/*'],
   }
-  try {
-    await mkdir(projectDir, { recursive: true })
-    await writeFile(
-      join(projectDir, 'package.json'),
-      JSON.stringify({ name: 'app', version: '1.0.0' }),
-    )
-    for (const packageConfigs of [
-      { app: projectSettings },
-      [{ match: ['app'], ...projectSettings }],
-    ]) {
-      await rm(join(fixtureDir, 'pnpm-workspace.yaml'), { force: true })
+  for (const packageConfigs of [
+    { app: projectSettings },
+    [{ match: ['app'], ...projectSettings }],
+  ]) {
+    const fixtureDir = await mkdtemp(join(tmpdir(), 'pnpm-settings-minor-'))
+    const projectDir = join(fixtureDir, 'packages/app')
+    try {
+      await mkdir(projectDir, { recursive: true })
+      await writeFile(
+        join(projectDir, 'package.json'),
+        JSON.stringify({ name: 'app', version: '1.0.0' }),
+      )
       await writeFile(
         join(fixtureDir, 'package.json'),
         JSON.stringify({
@@ -314,11 +313,11 @@ async function verifyMinorCapabilities(version) {
         '--ignore-scripts',
         '--frozen-lockfile',
       ])
+    } finally {
+      await rm(fixtureDir, { force: true, recursive: true })
     }
-    process.stdout.write(`pnpm ${version} minor capabilities verified\n`)
-  } finally {
-    await rm(fixtureDir, { force: true, recursive: true })
   }
+  process.stdout.write(`pnpm ${version} minor capabilities verified\n`)
 }
 
 await Promise.all(
