@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../src/core'
+import { createTestWorkspace } from '../helpers'
 
 describe('migratePnpmSettings/strategy', () => {
   const {
     readWorkspaceFile,
     readWorkspaceYaml,
     testDir,
+    writeNpmrc,
     writePackageJson,
     writeWorkspaceYaml,
   } = createTestWorkspace('strategy')
@@ -134,4 +135,70 @@ describe('migratePnpmSettings/strategy', () => {
     expect(workspace.overrides).toStrictEqual({ bar: '2.0.0', foo: '1.0.0' })
     expect(workspace.shamefullyHoist).toBe(true)
   })
+
+  it('retains overlapping arrays from package.json and .npmrc', async () => {
+    await writePackageJson({
+      name: 'test-workspace',
+      pnpm: { hoistPattern: ['*types*'] },
+    })
+    await writeNpmrc('hoist-pattern[]=*eslint*')
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+
+    await expect(readWorkspaceYaml()).resolves.toMatchObject({
+      hoistPattern: ['*types*', '*eslint*'],
+    })
+    await expect(readWorkspaceFile('.npmrc')).resolves.not.toContain(
+      'hoist-pattern',
+    )
+  })
+
+  it('deduplicates equivalent object values without reordering distinct entries', async () => {
+    await writePackageJson({
+      pnpm: {
+        packageConfigs: [
+          { saveExact: true, match: ['app'] },
+          { match: ['app'], saveExact: false },
+        ],
+      },
+    })
+    await writeWorkspaceYaml(
+      'packageConfigs:\n  - match: [app]\n    saveExact: true\n',
+    )
+
+    await migratePnpmSettings({ cwd: testDir, compatibility: 'v11' })
+
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      packageConfigs: [
+        { match: ['app'], saveExact: true },
+        { match: ['app'], saveExact: false },
+      ],
+    })
+  })
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'keeps repeated object-array migrations idempotent with %s',
+    async strategy => {
+      const packageConfigs = [{ match: ['app'], saveExact: true }]
+      await writePackageJson({ pnpm: { packageConfigs } })
+      await writeWorkspaceYaml(
+        'packageConfigs:\n  - match: [app]\n    saveExact: true\n',
+      )
+
+      const options = {
+        cwd: testDir,
+        compatibility: 'v11' as const,
+        cleanPackageJson: false,
+        strategy,
+      }
+      await migratePnpmSettings(options)
+      const result = await migratePnpmSettings(options)
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        packageConfigs,
+      })
+      expect(result.settingsChanges).toStrictEqual([])
+      expect(result.changedFiles).toStrictEqual([])
+    },
+  )
 })

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { resolveCompatibilityTarget } from '../src/features/compatibility/target'
-import { fsExists } from '../src/utils/fs'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src/core'
+import { fsExists } from '../../../src/utils/fs'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/compatibility', () => {
   const {
@@ -358,75 +357,6 @@ describe('migratePnpmSettings/compatibility', () => {
     })
   })
 
-  it('moves useNodeVersion to package.json devEngines.runtime in v11', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      packageManager: 'pnpm@11.0.0',
-      pnpm: { useNodeVersion: '22.14.0' },
-    })
-
-    await migratePnpmSettings({ cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
-
-    expect(workspace.useNodeVersion).toBeUndefined()
-    expect(packageJson.devEngines.runtime).toStrictEqual({
-      name: 'node',
-      version: '22.14.0',
-    })
-    expect(packageJson.pnpm).toBeUndefined()
-  })
-
-  it('moves root executionEnv.nodeVersion to devEngines.runtime in v11', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      pnpm: {
-        executionEnv: { nodeVersion: '22.15.0' },
-        ignoreDepScripts: true,
-      },
-    })
-
-    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-    const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
-
-    expect(workspace.executionEnv).toBeUndefined()
-    expect(workspace.ignoreDepScripts).toBeUndefined()
-    expect(packageJson.devEngines.runtime).toStrictEqual({
-      name: 'node',
-      version: '22.15.0',
-    })
-    expect(packageJson.pnpm).toStrictEqual({ ignoreDepScripts: true })
-  })
-
-  it.each([
-    ['discard', '20.0.0', { useNodeVersion: '22.0.0' }],
-    ['merge', '20.0.0', { useNodeVersion: '22.0.0' }],
-    ['overwrite', '22.0.0', undefined],
-  ] as const)(
-    'keeps unapplied runtime settings under the %s strategy',
-    async (strategy, runtimeVersion, expectedPnpm) => {
-      await writeWorkspaceYaml('useNodeVersion: 20.0.0\n')
-      await writePackageJson({
-        name: 'test-workspace',
-        pnpm: { useNodeVersion: '22.0.0' },
-      })
-
-      await migratePnpmSettings({
-        compatibility: 'v11',
-        cwd: testDir,
-        strategy,
-      })
-
-      const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
-      expect(packageJson.devEngines.runtime).toStrictEqual({
-        name: 'node',
-        version: runtimeVersion,
-      })
-      expect(packageJson.pnpm).toStrictEqual(expectedPnpm)
-    },
-  )
-
   it('converts legacy node mirror entries from .npmrc in v11', async () => {
     await writeNpmrc(
       [
@@ -474,28 +404,6 @@ describe('migratePnpmSettings/compatibility', () => {
     const workspace = await readWorkspaceYaml()
 
     expect(workspace.allowBuilds).toStrictEqual({ esbuild: true })
-  })
-
-  it('auto-detects v12 release candidates from packageManager', () => {
-    expect(resolveCompatibilityTarget('auto', 'pnpm@12.0.0-rc.7')).toBe('v12')
-  })
-
-  it('auto-detects v12 ranges from devEngines.packageManager', () => {
-    expect(
-      resolveCompatibilityTarget('auto', undefined, {
-        name: 'pnpm',
-        version: '^12.0.0-rc.7',
-      }),
-    ).toBe('v12')
-  })
-
-  it('auto-detects pnpm from a devEngines.packageManager array', () => {
-    expect(
-      resolveCompatibilityTarget('auto', undefined, [
-        { name: 'npm', version: '^11.0.0' },
-        { name: 'pnpm', version: '^11.0.0' },
-      ]),
-    ).toBe('v11')
   })
 
   it('applies shared settings migration and npmrc cleanup in v12 mode', async () => {

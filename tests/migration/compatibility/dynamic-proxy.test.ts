@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { stringify } from 'yaml'
-import { migratePnpmSettings } from '../src'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/dynamic proxy values', () => {
   const {

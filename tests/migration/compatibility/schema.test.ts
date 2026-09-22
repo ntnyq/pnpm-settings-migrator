@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils/fs'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src/core'
+import { fsExists } from '../../../src/utils/fs'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/versioned schema', () => {
   const {
@@ -483,4 +483,52 @@ describe('migratePnpmSettings/versioned schema', () => {
       'save-exact=true\n',
     )
   })
+
+  it('migrates documented v10 settings omitted by the old whitelist', async () => {
+    await writeNpmrc(
+      [
+        'block-exotic-subdeps=true',
+        'child-concurrency=3',
+        'dangerously-allow-all-builds=false',
+        'ignore-scripts=true',
+        'minimum-release-age=1440',
+        'trust-policy=no-downgrade',
+      ].join('\n'),
+    )
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+
+    await expect(readWorkspaceYaml()).resolves.toMatchObject({
+      blockExoticSubdeps: true,
+      childConcurrency: '3',
+      dangerouslyAllowAllBuilds: false,
+      ignoreScripts: true,
+      minimumReleaseAge: '1440',
+      trustPolicy: 'no-downgrade',
+    })
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe('\n')
+  })
+
+  it.each(['v11', 'v12'] as const)(
+    'retains scheme-relative registry credentials in %s',
+    async compatibility => {
+      await writePackageJson({
+        pnpm: {
+          registry: '//review-user:review-secret@registry.example.test/',
+          saveExact: true,
+        },
+      })
+
+      const result = await migratePnpmSettings({ cwd: testDir, compatibility })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        saveExact: true,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm.registry,
+      ).toContain('review-secret')
+      expect(result.warnings.join('\n')).toContain('unsafe registry')
+      expect(JSON.stringify(result)).not.toContain('review-secret')
+    },
+  )
 })

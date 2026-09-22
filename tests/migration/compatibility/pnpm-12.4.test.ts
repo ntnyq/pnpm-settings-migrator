@@ -1,9 +1,9 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import { stringify } from 'yaml'
-import { migratePnpmSettings } from '../src'
-import type { PnpmTaskSettings, PnpmWorkspace } from '../src'
-import { fsExists } from '../src/utils/fs'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src'
+import type { PnpmTaskSettings, PnpmWorkspace } from '../../../src'
+import { fsExists } from '../../../src/utils/fs'
+import { createTestWorkspace } from '../../helpers'
 
 const recentSettings = {
   cargo: { enabled: false, indexUrl: 'https://index.crates.io' },
@@ -60,7 +60,7 @@ describe('workspace public types', () => {
   })
 })
 
-describe('migratePnpmSettings/recent settings', () => {
+describe('migratePnpmSettings/pnpm 12.4 settings', () => {
   const {
     testDir,
     writePackageJson,
@@ -69,7 +69,7 @@ describe('migratePnpmSettings/recent settings', () => {
     writeWorkspaceFile,
     readWorkspaceFile,
     readWorkspaceYaml,
-  } = createTestWorkspace('recent-settings')
+  } = createTestWorkspace('pnpm-12.4')
 
   it('migrates all new fields and cleans applied settings', async () => {
     await writePackageJson({
@@ -95,7 +95,7 @@ describe('migratePnpmSettings/recent settings', () => {
     )
   })
 
-  describe.each(['11.26.0', '12.3.4', '12.4.0'])(
+  describe.each(['11.26.0', '12.3.4', '12.4.0', '12.5.1'])(
     'unknown task fields for pnpm %s',
     targetVersion => {
       it('rejects an existing workspace before changing any files', async () => {

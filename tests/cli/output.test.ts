@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { version } from '../package.json'
-import { createTestCli } from './cli-helpers'
-import { createTestWorkspace } from './helpers'
+import { version } from '../../package.json'
+import { createTestWorkspace } from '../helpers'
+import { createTestCli } from './helpers'
 
 describe('cli output', () => {
   const {

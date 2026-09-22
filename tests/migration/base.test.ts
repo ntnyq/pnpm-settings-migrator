@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils/fs'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../src/core'
+import { fsExists } from '../../src/utils/fs'
+import { createTestWorkspace } from '../helpers'
 
 describe('migratePnpmSettings/base', () => {
   const {
@@ -91,31 +91,6 @@ describe('migratePnpmSettings/base', () => {
       ignoredOptionalDependencies: ['fsevents'],
       overrides: { foo: '1.0.0' },
     })
-  })
-
-  it('converts resolutions to overrides when enabled', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      pnpm: { overrides: { foo: '1.0.0' } },
-      resolutions: { bar: '2.0.0' },
-    })
-
-    await migratePnpmSettings({ cwd: testDir, yarnResolutions: true })
-    const workspace = await readWorkspaceYaml()
-
-    expect(workspace.overrides).toMatchObject({ bar: '2.0.0', foo: '1.0.0' })
-  })
-
-  it('does not migrate resolutions when disabled', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      resolutions: { bar: '2.0.0' },
-    })
-
-    await migratePnpmSettings({ cwd: testDir, yarnResolutions: false })
-
-    const workspaceExists = await fsExists(`${testDir}/pnpm-workspace.yaml`)
-    expect(workspaceExists).toBe(false)
   })
 
   it('preserves existing pnpm-workspace.yaml data', async () => {
@@ -303,32 +278,5 @@ describe('migratePnpmSettings/base', () => {
     expect(workspace.peerDependencyRules).toStrictEqual({
       ignoreMissing: ['react'],
     })
-  })
-
-  it('handles resolutions cleanup toggles', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      resolutions: { bar: '2.0.0' },
-    })
-    await migratePnpmSettings({
-      cleanPackageJson: true,
-      cwd: testDir,
-      yarnResolutions: true,
-    })
-    let updated = JSON.parse(await readWorkspaceFile('package.json'))
-    expect(updated.resolutions).toBeUndefined()
-
-    await writePackageJson({
-      name: 'test-workspace',
-      pnpm: { overrides: { foo: '1.0.0' } },
-      resolutions: { bar: '2.0.0' },
-    })
-    await migratePnpmSettings({
-      cleanPackageJson: true,
-      cwd: testDir,
-      yarnResolutions: false,
-    })
-    updated = JSON.parse(await readWorkspaceFile('package.json'))
-    expect(updated.resolutions).toStrictEqual({ bar: '2.0.0' })
   })
 })

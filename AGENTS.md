@@ -14,9 +14,11 @@ collects sources and persists results, and `settings/` validates settings and
 collects changes. `features/options.ts` resolves migration options. CLI parsing,
 execution, and terminal rendering belong in `src/cli/`; its entry is
 `src/cli/index.ts`, built as `dist/cli.mjs`. Keep reusable filesystem, color,
-merge, and YAML document helpers in `src/utils/`. Tests live in `tests/`;
-shared setup and workspace helpers are in `tests/setup.ts` and `tests/helpers.ts`,
-while static sample data belongs in `tests/fixtures/`. Build configuration is at
+merge, and YAML document helpers in `src/utils/`. Tests live in `tests/`:
+`migration/` covers complete migration behavior, `features/` tests internal
+modules directly, `cli/` covers CLI parsing and rendering, and `utils/` tests
+reusable helpers. Shared setup and workspace helpers are in `tests/setup.ts` and
+`tests/helpers.ts`, while static sample data belongs in `tests/fixtures/`. Build configuration is at
 the repository root and generated output goes to `dist/`.
 
 ## Build, Test, and Development Commands
@@ -45,10 +47,16 @@ exported function with meaningful `@param` and `@returns` tags where applicable.
 
 ## Testing Guidelines
 
-Vitest files follow `tests/<area>.<scenario>.test.ts`, for example
-`core.strategy.test.ts`. Use `createTestWorkspace()` for isolated filesystem
-cases and assert both generated YAML and cleanup behavior. Add regression tests
-for every behavior change; merge changes should cover `discard`, `merge`, and
+Vitest files follow `tests/<area>/<scenario>.test.ts`, for example
+`tests/migration/strategy.test.ts`. Group migration source handling under
+`tests/migration/sources/` and version conversion and schema compatibility under
+`tests/migration/compatibility/`. Use explicit version names such as
+`pnpm-12.5.test.ts` for release boundaries instead of `recent` or `latest`.
+Keep regression cases with the feature they cover rather than in catch-all
+regression files. CLI build and execution helpers live in `tests/cli/helpers.ts`.
+Use `createTestWorkspace()` with a unique scope per test file for isolated
+filesystem cases and assert both generated YAML and cleanup behavior. Add
+regression tests for every behavior change; merge changes should cover `discard`, `merge`, and
 `overwrite`. No numeric coverage threshold is configured. Run
 `pnpm run release:check` before opening a pull request.
 

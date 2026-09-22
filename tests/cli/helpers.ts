@@ -4,7 +4,7 @@ import process from 'node:process'
 import { stripAnsi } from 'consola/utils'
 import { build } from 'tsdown'
 import { afterAll, beforeAll } from 'vitest'
-import { resolve } from '../scripts/utils'
+import { resolve } from '../../scripts/utils'
 
 /**
  * Build an isolated CLI once and run it against a test workspace.

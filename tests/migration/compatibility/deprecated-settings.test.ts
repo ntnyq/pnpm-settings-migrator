@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src/core'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/deprecated settings', () => {
   const { readWorkspaceFile, readWorkspaceYaml, testDir, writePackageJson } =

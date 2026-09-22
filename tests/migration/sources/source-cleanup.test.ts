@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { fsExists } from '../src/utils/fs'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src/core'
+import { fsExists } from '../../../src/utils/fs'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/source cleanup', () => {
   const {
@@ -91,30 +91,61 @@ describe('migratePnpmSettings/source cleanup', () => {
     },
   )
 
-  it.each([
-    ['discard', '1.0.0', true],
-    ['merge', '1.0.0', true],
-    ['overwrite', '2.0.0', false],
-  ] as const)(
-    'cleans Yarn resolutions applied by the %s strategy',
-    async (strategy, fooVersion, keepsSource) => {
-      await writeWorkspaceYaml('overrides:\n  foo: 1.0.0\n')
-      await writePackageJson({
-        name: 'test-workspace',
-        resolutions: { foo: '2.0.0' },
-      })
+  it('cleans exact v10 keys without deleting prefix matches', async () => {
+    await writeNpmrc('tag-version-prefix=v\nnode-linker=hoisted')
+
+    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+      'tag-version-prefix=v\n',
+    )
+    await expect(readWorkspaceYaml()).resolves.toMatchObject({
+      nodeLinker: 'hoisted',
+    })
+  })
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'retains conflicting root sources with %s',
+    async strategy => {
+      await writePackageJson({ pnpm: { nodeLinker: 'isolated' } })
+      await writeNpmrc('node-linker=hoisted\n')
 
       await migratePnpmSettings({
-        compatibility: 'v11',
         cwd: testDir,
+        compatibility: 'v11',
         strategy,
       })
 
-      await expect(readWorkspaceYaml()).resolves.toMatchObject({
-        overrides: { foo: fooVersion },
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        nodeLinker: 'isolated',
       })
-      const packageJson = JSON.parse(await readWorkspaceFile('package.json'))
-      expect(Object.hasOwn(packageJson, 'resolutions')).toBe(keepsSource)
+      await expect(readWorkspaceFile('.npmrc')).resolves.toContain(
+        'node-linker=hoisted',
+      )
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toBeUndefined()
+    },
+  )
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'checks each normalized source independently with %s',
+    async strategy => {
+      await writePackageJson({ pnpm: { allowNonAppliedPatches: false } })
+      await writeNpmrc('allow-non-applied-patches=true\n')
+
+      await migratePnpmSettings({
+        cwd: testDir,
+        compatibility: 'v11',
+        strategy,
+      })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        allowUnusedPatches: false,
+      })
+      await expect(readWorkspaceFile('.npmrc')).resolves.toContain(
+        'allow-non-applied-patches=true',
+      )
     },
   )
 })

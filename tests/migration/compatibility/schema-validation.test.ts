@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { migratePnpmSettings } from '../src/core'
-import { createTestWorkspace } from './helpers'
+import { migratePnpmSettings } from '../../../src/core'
+import { createTestWorkspace } from '../../helpers'
 
 describe('migratePnpmSettings/schema validation', () => {
   const { readWorkspaceFile, testDir, writeWorkspaceYaml } =

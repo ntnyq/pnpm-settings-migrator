@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTestWorkspace } from './helpers'
+import { createTestWorkspace } from '../helpers'
 
 /**
  * Hoisted failure switch used to verify source retention after a write error.
@@ -10,8 +10,8 @@ const writeFailure = vi.hoisted(() => ({
   cleanup: false,
 }))
 
-vi.mock(import('../src/utils/fs'), async importOriginal => {
-  const actual = await importOriginal<typeof import('../src/utils/fs')>()
+vi.mock(import('../../src/utils/fs'), async importOriginal => {
+  const actual = await importOriginal<typeof import('../../src/utils/fs')>()
 
   return {
     ...actual,
@@ -41,16 +41,16 @@ vi.mock(import('../src/utils/fs'), async importOriginal => {
   }
 })
 
-import { migratePnpmSettings } from '../src/core'
+import { migratePnpmSettings } from '../../src/core'
 
-describe('migratePnpmSettings/reliability', () => {
+describe('migratePnpmSettings/persistence', () => {
   const {
     readWorkspaceFile,
     testDir,
     writeNpmrc,
     writePackageJson,
     writeWorkspaceYaml,
-  } = createTestWorkspace('reliability')
+  } = createTestWorkspace('persistence')
 
   // eslint-disable-next-line vitest/no-hooks -- Reset failure injection between independent cases.
   beforeEach(() => {
