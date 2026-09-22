@@ -132,6 +132,24 @@ For pnpm 12.4.0 and later stable v12 releases, the migrator additionally accepts
 `cargoTargetDir`. On older or unconfirmed targets, a `tasks` object containing
 these fields stays in its source as a whole.
 
+For pnpm 12.5.0 and later stable v12 releases, the migrator also accepts
+`concurrencyGroups`, task `concurrencyGroup`, platform lists in
+`supportedArchitectures`, Python `versions` / `overrides` / `constraints`, and
+`registries` declarations with `ecosystem`. Python registry `packages` routes
+require 12.5.1. Unsupported nested settings stay in their source as a whole.
+The legacy OS/CPU/libc architecture mapping continues to work.
+
+pnpm 12.5 removes `python.indexUrl` and `cargo.indexUrl`. Settings containing
+these fields are retained with an incompatibility warning; existing workspaces
+containing them fail validation before any files are written. Replace them with
+URL-keyed `registries` entries using `ecosystem: pypi` or `ecosystem: cargo`.
+The registry prefix `pkg` is reserved from 12.5 onward. Tool download mirrors
+under `tools` belong in global `config.yaml` or `PNPM_CONFIG_TOOLS` and are
+never migrated into the project workspace.
+
+On the v11 line, `trustPolicyExcludePrune` requires a confirmed stable version
+from 11.27.0 onward; v12 support still starts at 12.4.0.
+
 Automated v10 to v11 conversions include:
 
 - `managePackageManagerVersions`, `packageManagerStrict`, and
@@ -191,9 +209,10 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.26.0, 12.3.4, and 12.4.0, retaining
-  11.25.0 and 12.2.1 regressions. As audited on 2026-09-10, 12.3.4 is npm
-  `latest` and 12.4.0 is on `next-12`; the project stays pinned to 12.3.4. Its removed `pnpm install --resolution-only` CLI
+- Compatibility checks cover pnpm 11.27.1 and 12.5.1, retaining 11.25.0,
+  11.26.0, 12.2.1, 12.3.4, 12.4.0, 12.4.2, and 12.5.0 regressions.
+  As audited on 2026-09-22, npm `latest` is 12.5.1 and `latest-11` is 11.27.1;
+  the project is pinned to 12.5.1. Its removed `pnpm install --resolution-only` CLI
   flag is outside this settings migrator's scope; replace it with
   `pnpm peers check` in scripts before upgrading.
 
