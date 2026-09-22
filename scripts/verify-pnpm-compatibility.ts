@@ -1,12 +1,23 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { parse } from 'yaml'
-import { migratePnpmSettings } from '../dist/index.mjs'
+import { migratePnpmSettings } from '../src'
+import { verifyMinorCapabilities } from './verify-pnpm-minor-compatibility'
+
+/**
+ * First v11 minor supporting trust policy exclusion pruning.
+ */
+const TRUST_PRUNING_MINOR = 27
+
+/**
+ * First v12 minor supporting the pipeline and ecosystem settings fixture.
+ */
+const PIPELINE_MINOR = 4
 
 /**
  * Promise-based process runner used to capture pnpm output and failures.
@@ -19,9 +30,13 @@ const execFileAsync = promisify(execFile)
 const DEFAULT_PNPM_VERSIONS = [
   '11.25.0',
   '11.26.0',
+  '11.27.1',
   '12.2.1',
   '12.3.4',
   '12.4.0',
+  '12.4.2',
+  '12.5.0',
+  '12.5.1',
 ]
 
 /**
@@ -50,15 +65,19 @@ const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
  * Run a specific pnpm release with deterministic CI and color settings.
  * The launcher reads this repository; only the selected release reads the fixture.
  *
- * @param {string} version - pnpm release to run through `pnpm dlx`
- * @param {string} cwd - Absolute fixture workspace path
- * @param {string[]} args - Arguments passed to the selected pnpm release
+ * @param version - pnpm release to run through `pnpm dlx`
+ * @param cwd - Absolute fixture workspace path
+ * @param args - Arguments passed to the selected pnpm release
  *
  * @returns Captured standard output and standard error
  *
  * @throws {Error} When pnpm cannot start or exits unsuccessfully
  */
-async function runPnpm(version, cwd, args) {
+async function runPnpm(
+  version: string,
+  cwd: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string }> {
   return execFileAsync(
     pnpmCommand,
     [
@@ -87,13 +106,13 @@ async function runPnpm(version, cwd, args) {
  *
  * The temporary workspace is removed even when an assertion or command fails.
  *
- * @param {string} version - pnpm v11 or v12 release to verify
+ * @param version - pnpm v11 or v12 release to verify
  *
  * @returns A promise that resolves after verification and fixture cleanup
  *
  * @throws {Error} When migration, pnpm commands, or compatibility assertions fail
  */
-async function verifyVersion(version) {
+async function verifyVersion(version: string): Promise<void> {
   const compatibility = version.startsWith('11.') ? 'v11' : 'v12'
   const fixtureDir = await mkdtemp(
     join(tmpdir(), `pnpm-settings-migrator-${compatibility}-`),
@@ -106,7 +125,12 @@ async function verifyVersion(version) {
     )
     const versionSpecificSettings =
       compatibility === 'v11'
-        ? { confirmModulesPurge: false }
+        ? {
+            confirmModulesPurge: false,
+            ...(Number(version.split('.')[1]) >= TRUST_PRUNING_MINOR
+              ? { trustPolicyExcludePrune: true }
+              : {}),
+          }
         : { globalShims: { node: 'always', typescript: true } }
     await writeFile(
       join(fixtureDir, 'package.json'),
@@ -171,6 +195,9 @@ async function verifyVersion(version) {
     assert.equal(workspace.customMetadata, undefined)
     if (compatibility === 'v11') {
       assert.equal(workspace.confirmModulesPurge, false)
+      if (Number(version.split('.')[1]) >= TRUST_PRUNING_MINOR) {
+        assert.equal(workspace.trustPolicyExcludePrune, true)
+      }
     } else {
       assert.deepEqual(workspace.globalShims, {
         node: 'always',
@@ -224,109 +251,14 @@ async function verifyVersion(version) {
   }
 }
 
-/**
- * Verify the pnpm 12.4 schema and project configuration with both entry shapes.
- *
- * @param {string} version - Exact pnpm 12.4 release to execute
- *
- * @returns A promise resolved after config reading, installation, and cleanup
- */
-async function verifyMinorCapabilities(version) {
-  const projectSettings = {
-    saveExact: true,
-    savePrefix: '~',
-    modulesDir: '.modules',
-  }
-  const settings = {
-    cargo: { enabled: false },
-    python: { enabled: false },
-    pipelineBase: 'main',
-    pipelines: { ci: ['build'] },
-    tasks: {
-      build: {
-        outputs: [],
-        inputs: ['src/**'],
-        env: ['NODE_ENV'],
-        cache: false,
-        cargoTargetDir: 'target',
-      },
-    },
-    trustPolicyExcludePrune: true,
-    sharedWorkspaceLockfile: false,
-    packages: ['packages/*'],
-  }
-  for (const packageConfigs of [
-    { app: projectSettings },
-    [{ match: ['app'], ...projectSettings }],
-  ]) {
-    const fixtureDir = await mkdtemp(join(tmpdir(), 'pnpm-settings-minor-'))
-    const projectDir = join(fixtureDir, 'packages/app')
-    try {
-      await mkdir(projectDir, { recursive: true })
-      await writeFile(
-        join(projectDir, 'package.json'),
-        JSON.stringify({ name: 'app', version: '1.0.0' }),
-      )
-      await writeFile(
-        join(fixtureDir, 'package.json'),
-        JSON.stringify({
-          name: 'minor-capabilities',
-          packageManager: `pnpm@${version}`,
-          pnpm: { ...settings, packageConfigs },
-        }),
-      )
-      const result = await migratePnpmSettings({ cwd: fixtureDir })
-      assert.deepEqual(result.warnings, [])
-      const workspace = parse(
-        await readFile(join(fixtureDir, 'pnpm-workspace.yaml'), 'utf8'),
-      )
-      assert.deepEqual(workspace, { ...settings, packageConfigs })
-      const config = JSON.parse(
-        (await runPnpm(version, fixtureDir, ['config', 'list', '--json']))
-          .stdout,
-      )
-      assert.equal(config.trustPolicyExcludePrune, true)
-      assert.equal(config.sharedWorkspaceLockfile, false)
-      assert.deepEqual(config.pipelines, settings.pipelines)
-      assert.equal(config.tasks.build.cargoTargetDir, 'target')
-      await runPnpm(version, projectDir, [
-        'add',
-        'is-number',
-        '--ignore-scripts',
-      ])
-      const projectManifest = JSON.parse(
-        await readFile(join(projectDir, 'package.json'), 'utf8'),
-      )
-      assert.equal(projectManifest.dependencies['is-number'], '7.0.0')
-      const installedPackage = JSON.parse(
-        await readFile(
-          join(projectDir, '.modules/is-number/package.json'),
-          'utf8',
-        ),
-      )
-      assert.equal(installedPackage.version, '7.0.0')
-      await runPnpm(version, fixtureDir, [
-        'install',
-        '--ignore-scripts',
-        '--lockfile-only',
-      ])
-      await runPnpm(version, fixtureDir, [
-        'install',
-        '--ignore-scripts',
-        '--frozen-lockfile',
-      ])
-    } finally {
-      await rm(fixtureDir, { force: true, recursive: true })
-    }
-  }
-  process.stdout.write(`pnpm ${version} minor capabilities verified\n`)
-}
-
 await Promise.all(
   pnpmVersions.map(async version => {
     await verifyVersion(version)
-    if (version === '12.4.0') {
-      await verifyMinorCapabilities(version)
+    if (
+      version.startsWith('12.') &&
+      Number(version.split('.')[1]) >= PIPELINE_MINOR
+    ) {
+      await verifyMinorCapabilities(version, runPnpm)
     }
   }),
 )

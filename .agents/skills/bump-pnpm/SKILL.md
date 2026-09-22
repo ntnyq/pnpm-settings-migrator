@@ -28,7 +28,7 @@ Extract the following versions separately, recording their paths and evidence:
 | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Development toolchain pin | `package.json#packageManager`, `engines`, and CI                                                           |
 | Implemented compatibility | `src/constants/pnpm-v*.ts`, `pnpm-capabilities.ts`, version resolution, schema, and value shape validation |
-| Verified compatibility    | Tests, `scripts/verify-pnpm-compatibility.mjs`, CI, and audit records with explicit results                |
+| Verified compatibility    | Tests, `scripts/verify-pnpm-compatibility.ts`, CI, and audit records with explicit results                 |
 
 Check `README.md` and `docs/research/` for differences between documentation and
 implementation. A capability's `minimumVersion` marks its introduction, not the
@@ -97,7 +97,7 @@ editing.
 | `.npmrc`, subproject configuration, source cleanup, persistence | `src/features/sources/`, `src/features/migration/`                                             |
 | Public types and API                                            | `src/types/`, relevant `index.ts` files, explicit exports in `src/index.ts`                    |
 | CLI targets, help, warnings                                     | `src/cli/`, `src/constants/cli.ts`, option types and defaults                                  |
-| Regressions and real pnpm verification                          | `tests/`, `scripts/verify-pnpm-compatibility.mjs`, `.github/workflows/ci.yml`                  |
+| Regressions and real pnpm verification                          | `tests/`, `scripts/verify-pnpm-compatibility.ts`, `.github/workflows/ci.yml`                   |
 
 Preserve these migration constraints:
 

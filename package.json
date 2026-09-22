@@ -48,14 +48,14 @@
     "release:check": "run-s lint format:check typecheck test",
     "release:version": "bumpp",
     "test": "vitest",
-    "test:compatibility": "node scripts/verify-pnpm-compatibility.mjs",
+    "test:compatibility": "tsx scripts/verify-pnpm-compatibility.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ntnyq/utils": "^0.22.0",
+    "@ntnyq/utils": "^0.23.0",
     "@pnpm/types": "^1102.1.0",
     "cac": "^7.0.0",
-    "camelcase-keys": "^10.0.2",
+    "camelcase-keys": "^10.0.3",
     "consola": "^3.4.2",
     "defu": "^6.1.7",
     "detect-indent": "^7.0.2",
@@ -66,16 +66,17 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.2",
     "bumpp": "^12.3.0",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
     "npm-run-all2": "^9.0.3",
-    "oxfmt": "^0.67.0",
-    "oxlint": "^1.82.0",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
     "tsdown": "^0.23.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "nano-staged": {
     "*.{js,ts,mjs,tsx}": "oxlint --fix",
@@ -84,5 +85,5 @@
   "engines": {
     "node": "^22.19.0 || >=24.11.0"
   },
-  "packageManager": "pnpm@12.4.1"
+  "packageManager": "pnpm@12.5.1"
 }
