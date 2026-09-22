@@ -158,7 +158,10 @@ export interface PnpmSettingsV11 {
 /**
  * `pnpm-workspace.yaml` types.
  */
-export type PnpmWorkspace = Omit<PnpmSettings, 'tasks'> &
+export type PnpmWorkspace = Omit<
+  PnpmSettings,
+  'registries' | 'supportedArchitectures' | 'tasks'
+> &
   PnpmSettingsDeprecated &
   PnpmSettingsV11 &
   PnpmSettingsV12 &

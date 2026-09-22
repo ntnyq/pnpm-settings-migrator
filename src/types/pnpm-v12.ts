@@ -1,18 +1,24 @@
+import type { PnpmSettings, RegistryDeclaration } from '@pnpm/types'
+
 /**
  * Policy used by pnpm v12's project-aware global shims.
  */
 export type GlobalShimPolicy = boolean | 'always' | 'auto' | 'prompt'
 
 /**
- * Pipeline task configuration supported by pnpm 12.4.0.
+ * Task configuration, including pnpm 12.4 caching and 12.5 concurrency groups.
  *
- * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
+ * @see https://github.com/pnpm/pnpm/blob/v12.5.1/pnpm/crates/config/src/workspace_yaml/sections.rs
  */
 export interface PnpmTaskSettings {
   /**
    * Maximum concurrent executions of this task.
    */
   concurrency?: number
+  /**
+   * Machine-wide concurrency group to count this task against (pnpm 12.5+).
+   */
+  concurrencyGroup?: string
   /**
    * Prerequisite tasks; a caret prefix refers to workspace dependencies.
    */
@@ -52,7 +58,8 @@ export interface PnpmPythonSettings {
    */
   executable?: string
   /**
-   * Python package index URL.
+   * Python package index URL accepted by pnpm 12.4.
+   * @deprecated pnpm 12.5+ uses a registries entry with ecosystem: pypi.
    */
   indexUrl?: string
   /**
@@ -63,6 +70,18 @@ export interface PnpmPythonSettings {
    * Python dependency groups to install.
    */
   groups?: string[]
+  /**
+   * Python versions to resolve the lockfile for (pnpm 12.5+).
+   */
+  versions?: string[]
+  /**
+   * Python requirements that override dependency versions (pnpm 12.5+).
+   */
+  overrides?: string[]
+  /**
+   * Additional constraints on Python dependency versions (pnpm 12.5+).
+   */
+  constraints?: string[]
 }
 
 /**
@@ -74,15 +93,43 @@ export interface PnpmCargoSettings {
    */
   enabled?: boolean
   /**
-   * Cargo registry index URL.
+   * Cargo registry index URL accepted by pnpm 12.4.
+   * @deprecated pnpm 12.5+ uses a registries entry with ecosystem: cargo.
    */
   indexUrl?: string
+}
+
+/**
+ * URL-keyed registry declaration with pnpm 12.5 ecosystem support.
+ */
+export interface PnpmRegistryDeclaration extends RegistryDeclaration {
+  /**
+   * Package ecosystem served by the registry; omitted means npm (pnpm 12.5+).
+   */
+  ecosystem?: 'cargo' | 'npm' | 'pypi'
+  /**
+   * Python package names or trailing-prefix patterns; * selects the default
+   * index (pnpm 12.5.1+).
+   */
+  packages?: string[]
 }
 
 /**
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Machine-wide limits shared by tasks in each group (pnpm 12.5+).
+   */
+  concurrencyGroups?: Record<string, number>
+  /**
+   * Legacy OS/CPU/libc axes, or platform names and Rust triples (pnpm 12.5+).
+   */
+  supportedArchitectures?: PnpmSettings['supportedArchitectures'] | string[]
+  /**
+   * Legacy scope routes or URL-keyed declarations with ecosystem settings.
+   */
+  registries?: Record<string, PnpmRegistryDeclaration | string>
   /**
    * Peer auto-installation policy accepted only by the v12 target.
    */

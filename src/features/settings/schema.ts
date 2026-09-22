@@ -21,6 +21,7 @@ import type {
   SelectedPnpmSettings,
   PnpmWorkspace,
 } from '../../types'
+import { hasIncompatibleSettingValue } from './versioned-values'
 
 /**
  * Create an empty collection of schema selection issues.
@@ -178,6 +179,9 @@ function resolveSettingIssue({
     value.includes('${')
   ) {
     return 'unsafe'
+  }
+  if (hasIncompatibleSettingValue(key, value, target)) {
+    return 'incompatible'
   }
   if (
     key === 'tasks' &&

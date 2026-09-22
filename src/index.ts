@@ -17,6 +17,7 @@ export type {
   PnpmTaskSettings,
   PnpmPythonSettings,
   PnpmCargoSettings,
+  PnpmRegistryDeclaration,
   PnpmWorkspace,
   MigrationResult,
   SettingsChange,
