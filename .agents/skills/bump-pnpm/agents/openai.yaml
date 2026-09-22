@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Bump pnpm'
+  short_description: 'Update pnpm migration support and report verified changes'
+  default_prompt: 'Use $bump-pnpm to fetch the latest pnpm releases, compare implemented and verified repository support, make and verify compatibility updates, and report the changes.'
