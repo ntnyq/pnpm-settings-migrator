@@ -169,6 +169,9 @@ Notes:
 - `.npmrc` migration is aligned with the target pnpm workspace schema. Unknown
   keys and settings supported only by a different pnpm version stay in `.npmrc`
   with a warning.
+- Scalar list settings such as `public-hoist-pattern=*eslint*` become YAML
+  arrays (`publicHoistPattern: ['*eslint*']`). Existing arrays and patterns
+  containing commas are preserved without splitting their values.
 - In `v11` and `v12`, auth/registry keys and project-refused machine settings
   such as `globalDir`, `stateDir`, `configDir`, and `scope` stay in `.npmrc`.
 - Registry declarations containing embedded credentials or dynamic `${...}`
@@ -195,6 +198,8 @@ Notes:
   resolutions remain in their original source.
   Unrecognized, refused, incompatible, or otherwise unsupported
   `package.json#pnpm` child keys remain in `package.json`.
+  INI sections in `.npmrc` are retained conservatively; their child names are
+  never treated as root keys during cleanup.
 - Runtime migration writes `devEngines.runtime` before removing a workspace
   runtime declaration. A failed write preserves source settings for retry.
   If an existing runtime declaration conflicts with a workspace runtime, migration

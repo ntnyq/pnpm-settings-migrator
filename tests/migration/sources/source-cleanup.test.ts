@@ -14,6 +14,34 @@ describe('migratePnpmSettings/source cleanup', () => {
   } = createTestWorkspace('source-cleanup')
 
   it.each([
+    ['discard', '2.0.0'],
+    ['merge', '2.0.0'],
+    ['overwrite', '1.0.0'],
+  ] as const)(
+    'preserves INI sections when pruning root keys with %s',
+    async (strategy, overrideVersion) => {
+      const sections =
+        '[overrides]\nsave-prefix=1.0.0\n[custom]\nsave-prefix=keep\n'
+      await writeNpmrc(`save-prefix=~\n${sections}`)
+      await writeWorkspaceYaml('overrides:\n  save-prefix: 2.0.0\n')
+
+      await migratePnpmSettings({
+        cwd: testDir,
+        compatibility: 'v12',
+        strategy,
+      })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        savePrefix: '~',
+        overrides: {
+          'save-prefix': overrideVersion,
+        },
+      })
+      await expect(readWorkspaceFile('.npmrc')).resolves.toBe(sections)
+    },
+  )
+
+  it.each([
     ['discard', 'hoisted', true],
     ['merge', 'hoisted', true],
     ['overwrite', 'isolated', false],

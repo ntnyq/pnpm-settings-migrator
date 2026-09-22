@@ -6,6 +6,7 @@ import {
   PNPM_V10_NPMRC_SETTINGS_FIELDS,
   NODE_MIRROR_KEY_PATTERN,
   PROXY_SETTINGS,
+  NPMRC_STRING_ARRAY_SETTINGS,
 } from '../../constants'
 import type {
   SettingsIssues,
@@ -48,6 +49,22 @@ function mergeSettingsIssues(
  */
 function normalizeNpmrcKey(key: string): string {
   return key.trim().replace(/\[\]$/u, '').toLowerCase()
+}
+
+/**
+ * Convert scalar list settings to the array representation required by YAML.
+ *
+ * @param settings - Selected `.npmrc` settings with camelCase keys
+ *
+ * @returns Settings with each scalar list value preserved as one array item
+ */
+function normalizeNpmrcSettings(settings: NpmRC): NpmRC {
+  for (const key of NPMRC_STRING_ARRAY_SETTINGS) {
+    if (typeof settings[key] === 'string') {
+      settings[key] = [settings[key]]
+    }
+  }
+  return settings
 }
 
 /**
@@ -99,7 +116,8 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  * Remove pnpm-related settings from `.npmrc` file.
  *
  * This function reads the `.npmrc` file, removes lines whose exact normalized
- * keys were migrated, and writes the cleaned content back to the file.
+ * root keys were migrated, and writes the cleaned content back to the file.
+ * INI sections are retained because their child keys are not root settings.
  *
  * @param path - Absolute path to the `.npmrc` file
  * @param compatibility - Concrete pnpm compatibility target
@@ -121,7 +139,15 @@ export async function pruneNpmrc(
 ): Promise<void> {
   const migratedKeySet = new Set(migratedKeys.map(normalizeNpmrcKey))
   const content = await fsReadFile(path)
+  let inSection = false
   const lines = content.split(/\r?\n/u).filter(line => {
+    // Match the section syntax used by the INI reader, including empty names.
+    if (/^\[[^\]]*\]\s*$/u.test(line.replace(/^\uFEFF/u, ''))) {
+      inSection = true
+    }
+    if (inSection) {
+      return true
+    }
     const key = getNpmrcLineKey(line)
     if (!key) {
       return true
@@ -183,7 +209,11 @@ export async function readMigratableNpmrc(
     })
     const migratable = Object.fromEntries(keys.map(key => [key, raw[key]]))
 
-    return { issues, keys, settings: camelcaseKeys(migratable) }
+    return {
+      issues,
+      keys,
+      settings: normalizeNpmrcSettings(camelcaseKeys(migratable)),
+    }
   }
 
   const migratable: NpmRC = {}
@@ -210,7 +240,7 @@ export async function readMigratableNpmrc(
     }
   }
 
-  const settings = camelcaseKeys(migratable)
+  const settings = normalizeNpmrcSettings(camelcaseKeys(migratable))
   if (Object.keys(nodeDownloadMirrors).length) {
     const selected = selectPnpmSettings({ nodeDownloadMirrors }, target, {
       allowedFields: options.allowedFields,

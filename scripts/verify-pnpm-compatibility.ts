@@ -160,6 +160,8 @@ async function verifyVersion(version: string): Promise<void> {
       [
         'global-dir=.machine-global',
         'node-linker=isolated',
+        'public-hoist-pattern=*eslint*',
+        'git-shallow-hosts=github.com',
         'third-party-setting=preserve',
       ].join('\n'),
     )
@@ -185,6 +187,8 @@ async function verifyVersion(version: string): Promise<void> {
       await readFile(join(fixtureDir, 'pnpm-workspace.yaml'), 'utf8'),
     )
     assert.equal(workspace.nodeLinker, 'isolated')
+    assert.deepEqual(workspace.publicHoistPattern, ['*eslint*'])
+    assert.deepEqual(workspace.gitShallowHosts, ['github.com'])
     assert.deepEqual(workspace.overrides, { 'is-number': '7.0.0' })
     assert.deepEqual(workspace.sideEffectsCache, {
       read: true,
@@ -217,6 +221,7 @@ async function verifyVersion(version: string): Promise<void> {
     assert.match(npmrc, /global-dir=.machine-global/u)
     assert.match(npmrc, /third-party-setting=preserve/u)
     assert.doesNotMatch(npmrc, /node-linker=/u)
+    assert.doesNotMatch(npmrc, /public-hoist-pattern=|git-shallow-hosts=/u)
 
     const configList = await runPnpm(version, fixtureDir, [
       'config',
@@ -225,6 +230,8 @@ async function verifyVersion(version: string): Promise<void> {
     ])
     const resolvedConfig = JSON.parse(configList.stdout)
     assert.equal(resolvedConfig.nodeLinker, 'isolated')
+    assert.deepEqual(resolvedConfig.publicHoistPattern, ['*eslint*'])
+    assert.deepEqual(resolvedConfig.gitShallowHosts, ['github.com'])
 
     await runPnpm(version, fixtureDir, [
       'install',

@@ -17,14 +17,20 @@ function discardMerge(
   priority: PnpmWorkspace,
   fallback: PnpmWorkspace,
 ): PnpmWorkspace {
-  const result: Record<string, any> = { ...priority }
+  const result: Record<string, unknown> = { ...priority }
 
   for (const [key, fallbackValue] of Object.entries(fallback)) {
-    const priorityValue = result[key]
+    const priorityValue = Object.hasOwn(result, key) ? result[key] : undefined
 
     if (isUndefined(priorityValue)) {
       // Key doesn't exist in priority, use fallback value
-      result[key] = fallbackValue
+      // Define a data property so `__proto__` never invokes its inherited setter.
+      Object.defineProperty(result, key, {
+        configurable: true,
+        enumerable: true,
+        value: fallbackValue,
+        writable: true,
+      })
     } else if (isPlainObject(priorityValue) && isPlainObject(fallbackValue)) {
       // Both are objects - recursively merge with priority first
       result[key] = discardMerge(
@@ -54,14 +60,19 @@ function mergeWithArrayDedupe(
   existing: PnpmWorkspace,
   incoming: PnpmWorkspace,
 ): PnpmWorkspace {
-  const result: Record<string, any> = { ...existing }
+  const result: Record<string, unknown> = { ...existing }
 
   for (const [key, incomingValue] of Object.entries(incoming)) {
-    const existingValue = result[key]
+    const existingValue = Object.hasOwn(result, key) ? result[key] : undefined
 
     if (isUndefined(existingValue)) {
       // Key doesn't exist in existing, use incoming value
-      result[key] = incomingValue
+      Object.defineProperty(result, key, {
+        configurable: true,
+        enumerable: true,
+        value: incomingValue,
+        writable: true,
+      })
     } else if (Array.isArray(existingValue) && Array.isArray(incomingValue)) {
       // Both are arrays - merge and deduplicate
       const items: unknown[] = Array.from(

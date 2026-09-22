@@ -12,6 +12,25 @@ describe('migratePnpmSettings/strategy', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('strategy')
 
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'preserves prototype-named overrides and cleans applied sources with %s',
+    async strategy => {
+      await writeWorkspaceYaml('overrides:\n  constructor: 1.0.0\n')
+      await writePackageJson({
+        pnpm: { overrides: { toString: '2.0.0' } },
+      })
+
+      await migratePnpmSettings({ cwd: testDir, strategy })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        overrides: { constructor: '1.0.0', toString: '2.0.0' },
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toBeUndefined()
+    },
+  )
+
   it('throws for invalid strategy', async () => {
     await writePackageJson({
       name: 'test-workspace',

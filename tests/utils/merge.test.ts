@@ -3,6 +3,34 @@ import type { PnpmWorkspace } from '../../src/types'
 import { mergeByStrategy } from '../../src/utils/merge'
 
 describe('mergeByStrategy', () => {
+  describe.each(['discard', 'merge', 'overwrite'] as const)(
+    '%s prototype-named keys',
+    strategy => {
+      it.each(['constructor', 'toString', '__proto__'])(
+        'preserves %s from either side of a dependency map',
+        name => {
+          const special: PnpmWorkspace = {
+            overrides: Object.fromEntries([[name, '1.0.0']]),
+          }
+          const ordinary: PnpmWorkspace = { overrides: { foo: '2.0.0' } }
+          for (const [existing, incoming] of [
+            [special, ordinary],
+            [ordinary, special],
+          ]) {
+            const result = mergeByStrategy(existing, incoming, strategy)
+
+            expect(result.overrides).toStrictEqual({
+              ...special.overrides,
+              foo: '2.0.0',
+            })
+            expect(Object.getPrototypeOf(result.overrides)).toBe(
+              Object.prototype,
+            )
+          }
+        },
+      )
+    },
+  )
   describe('discard strategy', () => {
     it('should keep existing values when keys conflict', () => {
       const existing: PnpmWorkspace = {
