@@ -60,6 +60,7 @@ jobs:
             12.4.2,
             12.5.0,
             12.5.1,
+            12.6.0,
           ]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

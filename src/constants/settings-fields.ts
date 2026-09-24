@@ -20,6 +20,7 @@ export const PNPM_PROJECT_REFUSED_SETTINGS: readonly string[] = [
   'globalDir',
   'globalPkgDir',
   'hooks',
+  'macosBackup',
   'npmrcAuthFile',
   'packageManager',
   'packageManagerNetworkConfig',
