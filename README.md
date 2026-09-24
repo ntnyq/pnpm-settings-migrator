@@ -15,6 +15,9 @@ Run in your workspace root:
 pnpm dlx pnpm-settings-migrator
 ```
 
+<details>
+<summary>CLI output and migration outcomes</summary>
+
 After migration, the CLI reports how many root settings changed and shows a
 GitHub-style YAML diff. Removed lines are red and added lines are green:
 
@@ -49,6 +52,8 @@ Other outcomes are reported according to the files actually changed:
 - File formatting changes with no settings diff: `✔ Migration completed. Configuration files updated.`
 - Failure: one error report and exit code `1`.
 
+</details>
+
 ## Library usage
 
 ```ts
@@ -57,12 +62,17 @@ import { migratePnpmSettings } from 'pnpm-settings-migrator'
 const result = await migratePnpmSettings({ cwd: '/path/to/workspace' })
 ```
 
+<details>
+<summary>Library results and error handling</summary>
+
 Library calls now return a `MigrationResult` and do not print logs. The result
 contains `settingsChanges` (before/after root workspace settings), `changedFiles`
 (absolute paths, including created or removed files), `sourceSettingsCleaned`,
 `packageJsonRuntimeChanged`, `hasConfigurationFiles`, and `warnings`. Errors are
 thrown to the caller. Consumers that relied on console output should render the
 returned changes and warnings themselves.
+
+</details>
 
 ## CLI Options
 
@@ -95,6 +105,9 @@ Compatibility major for migrated settings:
 - `v12`: use the v12 schema, including `globalShims`, and enable additional
   fields according to the confirmed target version.
 
+<details>
+<summary>Compatibility resolution and validation</summary>
+
 An explicit major still uses a matching version from the project declarations.
 For example, `--compatibility v12` with `packageManager: "pnpm@12.4.0"` enables
 12.4 capabilities. A pin to another major supplies no minor capabilities for
@@ -103,6 +116,8 @@ the selected major; use `--target-version` to state the intended release.
 In `v11` and `v12` modes, the migrator validates existing workspace keys,
 filters incoming settings against the resolved capabilities, and applies
 required normalization to legacy files and `pnpm-workspace.yaml`.
+
+</details>
 
 ### `--target-version`
 
@@ -120,11 +135,19 @@ await migratePnpmSettings({ compatibility: 'v12' }) // Infer a matching minor
 await migratePnpmSettings({ targetVersion: '12.4.0' }) // Target this exact release
 ```
 
+<details>
+<summary>Version inference and supported version formats</summary>
+
 Version ranges are not accepted by `targetVersion`. Project ranges, conflicting
 `devEngines` entries, prereleases, and declarations without a confirmed matching
 version retain the base major schema. Build metadata on exact stable versions
 is accepted. Later stable minors automatically inherit known capabilities;
 there are no minor-specific compatibility options.
+
+</details>
+
+<details>
+<summary>Version-specific settings and requirements</summary>
 
 For pnpm 12.4.0 and later stable v12 releases, the migrator additionally accepts
 `trustPolicyExcludePrune`, `python`, `cargo`, `pipelines`, `pipelineBase`, and
@@ -150,6 +173,18 @@ never migrated into the project workspace.
 On the v11 line, `trustPolicyExcludePrune` requires a confirmed stable version
 from 11.27.0 onward; v12 support still starts at 12.4.0.
 
+For pnpm 12.6.0 and later stable v12 releases, the migrator accepts `autoDedupe`,
+`saveTypes`, `tagVersionPrefix`, and signed 32-bit `tasks.*.priority` values.
+`progress` and `loglevel` also require 12.6.0 for v12 targets, when pnpm first
+consumes them from workspace configuration; their v11 support is unchanged.
+Invalid values and fields unsupported by the target remain in their sources.
+The global-only `macosBackup` setting is preserved with a project-refused warning.
+
+</details>
+
+<details>
+<summary>Automated v10 to v11 conversions</summary>
+
 Automated v10 to v11 conversions include:
 
 - `managePackageManagerVersions`, `packageManagerStrict`, and
@@ -163,6 +198,11 @@ Automated v10 to v11 conversions include:
 - `.npmrc` entries such as `node-mirror:release` -> `nodeDownloadMirrors`
 - removal of `ignoreDepScripts` and `ignorePatchFailures`, which have no v11
   equivalent
+
+</details>
+
+<details>
+<summary>Migration rules, limitations, and compatibility coverage</summary>
 
 Notes:
 
@@ -214,12 +254,18 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.27.1 and 12.5.1, retaining 11.25.0,
-  11.26.0, 12.2.1, 12.3.4, 12.4.0, 12.4.2, and 12.5.0 regressions.
-  As audited on 2026-09-22, npm `latest` is 12.5.1 and `latest-11` is 11.27.1;
-  the project is pinned to 12.5.1. Its removed `pnpm install --resolution-only` CLI
+- Compatibility checks cover pnpm 11.27.1 and 12.6.0, retaining 11.25.0,
+  11.26.0, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, and 12.5.1 regressions.
+  As [audited on 2026-09-24](docs/research/pnpm-settings-bump-2026-09-24.md),
+  npm `latest` and the highest stable release are 12.6.0; `latest-11` is 11.27.1.
+  The project is pinned to 12.6.0. The removed `pnpm install --resolution-only` CLI
   flag is outside this settings migrator's scope; replace it with
   `pnpm peers check` in scripts before upgrading.
+
+</details>
+
+<details>
+<summary>Target version migration example</summary>
 
 For example, `--target-version 12.4.0` migrates this legacy configuration:
 
@@ -239,12 +285,17 @@ With `--target-version 12.3.4`, these settings remain in `package.json` with an
 incompatibility warning. See the [version audit](docs/research/pnpm-recent-settings-audit-2026-09-10.md)
 for the upstream release and schema references.
 
+</details>
+
 ### `--replace-deprecated`
 
 - **Type**: `boolean`
 - **Default**: `false`
 
 Force replacing deprecated pnpm settings with new keys and remove old keys during migration.
+
+<details>
+<summary>Deprecated setting conversion examples</summary>
 
 Example conversions:
 
@@ -258,6 +309,8 @@ Example conversions:
   `sideEffectsCache`
 - non-conflicting `namedRegistries` aliases -> URL-keyed `registries`
 
+</details>
+
 ### `--strategy`
 
 - **Type**: `'discard' | 'merge' | 'overwrite'`
@@ -269,12 +322,19 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 - `merge`: Deep merge with array deduplication. Arrays are combined and deduplicated, objects are recursively merged, primitives keep existing values.
 - `overwrite`: Use incoming values, only keep existing keys not present in incoming settings. For nested objects, merges keys from both.
 
+`packageConfigs` matcher arrays preserve order and repeated entries because the
+last matching entry wins. With `merge`, incoming matchers follow existing ones;
+an overlapping end/start sequence is reused to keep repeated migrations stable.
+
 ### `--no-yarn-resolutions`
 
 - **Type**: `boolean`
 - **Default behavior**: `yarnResolutions=true` (use this flag to disable)
 
 Disable migrating `resolutions` field in `package.json`.
+
+<details>
+<summary>Yarn selector translation and warnings</summary>
 
 By default, plain package names are copied to pnpm overrides and global Yarn
 selectors are translated: `**/foo` becomes `foo`, and `**/@scope/foo` becomes
@@ -291,6 +351,8 @@ WARN Kept Yarn resolution "parent/**/child" in package.json: its selector cannot
 
 ℹ No changes needed.
 ```
+
+</details>
 
 ### `--no-show-changes`
 
@@ -324,6 +386,9 @@ Disable adding newlines between each root keys.
 ## Merge Strategy Examples
 
 This document demonstrates how different merge strategies work when migrating pnpm settings.
+
+<details>
+<summary>Compare merge strategies with configuration examples</summary>
 
 ### Scenario
 
@@ -458,6 +523,8 @@ peerDependencyRules:
     - react-dom
     - vue-router # Arrays merged and deduplicated
 ```
+
+</details>
 
 ## Context
 
