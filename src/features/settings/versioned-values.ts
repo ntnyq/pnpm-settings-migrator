@@ -1,9 +1,51 @@
+import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
 import {
   PNPM_V12_5_MINIMUM_VERSION,
   PNPM_V12_5_1_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+
+/**
+ * Bounds of the signed 32-bit integer used by pnpm's task priority.
+ */
+const MIN_TASK_PRIORITY = -2_147_483_648
+const MAX_TASK_PRIORITY = 2_147_483_647
+
+/**
+ * Validate scalar settings introduced or first consumed in pnpm 12.6.
+ *
+ * @param key - Canonical setting name
+ * @param value - Untrusted source value
+ * @param target - Target major whose scalar schema applies
+ *
+ * @returns Whether a scalar value cannot be read by the target
+ */
+function hasInvalidScalarValue(
+  key: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (['autoDedupe', 'saveTypes'].includes(key)) {
+    return !isBoolean(value)
+  }
+  if (target.compatibility === 'v12') {
+    if (key === 'progress') {
+      return !isBoolean(value)
+    }
+    if (key === 'tagVersionPrefix') {
+      return !isString(value)
+    }
+    if (key === 'loglevel') {
+      return (
+        !isString(value) ||
+        (!value.includes('${') &&
+          !['silent', 'error', 'warn', 'info', 'debug'].includes(value))
+      )
+    }
+  }
+  return false
+}
 
 /**
  * Check value shapes that changed within a pnpm major release.
@@ -21,15 +63,36 @@ export function hasIncompatibleSettingValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
+  if (hasInvalidScalarValue(key, value, target)) {
+    return true
+  }
   const supportsV12_5 = supportsMinimumVersion(
     target.version,
     PNPM_V12_5_MINIMUM_VERSION,
   )
-  if (key === 'supportedArchitectures' && Array.isArray(value)) {
+  if (key === 'supportedArchitectures' && isArray(value)) {
     return !supportsV12_5
   }
   if (!value || typeof value !== 'object') {
     return false
+  }
+  if (key === 'tasks') {
+    return Object.values(value).some(task => {
+      if (
+        !task ||
+        typeof task !== 'object' ||
+        !Object.hasOwn(task, 'priority')
+      ) {
+        return false
+      }
+      const priority: unknown = Reflect.get(task, 'priority')
+      return (
+        !isNumber(priority) ||
+        !Number.isInteger(priority) ||
+        priority < MIN_TASK_PRIORITY ||
+        priority > MAX_TASK_PRIORITY
+      )
+    })
   }
   if (key === 'python' || key === 'cargo') {
     if (supportsV12_5 && Object.hasOwn(value, 'indexUrl')) {
@@ -59,11 +122,7 @@ export function hasIncompatibleSettingValue(
         return true
       }
       const prefix: unknown = Reflect.get(entry, 'prefix')
-      return (
-        supportsV12_5 &&
-        typeof prefix === 'string' &&
-        prefix.toLowerCase() === 'pkg'
-      )
+      return supportsV12_5 && isString(prefix) && prefix.toLowerCase() === 'pkg'
     })
   }
   return false

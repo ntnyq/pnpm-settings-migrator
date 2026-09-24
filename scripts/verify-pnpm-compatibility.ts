@@ -7,6 +7,7 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { parse } from 'yaml'
 import { migratePnpmSettings } from '../src'
+import { verifyInstallSettings } from './verify-pnpm-install-settings'
 import { verifyMinorCapabilities } from './verify-pnpm-minor-compatibility'
 
 /**
@@ -18,6 +19,11 @@ const TRUST_PRUNING_MINOR = 27
  * First v12 minor supporting the pipeline and ecosystem settings fixture.
  */
 const PIPELINE_MINOR = 4
+
+/**
+ * First v12 minor consuming automatic deduplication and type saving settings.
+ */
+const INSTALL_SETTINGS_MINOR = 6
 
 /**
  * Promise-based process runner used to capture pnpm output and failures.
@@ -37,6 +43,7 @@ const DEFAULT_PNPM_VERSIONS = [
   '12.4.2',
   '12.5.0',
   '12.5.1',
+  '12.6.0',
 ]
 
 /**
@@ -266,6 +273,12 @@ await Promise.all(
       Number(version.split('.')[1]) >= PIPELINE_MINOR
     ) {
       await verifyMinorCapabilities(version, runPnpm)
+    }
+    if (
+      version.startsWith('12.') &&
+      Number(version.split('.')[1]) >= INSTALL_SETTINGS_MINOR
+    ) {
+      await verifyInstallSettings(version, runPnpm)
     }
   }),
 )

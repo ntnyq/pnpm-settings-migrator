@@ -1,3 +1,4 @@
+import { isArray, isString } from '@ntnyq/utils'
 import { resolve } from 'pathe'
 import type { PnpmWorkspace, LegacyBuildDependencyList } from '../../types'
 import { fsReadFile } from '../../utils/fs'
@@ -23,7 +24,7 @@ async function readOnlyBuiltDependenciesFile(
   const path = resolve(cwd, file)
   const value = JSON.parse(await fsReadFile(path)) as unknown
 
-  if (!Array.isArray(value) || !value.every(item => typeof item === 'string')) {
+  if (!isArray(value) || !value.every(isString)) {
     throw new TypeError(
       `Invalid onlyBuiltDependenciesFile: ${file}. Expected a JSON array of package names.`,
     )
@@ -52,7 +53,7 @@ function readLegacyBuildDependencyList(
     return []
   }
 
-  if (!Array.isArray(value) || !value.every(item => typeof item === 'string')) {
+  if (!isArray(value) || !value.every(isString)) {
     const npmrcKey = key.replace(
       /[A-Z]/gu,
       character => `-${character.toLowerCase()}`,

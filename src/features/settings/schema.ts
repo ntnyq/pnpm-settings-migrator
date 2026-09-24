@@ -1,3 +1,4 @@
+import { isArray, isString } from '@ntnyq/utils'
 import camelcaseKeys from 'camelcase-keys'
 import {
   REGISTRY_CREDENTIAL_KEYS,
@@ -91,7 +92,7 @@ function containsUnsafeRegistryValue(
   value: unknown,
   checkCredentialKeys = false,
 ): boolean {
-  if (typeof value === 'string') {
+  if (isString(value)) {
     return isUnsafeRegistryUrl(value)
   }
 
@@ -173,11 +174,7 @@ function resolveSettingIssue({
   if (REGISTRY_SETTINGS.has(key) && containsUnsafeRegistryValue(value)) {
     return 'unsafe'
   }
-  if (
-    PROXY_SETTINGS.has(key) &&
-    typeof value === 'string' &&
-    value.includes('${')
-  ) {
+  if (PROXY_SETTINGS.has(key) && isString(value) && value.includes('${')) {
     return 'unsafe'
   }
   if (hasIncompatibleSettingValue(key, value, target)) {
@@ -278,19 +275,16 @@ function assertPackageConfigFields(settings: PnpmWorkspace): void {
   }
 
   const allowedFields = new Set(PNPM_V11_PACKAGE_CONFIG_FIELDS)
-  const entries: [string, unknown][] = Array.isArray(packageConfigs)
+  const entries: [string, unknown][] = isArray(packageConfigs)
     ? packageConfigs.flatMap((entry, index) => {
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        if (!entry || typeof entry !== 'object' || isArray(entry)) {
           throw new TypeError(
             `packageConfigs[${index}] must be an object with a match array.`,
           )
         }
 
         const { match, ...config } = entry as Record<string, unknown>
-        if (
-          !Array.isArray(match) ||
-          !match.every(projectName => typeof projectName === 'string')
-        ) {
+        if (!isArray(match) || !match.every(isString)) {
           throw new TypeError(
             `packageConfigs[${index}].match must be an array of package names.`,
           )
@@ -301,7 +295,7 @@ function assertPackageConfigFields(settings: PnpmWorkspace): void {
     : Object.entries(packageConfigs)
 
   for (const [name, config] of entries) {
-    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    if (!config || typeof config !== 'object' || isArray(config)) {
       throw new TypeError(`${name} must contain a project settings object.`)
     }
 

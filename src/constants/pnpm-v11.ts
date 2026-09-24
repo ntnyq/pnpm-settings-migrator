@@ -1,3 +1,4 @@
+import { unique } from '@ntnyq/utils'
 import { PNPM_V10_NPMRC_SETTINGS_FIELDS } from './pnpm-v10'
 import { PNPM_PROJECT_REFUSED_SETTINGS } from './settings-fields'
 
@@ -162,12 +163,10 @@ const refusedProjectSettings = new Set(PNPM_PROJECT_REFUSED_SETTINGS)
 /**
  * Settings accepted by a pnpm v11 project workspace manifest.
  */
-export const PNPM_V11_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
-  ...new Set([
-    ...PNPM_V10_NPMRC_SETTINGS_FIELDS,
-    ...PNPM_V11_ADDITIONAL_WORKSPACE_SETTINGS_FIELDS,
-  ]),
-].filter(field => !refusedProjectSettings.has(field))
+export const PNPM_V11_WORKSPACE_SETTINGS_FIELDS: readonly string[] = unique([
+  ...PNPM_V10_NPMRC_SETTINGS_FIELDS,
+  ...PNPM_V11_ADDITIONAL_WORKSPACE_SETTINGS_FIELDS,
+]).filter(field => !refusedProjectSettings.has(field))
 
 /**
  * Settings that are supported by v11 but not by pnpm v12.

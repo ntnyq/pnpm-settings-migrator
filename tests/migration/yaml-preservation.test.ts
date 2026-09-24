@@ -11,6 +11,42 @@ describe('migratePnpmSettings/YAML preservation', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('yaml-preservation')
 
+  describe.each([true, false])('root spacing %s', newlineBetween => {
+    it.each(['|+', '>+'])(
+      'preserves %s scalar content between roots and at EOF',
+      async indicator => {
+        const original = [
+          'saveExact: true',
+          'extraEnv:',
+          `  MESSAGE: ${indicator}`,
+          '    hello  ',
+          '',
+          '',
+          'nodeOptions: |+',
+          '  --trace-warnings  ',
+          '',
+          '',
+          '',
+        ].join('\n')
+        await writeWorkspaceYaml(original)
+        await writePackageJson({ pnpm: { saveExact: true } })
+        const before = await readWorkspaceYaml()
+        const options = {
+          cwd: testDir,
+          newlineBetween,
+          cleanPackageJson: false,
+        }
+
+        const result = await migratePnpmSettings(options)
+
+        await expect(readWorkspaceYaml()).resolves.toStrictEqual(before)
+        expect(result.settingsChanges).toStrictEqual([])
+        const repeated = await migratePnpmSettings(options)
+        expect(repeated.changedFiles).toStrictEqual([])
+      },
+    )
+  })
+
   it('preserves comments and anchors in unchanged YAML nodes', async () => {
     await writeWorkspaceYaml(
       [

@@ -13,6 +13,40 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('project-npmrc')
 
+  it.each(['11.27.1', '12.6.0'])(
+    'retains project settings when a namesake has no npmrc for %s',
+    async targetVersion => {
+      await writePackageJson({ name: 'root' })
+      await writeWorkspaceYaml(
+        'packages: [packages/*]\nsharedWorkspaceLockfile: false\n',
+      )
+      for (const project of ['first', 'second']) {
+        await writeWorkspaceFile(
+          `packages/${project}/package.json`,
+          JSON.stringify({ name: 'duplicate' }),
+        )
+      }
+      await writeWorkspaceFile(
+        'packages/first/.npmrc',
+        'modules-dir=.special\n',
+      )
+
+      const result = await migratePnpmSettings({ cwd: testDir, targetVersion })
+
+      await expect(readWorkspaceYaml()).resolves.not.toHaveProperty(
+        'packageConfigs',
+      )
+      await expect(readWorkspaceFile('packages/first/.npmrc')).resolves.toBe(
+        'modules-dir=.special\n',
+      )
+      expect(result.warnings.join()).toContain(
+        'duplicate package name "duplicate"',
+      )
+      expect(result.warnings.join()).toContain('packages/second/package.json')
+      expect(result.changedFiles).toStrictEqual([])
+    },
+  )
+
   it('respects negated workspace package patterns', async () => {
     await writePackageJson({ name: 'test-workspace', private: true })
     await writeWorkspaceYaml(

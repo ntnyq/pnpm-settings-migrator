@@ -6,9 +6,9 @@ import type { PnpmSettings, RegistryDeclaration } from '@pnpm/types'
 export type GlobalShimPolicy = boolean | 'always' | 'auto' | 'prompt'
 
 /**
- * Task configuration, including pnpm 12.4 caching and 12.5 concurrency groups.
+ * Task configuration with caching, concurrency groups, and pnpm 12.6 priority.
  *
- * @see https://github.com/pnpm/pnpm/blob/v12.5.1/pnpm/crates/config/src/workspace_yaml/sections.rs
+ * @see https://github.com/pnpm/pnpm/blob/v12.6.0/pnpm/crates/config/src/workspace_yaml/sections.rs
  */
 export interface PnpmTaskSettings {
   /**
@@ -19,6 +19,11 @@ export interface PnpmTaskSettings {
    * Machine-wide concurrency group to count this task against (pnpm 12.5+).
    */
   concurrencyGroup?: string
+  /**
+   * Signed 32-bit priority within a concurrency group; higher runs first
+   * (pnpm 12.6+). Omitted means zero.
+   */
+  priority?: number
   /**
    * Prerequisite tasks; a caret prefix refers to workspace dependencies.
    */
@@ -118,6 +123,26 @@ export interface PnpmRegistryDeclaration extends RegistryDeclaration {
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Deduplicate compatible dependency versions during installation (pnpm 12.6+).
+   */
+  autoDedupe?: boolean
+  /**
+   * Save available companion @types packages as dev dependencies (pnpm 12.6+).
+   */
+  saveTypes?: boolean
+  /**
+   * Show dependency and download progress (consumed by pnpm v12 from 12.6).
+   */
+  progress?: boolean
+  /**
+   * Minimum logging level (consumed by pnpm v12 from 12.6).
+   */
+  loglevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+  /**
+   * Prefix for version tags; an empty string removes it (pnpm v12.6+).
+   */
+  tagVersionPrefix?: string
   /**
    * Machine-wide limits shared by tasks in each group (pnpm 12.5+).
    */

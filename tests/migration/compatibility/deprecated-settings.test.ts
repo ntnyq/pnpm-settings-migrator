@@ -77,7 +77,7 @@ describe('migratePnpmSettings/deprecated settings', () => {
     [
       'disabled read-only cache',
       { sideEffectsCacheReadonly: false },
-      { sideEffectsCache: { read: false } },
+      { sideEffectsCache: { read: true, write: true } },
     ],
   ] as const)('preserves explicit false for %s', async (_, pnpm, expected) => {
     await writePackageJson({ name: 'test-workspace', pnpm })
@@ -90,6 +90,26 @@ describe('migratePnpmSettings/deprecated settings', () => {
 
     await expect(readWorkspaceYaml()).resolves.toStrictEqual(expected)
   })
+
+  it.each(['11.27.1', '12.6.0'])(
+    'keeps default cache reads enabled for %s',
+    async targetVersion => {
+      await writePackageJson({ pnpm: { sideEffectsCacheReadonly: false } })
+
+      await migratePnpmSettings({
+        cwd: testDir,
+        targetVersion,
+        replaceDeprecated: true,
+      })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        sideEffectsCache: { read: true, write: true },
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toBeUndefined()
+    },
+  )
 
   it('keeps conflicting named registry prefixes for manual resolution', async () => {
     const registryUrl = 'https://registry.example.com/'

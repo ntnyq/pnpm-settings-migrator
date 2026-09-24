@@ -1,3 +1,4 @@
+import { isArray, isPlainObject, isString } from '@ntnyq/utils'
 import camelcaseKeys from 'camelcase-keys'
 import {
   REPLACEMENT_SETTING_KEYS,
@@ -26,7 +27,7 @@ import { pruneNpmrc } from '../sources/npmrc'
  * @returns Whether the destination recursively contains the expected value
  */
 function containsMigratedValue(actual: unknown, expected: unknown): boolean {
-  if (Array.isArray(actual) && Array.isArray(expected)) {
+  if (isArray(actual) && isArray(expected)) {
     return expected.every(expectedItem =>
       actual.some(actualItem =>
         containsMigratedValue(actualItem, expectedItem),
@@ -52,6 +53,33 @@ function containsMigratedValue(actual: unknown, expected: unknown): boolean {
 }
 
 /**
+ * Resolve project matchers using pnpm's last-entry-wins behavior.
+ *
+ * @param packageConfigs - Source or destination project configuration
+ *
+ * @returns Effective settings, or undefined for an absent or malformed source
+ */
+function resolvePackageConfigs(
+  packageConfigs: unknown,
+): Record<string, unknown> | undefined {
+  if (!isArray(packageConfigs)) {
+    return isPlainObject(packageConfigs) ? packageConfigs : undefined
+  }
+  const entries: [string, unknown][] = []
+  for (const entry of packageConfigs) {
+    if (!isPlainObject(entry)) {
+      return undefined
+    }
+    const { match, ...settings } = entry
+    if (!isArray(match) || !match.every(isString)) {
+      return undefined
+    }
+    entries.push(...match.map((name): [string, unknown] => [name, settings]))
+  }
+  return Object.fromEntries(entries)
+}
+
+/**
  * Read the original runtime version before checking whether cleanup is safe.
  *
  * @param sourceSettings - Legacy settings before normalization
@@ -71,7 +99,7 @@ function resolveSourceRuntimeVersion(
   if (
     !executionEnv ||
     typeof executionEnv !== 'object' ||
-    Array.isArray(executionEnv)
+    isArray(executionEnv)
   ) {
     return undefined
   }
@@ -138,7 +166,7 @@ function selectAppliedRootKeys({
         )
         return (
           runtimeApplied &&
-          typeof sourceRuntimeVersion === 'string' &&
+          isString(sourceRuntimeVersion) &&
           sourceRuntimeVersion === runtimeVersion
         )
       }
@@ -165,6 +193,14 @@ function selectAppliedRootKeys({
       )
     }
 
+    if (targetKey === 'packageConfigs') {
+      const actual = resolvePackageConfigs(finalSettings.packageConfigs)
+      const expected = resolvePackageConfigs(normalizedSettings.packageConfigs)
+      return Boolean(
+        actual && expected && containsMigratedValue(actual, expected),
+      )
+    }
+
     return containsMigratedValue(
       Reflect.get(finalSettings, targetKey),
       Reflect.get(normalizedSettings, targetKey),
@@ -188,7 +224,7 @@ function resolveProjectConfig(
   if (
     !packageConfigs ||
     typeof packageConfigs !== 'object' ||
-    Array.isArray(packageConfigs)
+    isArray(packageConfigs)
   ) {
     return undefined
   }
@@ -196,7 +232,7 @@ function resolveProjectConfig(
   const projectConfig = (packageConfigs as Record<string, unknown>)[projectName]
   return projectConfig &&
     typeof projectConfig === 'object' &&
-    !Array.isArray(projectConfig)
+    !isArray(projectConfig)
     ? (projectConfig as Record<string, unknown>)
     : undefined
 }

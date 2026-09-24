@@ -1,3 +1,4 @@
+import { PNPM_V12_6_WORKSPACE_SETTINGS } from './pnpm-capabilities'
 import {
   PNPM_V11_WORKSPACE_SETTINGS_FIELDS,
   PNPM_V11_ONLY_WORKSPACE_SETTINGS,
@@ -22,7 +23,9 @@ const v11OnlyWorkspaceSettings = new Set(PNPM_V11_ONLY_WORKSPACE_SETTINGS)
  */
 export const PNPM_V12_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
   ...PNPM_V11_WORKSPACE_SETTINGS_FIELDS.filter(
-    field => !v11OnlyWorkspaceSettings.has(field),
+    field =>
+      !v11OnlyWorkspaceSettings.has(field) &&
+      !PNPM_V12_6_WORKSPACE_SETTINGS.includes(field),
   ),
   ...PNPM_V12_ONLY_WORKSPACE_SETTINGS,
 ]

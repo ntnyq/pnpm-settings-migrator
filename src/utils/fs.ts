@@ -11,6 +11,7 @@ import {
 } from 'node:fs/promises'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { isString } from '@ntnyq/utils'
 import { join, dirname, basename } from 'pathe'
 import { FILE_PERMISSION_MODULUS } from '../constants'
 
@@ -26,7 +27,7 @@ function resolvePathString(path: PathLike): string {
     return fileURLToPath(path)
   }
 
-  return typeof path === 'string' ? path : path.toString()
+  return isString(path) ? path : path.toString()
 }
 
 /**
@@ -86,7 +87,7 @@ export async function fsRemoveFile(path: PathLike): Promise<void> {
 }
 
 /**
- * Write a normalized UTF-8 text file with one trailing newline.
+ * Atomically write UTF-8 text, preserving whitespace and ensuring a final newline.
  *
  * @param path - Filesystem path to write
  * @param content - Text content to write
@@ -105,10 +106,14 @@ export async function fsWriteFile(
   const mode = await resolveExistingMode(path)
 
   try {
-    await writeFile(temporaryPath, `${content.trimEnd()}\n`, {
-      encoding: 'utf-8',
-      mode,
-    })
+    await writeFile(
+      temporaryPath,
+      content.endsWith('\n') ? content : `${content}\n`,
+      {
+        encoding: 'utf-8',
+        mode,
+      },
+    )
     if (mode !== undefined) {
       await chmod(temporaryPath, mode)
     }
@@ -119,10 +124,10 @@ export async function fsWriteFile(
 }
 
 /**
- * Write a normalized text file only when its contents differ or it is missing.
+ * Write text only when its contents differ or it is missing.
  *
  * @param path - Destination file path
- * @param content - Text content to normalize and write
+ * @param content - Text to preserve, adding a final newline when absent
  *
  * @returns Whether the destination file was created or changed
  */
@@ -132,7 +137,8 @@ export async function fsWriteFileIfChanged(
 ): Promise<boolean> {
   if (
     (await fsExists(path)) &&
-    (await fsReadFile(path)) === `${content.trimEnd()}\n`
+    (await fsReadFile(path)) ===
+      (content.endsWith('\n') ? content : `${content}\n`)
   ) {
     return false
   }

@@ -86,9 +86,13 @@ export interface ProjectNpmrcMigrations {
 }
 
 /**
- * Named workspace project with an `.npmrc`, pending duplicate-name checks.
+ * Named workspace project, including those without a migration source.
  */
 export interface ProjectManifestCandidate {
+  /**
+   * Whether this project has an `.npmrc` to consider after name validation.
+   */
+  npmrcExists: boolean
   /**
    * Absolute path to the discovered project's `.npmrc`.
    */

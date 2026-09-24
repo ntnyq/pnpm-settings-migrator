@@ -1,6 +1,17 @@
 import type { PnpmSettingsCapability } from '../types'
 
 /**
+ * Workspace settings first consumed by pnpm v12 in 12.6.0.
+ */
+export const PNPM_V12_6_WORKSPACE_SETTINGS: readonly string[] = [
+  'autoDedupe',
+  'loglevel',
+  'progress',
+  'saveTypes',
+  'tagVersionPrefix',
+]
+
+/**
  * Release introducing platform lists, registry ecosystems, and Python options.
  */
 // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
@@ -41,6 +52,12 @@ export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
     minimumVersion: PNPM_V12_5_MINIMUM_VERSION,
     workspaceFields: ['concurrencyGroups'],
     taskFields: ['concurrencyGroup'],
+  },
+  {
+    // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+    minimumVersion: [12, 6, 0],
+    workspaceFields: PNPM_V12_6_WORKSPACE_SETTINGS,
+    taskFields: ['priority'],
   },
 ]
 
