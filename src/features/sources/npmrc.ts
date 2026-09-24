@@ -1,3 +1,4 @@
+import { isString, pick } from '@ntnyq/utils'
 import camelcaseKeys from 'camelcase-keys'
 import { readIniFile } from 'read-ini-file'
 import { kebabCase } from 'uncase'
@@ -60,7 +61,7 @@ function normalizeNpmrcKey(key: string): string {
  */
 function normalizeNpmrcSettings(settings: NpmRC): NpmRC {
   for (const key of NPMRC_STRING_ARRAY_SETTINGS) {
-    if (typeof settings[key] === 'string') {
+    if (isString(settings[key])) {
       settings[key] = [settings[key]]
     }
   }
@@ -199,7 +200,7 @@ export async function readMigratableNpmrc(
       const canonicalKey = Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
       if (
         PROXY_SETTINGS.has(canonicalKey) &&
-        typeof raw[key] === 'string' &&
+        isString(raw[key]) &&
         raw[key].includes('${')
       ) {
         issues.unsafe.push(key)
@@ -207,7 +208,7 @@ export async function readMigratableNpmrc(
       }
       return pnpmSettingsFields.has(normalizeNpmrcKey(key))
     })
-    const migratable = Object.fromEntries(keys.map(key => [key, raw[key]]))
+    const migratable = pick(raw, keys)
 
     return {
       issues,

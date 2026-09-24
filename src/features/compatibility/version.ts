@@ -1,3 +1,4 @@
+import { isString } from '@ntnyq/utils'
 import type { CompatibilityTarget, PnpmVersion } from '../../types'
 
 /**
@@ -48,8 +49,7 @@ export function validateTargetVersion(
   if (value === undefined) {
     return undefined
   }
-  const version =
-    typeof value === 'string' ? parsePnpmVersion(value) : undefined
+  const version = isString(value) ? parsePnpmVersion(value) : undefined
   if (!version) {
     throw new TypeError(
       `Invalid targetVersion: ${value}. Expected an exact pnpm version such as 12.4.0.`,

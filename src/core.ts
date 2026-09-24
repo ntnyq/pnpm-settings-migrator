@@ -259,14 +259,10 @@ export async function migratePnpmSettings(
     before: pnpmWorkspaceBefore,
     sortKeys: options.sortKeys,
   })
-  const yamlContent = pnpmWorkspace.document.toString({
+  formatRootSpacing(pnpmWorkspace.document, options.newlineBetween)
+  const finalYamlContent = pnpmWorkspace.document.toString({
     indent: pnpmWorkspace.indent,
   })
-
-  const finalYamlContent = formatRootSpacing(
-    yamlContent,
-    options.newlineBetween,
-  )
 
   const persistence = await persistMigration({
     cleanNpmrc: options.cleanNpmrc,

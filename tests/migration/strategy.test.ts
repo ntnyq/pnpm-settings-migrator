@@ -13,6 +13,104 @@ describe('migratePnpmSettings/strategy', () => {
   } = createTestWorkspace('strategy')
 
   it.each(['discard', 'merge', 'overwrite'] as const)(
+    'preserves repeated package matchers and safe cleanup with %s',
+    async strategy => {
+      const first = { match: ['app'], saveExact: true }
+      const middle = { match: ['app'], saveExact: false }
+      const packageConfigs = [first, middle, first]
+      await writePackageJson({ pnpm: { packageConfigs } })
+      await writeWorkspaceYaml(
+        'sharedWorkspaceLockfile: false\npackageConfigs: []\n',
+      )
+
+      const options = { cwd: testDir, targetVersion: '12.6.0', strategy }
+      await migratePnpmSettings(options)
+
+      const expected = {
+        discard: { packageConfigs: [], pnpm: { packageConfigs } },
+        merge: { packageConfigs, pnpm: undefined },
+        overwrite: { packageConfigs, pnpm: undefined },
+      }[strategy]
+      await expect(readWorkspaceYaml()).resolves.toMatchObject({
+        packageConfigs: expected.packageConfigs,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toStrictEqual(expected.pnpm)
+      expect((await migratePnpmSettings(options)).changedFiles).toStrictEqual(
+        [],
+      )
+    },
+  )
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'compares effective matcher precedence during cleanup with %s',
+    async strategy => {
+      const first = { match: ['app'], saveExact: true }
+      const second = { match: ['app'], saveExact: false }
+      const packageConfigs = [second, first]
+      await writePackageJson({ pnpm: { packageConfigs } })
+      await writeWorkspaceYaml(
+        'packageConfigs:\n  - match: [app]\n    saveExact: true\n  - match: [app]\n    saveExact: false\n',
+      )
+
+      await migratePnpmSettings({
+        cwd: testDir,
+        compatibility: 'v11',
+        strategy,
+      })
+
+      const expected = {
+        discard: { packageConfigs: [first, second], pnpm: { packageConfigs } },
+        merge: { packageConfigs: [first, second, first], pnpm: undefined },
+        overwrite: { packageConfigs, pnpm: undefined },
+      }[strategy]
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        packageConfigs: expected.packageConfigs,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toStrictEqual(expected.pnpm)
+    },
+  )
+
+  it('keeps repeated matcher sequences stable with cleanup disabled', async () => {
+    const first = { match: ['app'], saveExact: true }
+    const packageConfigs = [first, { match: ['app'], saveExact: false }, first]
+    await writePackageJson({ pnpm: { packageConfigs } })
+    await writeWorkspaceYaml('packageConfigs: []\n')
+    const options = {
+      cwd: testDir,
+      compatibility: 'v11' as const,
+      cleanPackageJson: false,
+    }
+
+    await migratePnpmSettings(options)
+
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({ packageConfigs })
+    expect((await migratePnpmSettings(options)).changedFiles).toStrictEqual([])
+  })
+
+  it('retains malformed matchers ignored by discard', async () => {
+    const pnpm = { packageConfigs: [{ saveExact: true }] }
+    await writePackageJson({ pnpm })
+    await writeWorkspaceYaml('packageConfigs: []\n')
+
+    await migratePnpmSettings({
+      cwd: testDir,
+      compatibility: 'v11',
+      strategy: 'discard',
+    })
+
+    expect(
+      JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+    ).toStrictEqual(pnpm)
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      packageConfigs: [],
+    })
+  })
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
     'preserves prototype-named overrides and cleans applied sources with %s',
     async strategy => {
       await writeWorkspaceYaml('overrides:\n  constructor: 1.0.0\n')

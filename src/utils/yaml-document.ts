@@ -116,19 +116,25 @@ export function updateYamlDocument(
 }
 
 /**
- * Normalize blank lines immediately before root mapping keys.
+ * Set root-key spacing without changing whitespace inside scalar values.
  *
- * @param content - Serialized workspace YAML
+ * @param document - Workspace YAML document to update in place
  * @param newlineBetween - Whether root keys should be separated by blank lines
  *
- * @returns YAML with normalized root-key spacing
+ * @returns Nothing; root key metadata is updated before serialization
  */
 export function formatRootSpacing(
-  content: string,
+  document: Document,
   newlineBetween: boolean,
-): string {
-  return content.replace(
-    /\n+(?=[^\s#][^:\n]*:)/gu,
-    newlineBetween ? '\n\n' : '\n',
-  )
+): void {
+  if (!isMap(document.contents)) {
+    return
+  }
+  for (const [index, pair] of document.contents.items.entries()) {
+    if (index > 0) {
+      const key = isNode(pair.key) ? pair.key : document.createNode(pair.key)
+      key.spaceBefore = newlineBetween
+      pair.key = key
+    }
+  }
 }

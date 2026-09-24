@@ -1,3 +1,4 @@
+import { isArray } from '@ntnyq/utils'
 import {
   PNPM_V12_MAJOR,
   PNPM_V11_MAJOR,
@@ -42,7 +43,7 @@ function resolvePnpmMajor(hint: string | undefined): number | undefined {
 function normalizePackageManagers(
   value: PackageManagerEngine | PackageManagerEngine[] | undefined,
 ): PackageManagerEngine[] {
-  if (Array.isArray(value)) {
+  if (isArray(value)) {
     return value
   }
 

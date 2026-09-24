@@ -1,3 +1,4 @@
+import { isBoolean, isString, unique } from '@ntnyq/utils'
 import type { PnpmWorkspace, RegistryDeclaration } from '../../types'
 
 /**
@@ -85,7 +86,7 @@ function normalizeSideEffectsCache(settings: PnpmWorkspace): void {
 
   const structured =
     typeof declared === 'object' && declared !== null ? declared : undefined
-  const shorthand = typeof declared === 'boolean' ? declared : undefined
+  const shorthand = isBoolean(declared) ? declared : undefined
   settings.sideEffectsCache = {
     ...(shorthand === undefined
       ? {}
@@ -96,8 +97,8 @@ function normalizeSideEffectsCache(settings: PnpmWorkspace): void {
     ...(readonly === undefined || shorthand !== undefined
       ? {}
       : {
-          read: readonly,
-          ...(readonly ? { write: false } : {}),
+          read: true,
+          write: !readonly,
         }),
     ...(remote === undefined ? {} : { remote }),
     ...structured,
@@ -123,7 +124,7 @@ function addRegistryScope(
 ): void {
   declarations[url] ??= {}
   const declaration = declarations[url]
-  declaration.scopes = [...new Set([...(declaration.scopes ?? []), scope])]
+  declaration.scopes = unique([...(declaration.scopes ?? []), scope])
 }
 
 /**
@@ -165,7 +166,7 @@ function normalizeNamedRegistries(
 
   const declarations: Record<string, RegistryDeclaration> = {}
   for (const [key, value] of Object.entries(settings.registries ?? {})) {
-    if (typeof value === 'string') {
+    if (isString(value)) {
       addRegistryScope(declarations, value, key === 'default' ? '@' : key)
     } else {
       declarations[key] = { ...value }

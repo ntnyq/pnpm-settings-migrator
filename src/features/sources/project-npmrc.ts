@@ -1,3 +1,4 @@
+import { isArray, unique } from '@ntnyq/utils'
 import { resolve, dirname, relative } from 'pathe'
 import { glob } from 'tinyglobby'
 import {
@@ -50,17 +51,15 @@ function resolvePackageJsonPatterns(patterns: string[]): string[] {
 export function collectWorkspacePackagePatterns(
   ...settingsSources: PnpmWorkspace[]
 ): string[] {
-  return [
-    ...new Set(
-      settingsSources.flatMap(settings =>
-        Array.isArray(settings.packages) ? settings.packages : [],
-      ),
+  return unique(
+    settingsSources.flatMap(settings =>
+      isArray(settings.packages) ? settings.packages : [],
     ),
-  ]
+  )
 }
 
 /**
- * Discover named subprojects with `.npmrc` files and report unnamed projects.
+ * Discover all named subprojects and report unnamed projects with `.npmrc` files.
  *
  * @param cwd - Workspace root excluded from subproject discovery
  * @param patterns - Workspace package directory patterns
@@ -86,7 +85,7 @@ async function readProjectManifestCandidates(
     onlyFiles: true,
   })
   const candidateResults = await Promise.all(
-    [...new Set(packageJsonPaths)]
+    unique(packageJsonPaths)
       .sort()
       .filter(
         packageJsonPath => resolve(packageJsonPath) !== rootPackageJsonPath,
@@ -94,19 +93,19 @@ async function readProjectManifestCandidates(
       .map(async packageJsonPath => {
         const projectDir = dirname(packageJsonPath)
         const npmrcPath = resolve(projectDir, NPMRC)
-        if (!(await fsExists(npmrcPath))) {
-          return {}
-        }
-
+        const npmrcExists = await fsExists(npmrcPath)
         const packageJson = await readPackageJson(packageJsonPath, true)
         if (!packageJson.value.name) {
-          return {
-            warning: `${relative(cwd, npmrcPath)} was kept because its package.json has no name for packageConfigs matching.`,
-          }
+          return npmrcExists
+            ? {
+                warning: `${relative(cwd, npmrcPath)} was kept because its package.json has no name for packageConfigs matching.`,
+              }
+            : {}
         }
 
         return {
           candidate: {
+            npmrcExists,
             npmrcPath,
             packageJsonPath,
             projectName: packageJson.value.name,
@@ -172,6 +171,9 @@ export async function readProjectNpmrcMigrations(
 
   const migrationResults = await Promise.all(
     [...candidatesByName].map(async ([projectName, namedCandidates]) => {
+      if (!namedCandidates.some(candidate => candidate.npmrcExists)) {
+        return {}
+      }
       if (namedCandidates.length > 1) {
         return {
           warning: `Subproject .npmrc files for duplicate package name ${JSON.stringify(projectName)} were kept: ${namedCandidates

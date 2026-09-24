@@ -1,3 +1,4 @@
+import { toArray } from '@ntnyq/utils'
 import type {
   PackageJson,
   RuntimeMigrationResult,
@@ -21,9 +22,7 @@ export function migrateRuntimeToPackageJson(
   }
 
   if (packageJson.devEngines?.runtime) {
-    const runtimes = Array.isArray(packageJson.devEngines.runtime)
-      ? packageJson.devEngines.runtime
-      : [packageJson.devEngines.runtime]
+    const runtimes = toArray(packageJson.devEngines.runtime)
     const nodeRuntimes = runtimes.filter(runtime => runtime.name === 'node')
     if (
       nodeRuntimes.length &&

@@ -1,5 +1,11 @@
 import { isDeepStrictEqual } from 'node:util'
-import { isUndefined, isPlainObject } from '@ntnyq/utils'
+import {
+  isArray,
+  isPlainObject,
+  isUndefined,
+  unique,
+  uniqueWith,
+} from '@ntnyq/utils'
 import { defu } from 'defu'
 import type { PnpmWorkspace, MergeStrategy } from '../types'
 
@@ -73,18 +79,11 @@ function mergeWithArrayDedupe(
         value: incomingValue,
         writable: true,
       })
-    } else if (Array.isArray(existingValue) && Array.isArray(incomingValue)) {
+    } else if (isArray(existingValue) && isArray(incomingValue)) {
       // Both are arrays - merge and deduplicate
-      const items: unknown[] = Array.from(
-        new Set([...existingValue, ...incomingValue]),
-      )
-      result[key] = items.filter(
-        (item, index) =>
-          !item ||
-          typeof item !== 'object' ||
-          !items
-            .slice(0, index)
-            .some(previous => isDeepStrictEqual(previous, item)),
+      result[key] = uniqueWith(
+        unique<unknown>([...existingValue, ...incomingValue]),
+        isDeepStrictEqual,
       )
     } else if (isPlainObject(existingValue) && isPlainObject(incomingValue)) {
       // Both are objects - recursively merge
@@ -97,6 +96,26 @@ function mergeWithArrayDedupe(
   }
 
   return result as PnpmWorkspace
+}
+
+/**
+ * Append ordered matchers without removing entries that restore precedence.
+ * An overlapping suffix/prefix is already in place, including on repeated runs.
+ *
+ * @param existing - Matchers already in the workspace
+ * @param incoming - Matchers to append in source order
+ *
+ * @returns Combined matchers with the incoming sequence at the end
+ */
+function mergeOrderedMatchers<T>(existing: T[], incoming: T[]): T[] {
+  let overlap = Math.min(existing.length, incoming.length)
+  while (
+    overlap > 0 &&
+    !isDeepStrictEqual(existing.slice(-overlap), incoming.slice(0, overlap))
+  ) {
+    overlap--
+  }
+  return [...existing, ...incoming.slice(overlap)]
 }
 
 /**
@@ -133,9 +152,20 @@ export function mergeByStrategy(
       // Keep existing values, only add new keys from incoming
       return discardMerge(existing, incoming)
 
-    case 'merge':
-      // Deep merge with array deduplication
-      return mergeWithArrayDedupe(existing, incoming)
+    case 'merge': {
+      const result = mergeWithArrayDedupe(existing, incoming)
+      // packageConfigs uses last-match precedence rather than set semantics.
+      if (
+        isArray(existing.packageConfigs) &&
+        isArray(incoming.packageConfigs)
+      ) {
+        result.packageConfigs = mergeOrderedMatchers(
+          existing.packageConfigs,
+          incoming.packageConfigs,
+        )
+      }
+      return result
+    }
 
     case 'overwrite':
       // Use incoming values, only keep keys not in incoming

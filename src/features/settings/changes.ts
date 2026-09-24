@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { unique } from '@ntnyq/utils'
 import type { PnpmWorkspace, SettingsChange } from '../../types'
 
 /**
@@ -15,12 +16,12 @@ export function collectSettingsChanges(
 ): SettingsChange[] {
   const beforeSettings: Record<string, unknown> = { ...before }
   const afterSettings: Record<string, unknown> = { ...after }
-  const keys = new Set([
+  const keys = unique([
     ...Object.keys(beforeSettings),
     ...Object.keys(afterSettings),
   ])
 
-  return Array.from(keys)
+  return keys
     .filter(key => !isDeepStrictEqual(beforeSettings[key], afterSettings[key]))
     .map(key => ({
       after: afterSettings[key],

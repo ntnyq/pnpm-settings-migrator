@@ -3,6 +3,49 @@ import type { PnpmWorkspace } from '../../src/types'
 import { mergeByStrategy } from '../../src/utils/merge'
 
 describe('mergeByStrategy', () => {
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'preserves object-array order and input values with %s',
+    strategy => {
+      const first = { match: ['app'], overrides: { foo: '1.0.0' } }
+      const equivalent = { overrides: { foo: '1.0.0' }, match: ['app'] }
+      const distinct = { match: ['app'], overrides: { foo: '2.0.0' } }
+      const existing: PnpmWorkspace = { packageConfigs: [first] }
+      const incoming: PnpmWorkspace = {
+        packageConfigs: [equivalent, distinct],
+      }
+      const beforeExisting = structuredClone(existing)
+      const beforeIncoming = structuredClone(incoming)
+
+      const result = mergeByStrategy(existing, incoming, strategy)
+
+      const expected = {
+        discard: [first],
+        merge: [first, distinct],
+        overwrite: [equivalent, distinct],
+      }[strategy]
+      expect(result.packageConfigs).toStrictEqual(expected)
+      expect(existing).toStrictEqual(beforeExisting)
+      expect(incoming).toStrictEqual(beforeIncoming)
+    },
+  )
+
+  it('preserves Set equality for primitive array entries when merging', () => {
+    const existing: PnpmWorkspace = {
+      packageConfigs: { app: { values: [-0, Number.NaN, null, false, ''] } },
+    }
+    const incoming: PnpmWorkspace = {
+      packageConfigs: {
+        app: { values: [0, Number.NaN, null, false, '', 1] },
+      },
+    }
+
+    const result = mergeByStrategy(existing, incoming, 'merge')
+
+    expect(result.packageConfigs).toStrictEqual({
+      app: { values: [0, Number.NaN, null, false, '', 1] },
+    })
+  })
+
   describe.each(['discard', 'merge', 'overwrite'] as const)(
     '%s prototype-named keys',
     strategy => {
