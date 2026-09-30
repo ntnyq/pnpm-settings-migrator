@@ -124,6 +124,14 @@ export interface PnpmRegistryDeclaration extends RegistryDeclaration {
  */
 export interface PnpmSettingsV12 {
   /**
+   * Milliseconds to wait for published artifacts; zero disables waiting (12.7+).
+   */
+  publishWaitTimeout?: number
+  /**
+   * Default terminal reporter (consumed by pnpm v12 from 12.7).
+   */
+  reporter?: 'default' | 'append-only' | 'ndjson' | 'silent'
+  /**
    * Deduplicate compatible dependency versions during installation (pnpm 12.6+).
    */
   autoDedupe?: boolean
@@ -165,6 +173,7 @@ export interface PnpmSettingsV12 {
   externalDependencies?: string[]
   /**
    * Project-aware global shim policies, or `false` to disable global shims.
+   * Project configuration is accepted only before pnpm 12.8.2.
    */
   globalShims?: false | Record<string, GlobalShimPolicy>
 

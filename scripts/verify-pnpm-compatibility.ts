@@ -7,8 +7,18 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { parse } from 'yaml'
 import { migratePnpmSettings } from '../src'
+import {
+  PNPM_V11_28_MINIMUM_VERSION,
+  PNPM_V12_7_MINIMUM_VERSION,
+  PNPM_V12_8_2_MINIMUM_VERSION,
+} from '../src/constants'
+import {
+  parsePnpmVersion,
+  supportsMinimumVersion,
+} from '../src/features/compatibility/version'
 import { verifyInstallSettings } from './verify-pnpm-install-settings'
 import { verifyMinorCapabilities } from './verify-pnpm-minor-compatibility'
+import { verifyReleaseSettings } from './verify-pnpm-release-settings'
 
 /**
  * First v11 minor supporting trust policy exclusion pruning.
@@ -37,6 +47,9 @@ const DEFAULT_PNPM_VERSIONS = [
   '11.25.0',
   '11.26.0',
   '11.27.1',
+  '11.28.0',
+  '11.28.1',
+  '11.28.2',
   '12.2.1',
   '12.3.4',
   '12.4.0',
@@ -44,6 +57,10 @@ const DEFAULT_PNPM_VERSIONS = [
   '12.5.0',
   '12.5.1',
   '12.6.0',
+  '12.7.0',
+  '12.8.0',
+  '12.8.1',
+  '12.8.2',
 ]
 
 /**
@@ -120,7 +137,16 @@ async function runPnpm(
  * @throws {Error} When migration, pnpm commands, or compatibility assertions fail
  */
 async function verifyVersion(version: string): Promise<void> {
+  assert.match(
+    version,
+    /^(?:11|12)\.\d+\.\d+$/u,
+    'The harness supports exact stable v11/v12 releases',
+  )
   const compatibility = version.startsWith('11.') ? 'v11' : 'v12'
+  const ignoresProjectShims = supportsMinimumVersion(
+    parsePnpmVersion(version),
+    PNPM_V12_8_2_MINIMUM_VERSION,
+  )
   const fixtureDir = await mkdtemp(
     join(tmpdir(), `pnpm-settings-migrator-${compatibility}-`),
   )
@@ -209,6 +235,8 @@ async function verifyVersion(version: string): Promise<void> {
       if (Number(version.split('.')[1]) >= TRUST_PRUNING_MINOR) {
         assert.equal(workspace.trustPolicyExcludePrune, true)
       }
+    } else if (ignoresProjectShims) {
+      assert.equal(workspace.globalShims, undefined)
     } else {
       assert.deepEqual(workspace.globalShims, {
         node: 'always',
@@ -222,6 +250,9 @@ async function verifyVersion(version: string): Promise<void> {
     assert.deepEqual(packageJson.pnpm, {
       customMetadata: { preserve: true },
       globalDir: '.machine-global',
+      ...(ignoresProjectShims
+        ? { globalShims: { node: 'always', typescript: true } }
+        : {}),
     })
     assert.equal(packageJson.resolutions, undefined)
     const npmrc = await readFile(join(fixtureDir, '.npmrc'), 'utf8')
@@ -268,6 +299,13 @@ async function verifyVersion(version: string): Promise<void> {
 await Promise.all(
   pnpmVersions.map(async version => {
     await verifyVersion(version)
+    const parsedVersion = parsePnpmVersion(version)
+    if (
+      supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||
+      supportsMinimumVersion(parsedVersion, PNPM_V12_7_MINIMUM_VERSION)
+    ) {
+      await verifyReleaseSettings(version, runPnpm)
+    }
     if (
       version.startsWith('12.') &&
       Number(version.split('.')[1]) >= PIPELINE_MINOR

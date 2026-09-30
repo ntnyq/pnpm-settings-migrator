@@ -1,5 +1,9 @@
 import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
 import {
+  PNPM_V11_28_MINIMUM_VERSION,
+  PNPM_V11_28_1_MINIMUM_VERSION,
+  PNPM_V12_7_MINIMUM_VERSION,
+  PNPM_V12_8_2_MINIMUM_VERSION,
   PNPM_V12_5_MINIMUM_VERSION,
   PNPM_V12_5_1_MINIMUM_VERSION,
 } from '../../constants'
@@ -26,10 +30,20 @@ function hasInvalidScalarValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
-  if (['autoDedupe', 'saveTypes'].includes(key)) {
+  if (['autoDedupe', 'saveTypes', 'forceIgnoresPlatform'].includes(key)) {
     return !isBoolean(value)
   }
+  if (key === 'publishWaitTimeout') {
+    return !isNumber(value) || !Number.isSafeInteger(value) || value < 0
+  }
   if (target.compatibility === 'v12') {
+    if (key === 'reporter') {
+      return (
+        !isString(value) ||
+        (!value.includes('${') &&
+          !['default', 'append-only', 'ndjson', 'silent'].includes(value))
+      )
+    }
     if (key === 'progress') {
       return !isBoolean(value)
     }
@@ -43,6 +57,57 @@ function hasInvalidScalarValue(
           !['silent', 'error', 'warn', 'info', 'debug'].includes(value))
       )
     }
+  }
+  return false
+}
+
+/**
+ * Reject settings ignored or newly validated by the September releases.
+ *
+ * @param key - Canonical workspace setting name
+ * @param value - Untrusted source value
+ * @param target - Confirmed version for release-specific restrictions
+ *
+ * @returns Whether the value cannot be used by the target release
+ */
+function hasInvalidReleaseValue(
+  key: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (
+    key === 'globalShims' &&
+    supportsMinimumVersion(target.version, PNPM_V12_8_2_MINIMUM_VERSION)
+  ) {
+    return true
+  }
+  if (
+    key === 'userAgent' &&
+    isString(value) &&
+    value.includes('${') &&
+    (supportsMinimumVersion(target.version, PNPM_V11_28_MINIMUM_VERSION) ||
+      supportsMinimumVersion(target.version, PNPM_V12_7_MINIMUM_VERSION))
+  ) {
+    return true
+  }
+  if (
+    key === 'packages' &&
+    value !== null &&
+    value !== undefined &&
+    supportsMinimumVersion(target.version, PNPM_V11_28_1_MINIMUM_VERSION)
+  ) {
+    return !isArray(value) || value.some(entry => !isString(entry) || !entry)
+  }
+  if (
+    key === 'patchedDependencies' &&
+    supportsMinimumVersion(target.version, PNPM_V11_28_1_MINIMUM_VERSION)
+  ) {
+    return (
+      !value ||
+      typeof value !== 'object' ||
+      isArray(value) ||
+      !Object.values(value).every(isString)
+    )
   }
   return false
 }
@@ -63,6 +128,9 @@ export function hasIncompatibleSettingValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
+  if (hasInvalidReleaseValue(key, value, target)) {
+    return true
+  }
   if (hasInvalidScalarValue(key, value, target)) {
     return true
   }

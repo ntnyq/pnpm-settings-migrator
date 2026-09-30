@@ -55,14 +55,15 @@ function normalizeNpmrcKey(key: string): string {
 /**
  * Convert scalar list settings to the array representation required by YAML.
  *
- * @param settings - Selected `.npmrc` settings with camelCase keys
+ * @param settings - `.npmrc` settings with original or camelCase keys
  *
  * @returns Settings with each scalar list value preserved as one array item
  */
 function normalizeNpmrcSettings(settings: NpmRC): NpmRC {
-  for (const key of NPMRC_STRING_ARRAY_SETTINGS) {
-    if (isString(settings[key])) {
-      settings[key] = [settings[key]]
+  for (const [key, value] of Object.entries(settings)) {
+    const canonicalKey = Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
+    if (NPMRC_STRING_ARRAY_SETTINGS.includes(canonicalKey) && isString(value)) {
+      settings[key] = [value]
     }
   }
   return settings
@@ -230,10 +231,21 @@ export async function readMigratableNpmrc(
         nodeDownloadMirrorKeys.push(key)
         nodeDownloadMirrors[nodeMirrorMatch.groups.channel] = String(value)
       } else {
-        const selected = selectPnpmSettings({ [key]: value }, target, {
-          allowedFields: options.allowedFields,
-          npmrc: true,
-        })
+        const [canonicalKey] = Object.keys(camelcaseKeys({ [key]: true }))
+        const settingValue =
+          canonicalKey === 'publishWaitTimeout' &&
+          isString(value) &&
+          /^\d+$/u.test(value)
+            ? Number(value)
+            : value
+        const selected = selectPnpmSettings(
+          normalizeNpmrcSettings({ [key]: settingValue }),
+          target,
+          {
+            allowedFields: options.allowedFields,
+            npmrc: true,
+          },
+        )
         keys.push(...selected.keys)
         Object.assign(migratable, selected.settings)
         mergeSettingsIssues(issues, selected.issues)
@@ -241,7 +253,7 @@ export async function readMigratableNpmrc(
     }
   }
 
-  const settings = normalizeNpmrcSettings(camelcaseKeys(migratable))
+  const settings = migratable
   if (Object.keys(nodeDownloadMirrors).length) {
     const selected = selectPnpmSettings({ nodeDownloadMirrors }, target, {
       allowedFields: options.allowedFields,

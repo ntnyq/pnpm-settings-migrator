@@ -122,6 +122,11 @@ export interface PnpmSettingsDeprecated {
  */
 export interface PnpmSettingsV11 {
   /**
+   * Let --force install optional dependencies for other platforms
+   * (pnpm 11.28+ and 12.7+). Defaults remain controlled by pnpm.
+   */
+  forceIgnoresPlatform?: boolean
+  /**
    * Canonical replacement for the legacy `cleanupUnusedCatalogs` setting.
    */
   catalogPrune?: boolean

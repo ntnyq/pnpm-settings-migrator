@@ -180,6 +180,20 @@ consumes them from workspace configuration; their v11 support is unchanged.
 Invalid values and fields unsupported by the target remain in their sources.
 The global-only `macosBackup` setting is preserved with a project-refused warning.
 
+`forceIgnoresPlatform` requires pnpm 11.28.0+ or 12.7.0+. pnpm's defaults differ
+between those majors; the migrator only moves explicit values. For v12,
+`publishWaitTimeout` and `reporter` require 12.7.0+. The timeout is a nonnegative
+safe integer in milliseconds (zero disables waiting); numeric `.npmrc` values
+are converted to YAML numbers. Reporter values are `default`, `append-only`,
+`ndjson`, and `silent`, or preserved environment placeholders.
+
+From 11.28.0 / 12.7.0, dynamic `userAgent` values remain in their sources because
+pnpm ignores project values containing environment placeholders. From 11.28.1,
+invalid `patchedDependencies` maps and non-array `packages` values are retained
+with diagnostics. From 12.8.2, `globalShims` belongs in trusted global
+configuration and is retained with an incompatibility warning. Existing
+workspaces containing these incompatible values fail validation before writes.
+
 </details>
 
 <details>
@@ -254,13 +268,16 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.27.1 and 12.6.0, retaining 11.25.0,
-  11.26.0, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, and 12.5.1 regressions.
-  As [audited on 2026-09-24](docs/research/pnpm-settings-bump-2026-09-24.md),
-  npm `latest` and the highest stable release are 12.6.0; `latest-11` is 11.27.1.
-  The project is pinned to 12.6.0. The removed `pnpm install --resolution-only` CLI
-  flag is outside this settings migrator's scope; replace it with
-  `pnpm peers check` in scripts before upgrading.
+- Compatibility checks cover pnpm 11.28.2 and 12.8.2, including 11.28.0,
+  11.28.1, 12.7.0, 12.8.0, and 12.8.1. Earlier regressions remain at 11.25.0,
+  11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
+  As [audited on 2026-09-30](docs/research/pnpm-settings-bump-2026-09-30.md),
+  npm `latest` is 12.8.1; the highest confirmed stable release is 12.8.2 on
+  `next-12`. The project is pinned to 12.8.1. These checks verify the documented
+  fixtures, not every setting in every release. v10 has unit regressions and
+  source review through 10.34.6; real v10 consumption remains unverified.
+  The removed `pnpm install --resolution-only` CLI flag is outside this settings
+  migrator's scope; replace it with `pnpm peers check` in scripts before upgrading.
 
 </details>
 
