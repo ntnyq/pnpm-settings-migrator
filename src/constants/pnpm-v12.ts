@@ -1,6 +1,7 @@
 import {
   PNPM_V12_6_WORKSPACE_SETTINGS,
   PNPM_V12_7_WORKSPACE_SETTINGS,
+  PNPM_V12_10_WORKSPACE_SETTINGS,
 } from './pnpm-capabilities'
 import {
   PNPM_V11_WORKSPACE_SETTINGS_FIELDS,
@@ -22,6 +23,19 @@ export const PNPM_V12_ONLY_WORKSPACE_SETTINGS: readonly string[] = [
 const v11OnlyWorkspaceSettings = new Set(PNPM_V11_ONLY_WORKSPACE_SETTINGS)
 
 /**
+ * Fields accepted by registry declarations with pnpm 12.9 concurrency limits.
+ */
+export const PNPM_V12_REGISTRY_DECLARATION_FIELDS: readonly string[] = [
+  'ecosystem',
+  'networkConcurrency',
+  'packages',
+  'prefix',
+  'scopes',
+  'serverType',
+  'supportsTimeField',
+]
+
+/**
  * Settings accepted by a pnpm v12 project workspace manifest.
  */
 export const PNPM_V12_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
@@ -29,7 +43,8 @@ export const PNPM_V12_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
     field =>
       !v11OnlyWorkspaceSettings.has(field) &&
       !PNPM_V12_6_WORKSPACE_SETTINGS.includes(field) &&
-      !PNPM_V12_7_WORKSPACE_SETTINGS.includes(field),
+      !PNPM_V12_7_WORKSPACE_SETTINGS.includes(field) &&
+      !PNPM_V12_10_WORKSPACE_SETTINGS.includes(field),
   ),
   ...PNPM_V12_ONLY_WORKSPACE_SETTINGS,
 ]

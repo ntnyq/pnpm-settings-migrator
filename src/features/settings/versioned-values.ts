@@ -2,6 +2,9 @@ import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
 import {
   PNPM_V11_28_MINIMUM_VERSION,
   PNPM_V11_28_1_MINIMUM_VERSION,
+  PNPM_V11_28_3_MINIMUM_VERSION,
+  PNPM_V11_28_4_MINIMUM_VERSION,
+  PNPM_V11_28_5_MINIMUM_VERSION,
   PNPM_V12_7_MINIMUM_VERSION,
   PNPM_V12_8_2_MINIMUM_VERSION,
   PNPM_V12_5_MINIMUM_VERSION,
@@ -9,12 +12,57 @@ import {
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
 
 /**
  * Bounds of the signed 32-bit integer used by pnpm's task priority.
  */
 const MIN_TASK_PRIORITY = -2_147_483_648
 const MAX_TASK_PRIORITY = 2_147_483_647
+
+/**
+ * Validate values newly checked by pnpm 11.28 patch releases.
+ *
+ * @param key - Canonical setting or legacy alias that will be normalized
+ * @param value - Untrusted source value
+ * @param target - Confirmed target version
+ *
+ * @returns Whether pnpm rejects the value after migration
+ */
+function hasInvalidV11PatchValue(
+  key: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (
+    ['httpProxy', 'httpsProxy'].includes(key) &&
+    supportsMinimumVersion(target.version, PNPM_V11_28_5_MINIMUM_VERSION)
+  ) {
+    return !isString(value)
+  }
+  if (value === null || value === undefined) {
+    return false
+  }
+  if (
+    key === 'allowBuilds' &&
+    supportsMinimumVersion(target.version, PNPM_V11_28_3_MINIMUM_VERSION)
+  ) {
+    return (
+      typeof value !== 'object' ||
+      isArray(value) ||
+      Object.values(value).some(entry => !isBoolean(entry) && !isString(entry))
+    )
+  }
+  if (supportsMinimumVersion(target.version, PNPM_V11_28_4_MINIMUM_VERSION)) {
+    if (['allowUnusedPatches', 'allowNonAppliedPatches'].includes(key)) {
+      return !isBoolean(value)
+    }
+    if (['ignoredOptionalDependencies', 'requiredScripts'].includes(key)) {
+      return !isArray(value) || !value.every(isString)
+    }
+  }
+  return false
+}
 
 /**
  * Validate scalar settings introduced or first consumed in pnpm 12.6.
@@ -128,7 +176,11 @@ export function hasIncompatibleSettingValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
-  if (hasInvalidReleaseValue(key, value, target)) {
+  if (
+    hasInvalidReleaseValue(key, value, target) ||
+    hasInvalidV11PatchValue(key, value, target) ||
+    hasIncompatibleV12SettingValue(key, value, target)
+  ) {
     return true
   }
   if (hasInvalidScalarValue(key, value, target)) {

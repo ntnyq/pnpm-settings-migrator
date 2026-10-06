@@ -109,6 +109,11 @@ export interface PnpmCargoSettings {
  */
 export interface PnpmRegistryDeclaration extends RegistryDeclaration {
   /**
+   * Positive integer limiting requests to this registry's origin within the
+   * global networkConcurrency limit (pnpm 12.9+). Null leaves it unset.
+   */
+  networkConcurrency?: number | null
+  /**
    * Package ecosystem served by the registry; omitted means npm (pnpm 12.5+).
    */
   ecosystem?: 'cargo' | 'npm' | 'pypi'
@@ -120,9 +125,47 @@ export interface PnpmRegistryDeclaration extends RegistryDeclaration {
 }
 
 /**
+ * Loaded linker options introduced in pnpm 12.10.0.
+ */
+export interface PnpmLoadedNodeLinkerSettings {
+  /**
+   * Load dependencies through pnpm's loader instead of materializing a full tree.
+   */
+  type: 'loaded'
+  /**
+   * Packages whose complete dependency trees use the global virtual store.
+   */
+  excluded?: string[]
+}
+
+/**
+ * Lockfile object options introduced in pnpm 12.10.0.
+ */
+export interface PnpmLockfileSettings {
+  /**
+   * Include resolution-affecting configuration in the lockfile. Null uses pnpm's
+   * default; an empty options object also enables the lockfile.
+   */
+  includeResolutionSettings?: boolean | null
+}
+
+/**
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Dependency linking mode. Loaded linking and its options require pnpm 12.10+.
+   */
+  nodeLinker?:
+    | 'isolated'
+    | 'hoisted'
+    | 'pnp'
+    | 'loaded'
+    | PnpmLoadedNodeLinkerSettings
+  /**
+   * Enable the lockfile, optionally configuring what it records (pnpm 12.10+).
+   */
+  lockfile?: boolean | PnpmLockfileSettings
   /**
    * Milliseconds to wait for published artifacts; zero disables waiting (12.7+).
    */

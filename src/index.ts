@@ -18,6 +18,8 @@ export type {
   PnpmPythonSettings,
   PnpmCargoSettings,
   PnpmRegistryDeclaration,
+  PnpmLoadedNodeLinkerSettings,
+  PnpmLockfileSettings,
   PnpmWorkspace,
   MigrationResult,
   SettingsChange,

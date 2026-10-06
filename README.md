@@ -194,6 +194,25 @@ with diagnostics. From 12.8.2, `globalShims` belongs in trusted global
 configuration and is retained with an incompatibility warning. Existing
 workspaces containing these incompatible values fail validation before writes.
 
+From 11.28.3, non-null `allowBuilds` values must be maps of booleans or strings.
+From 11.28.4, non-null `allowUnusedPatches` must be boolean, and non-null
+`ignoredOptionalDependencies` / `requiredScripts` must be string arrays.
+From 11.28.5, `httpProxy` and `httpsProxy` must be strings, including when empty;
+null is incompatible. Invalid values remain in their sources with diagnostics.
+
+For pnpm 12.9.0 and later stable v12 releases, URL-keyed `registries` entries
+can set `networkConcurrency` to a positive safe integer, or null to leave it
+unset. On older or unconfirmed targets, the entire registry setting stays in
+its source when it contains this field.
+
+For pnpm 12.10.0 and later stable v12 releases, `nodeLinker` additionally accepts
+`loaded` or `{ type: 'loaded', excluded: ['package-name'] }`, and `lockfile`
+accepts `{ includeResolutionSettings: true }` to record resolution settings in
+the lockfile. Existing linker strings and boolean `lockfile` values still work.
+`failIfNoMatch` also requires 12.10.0 for v12 targets, when pnpm first consumes
+it from workspace configuration. Unsupported or invalid nested settings stay
+intact in their source; the migrator does not add pnpm's defaults.
+
 </details>
 
 <details>
@@ -268,12 +287,14 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.2 and 12.8.2, including 11.28.0,
-  11.28.1, 12.7.0, 12.8.0, and 12.8.1. Earlier regressions remain at 11.25.0,
+- Compatibility checks cover pnpm 11.28.5 and 12.10.0, including 11.28.0,
+  11.28.1, 11.28.2, 11.28.3, 11.28.4, 12.7.0, 12.8.0, 12.8.1, 12.8.2,
+  12.9.0, and 12.9.1. Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-09-30](docs/research/pnpm-settings-bump-2026-09-30.md),
-  npm `latest` is 12.8.1; the highest confirmed stable release is 12.8.2 on
-  `next-12`. The project is pinned to 12.8.1. These checks verify the documented
+  As [audited on 2026-10-06](docs/research/pnpm-settings-bump-2026-10-06.md),
+  npm `latest` is 12.9.1; the highest confirmed stable release is 12.10.0 on
+  `next-12`. The v11 target is 11.28.5 on `next-11`, while `latest-11` is
+  11.28.2. The project is pinned to 12.9.1. These checks verify the documented
   fixtures, not every setting in every release. v10 has unit regressions and
   source review through 10.34.6; real v10 consumption remains unverified.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings

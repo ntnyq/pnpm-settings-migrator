@@ -36,6 +36,24 @@ export const PNPM_V11_28_MINIMUM_VERSION = [11, 28, 0] as const
 export const PNPM_V11_28_1_MINIMUM_VERSION = [11, 28, 1] as const
 
 /**
+ * Release validating allowBuilds maps before reading them.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_3_MINIMUM_VERSION = [11, 28, 3] as const
+
+/**
+ * Release validating workspace booleans and string arrays.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_4_MINIMUM_VERSION = [11, 28, 4] as const
+
+/**
+ * Release validating proxy URL protocols.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_5_MINIMUM_VERSION = [11, 28, 5] as const
+
+/**
  * Release adding force, publishing, and reporter settings.
  */
 // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
@@ -46,6 +64,25 @@ export const PNPM_V12_7_MINIMUM_VERSION = [12, 7, 0] as const
  */
 // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
 export const PNPM_V12_8_2_MINIMUM_VERSION = [12, 8, 2] as const
+
+/**
+ * Release introducing per-registry network concurrency limits.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_9_MINIMUM_VERSION = [12, 9, 0] as const
+
+/**
+ * Release introducing loaded linking and lockfile resolution settings.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_10_MINIMUM_VERSION = [12, 10, 0] as const
+
+/**
+ * Workspace settings first consumed by pnpm v12 in 12.10.0.
+ */
+export const PNPM_V12_10_WORKSPACE_SETTINGS: readonly string[] = [
+  'failIfNoMatch',
+]
 
 /**
  * Workspace settings first consumed by pnpm v12 in 12.7.0.
@@ -70,6 +107,11 @@ export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
   {
     minimumVersion: PNPM_V12_7_MINIMUM_VERSION,
     workspaceFields: PNPM_V12_7_WORKSPACE_SETTINGS,
+    taskFields: [],
+  },
+  {
+    minimumVersion: PNPM_V12_10_MINIMUM_VERSION,
+    workspaceFields: PNPM_V12_10_WORKSPACE_SETTINGS,
     taskFields: [],
   },
   {

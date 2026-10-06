@@ -122,6 +122,11 @@ export interface PnpmSettingsDeprecated {
  */
 export interface PnpmSettingsV11 {
   /**
+   * Fail when no workspace project matches a filter. Accepted by pnpm v11 and
+   * consumed from workspace configuration by pnpm v12 starting with 12.10.
+   */
+  failIfNoMatch?: boolean
+  /**
    * Let --force install optional dependencies for other platforms
    * (pnpm 11.28+ and 12.7+). Defaults remain controlled by pnpm.
    */
@@ -165,7 +170,7 @@ export interface PnpmSettingsV11 {
  */
 export type PnpmWorkspace = Omit<
   PnpmSettings,
-  'registries' | 'supportedArchitectures' | 'tasks'
+  'lockfile' | 'nodeLinker' | 'registries' | 'supportedArchitectures' | 'tasks'
 > &
   PnpmSettingsDeprecated &
   PnpmSettingsV11 &
