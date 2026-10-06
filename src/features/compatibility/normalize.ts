@@ -1,5 +1,6 @@
 import {
   PNPM_REPLACEABLE_IN_V10_SETTINGS,
+  PNPM_V10_ALLOW_BUILDS_MINIMUM_VERSION,
   PNPM_V11_REMOVED_SETTINGS,
 } from '../../constants'
 import type {
@@ -9,6 +10,7 @@ import type {
 } from '../../types'
 import { normalizeCurrentAliases } from './deprecated-settings'
 import { collectAllowBuildsFromLegacy } from './legacy-build-settings'
+import { supportsMinimumVersion } from './version'
 
 /**
  * Resolve the pnpm v11 replacement for legacy package-manager settings.
@@ -106,7 +108,8 @@ export async function normalizeIncomingSettings(
   incomingSettings: PnpmWorkspace,
   options: NormalizeSettingsOptions,
 ): Promise<NormalizedSettingsResult> {
-  const { compatibility, cwd, replaceDeprecated } = options
+  const { target, cwd, replaceDeprecated } = options
+  const { compatibility } = target
   const before = JSON.stringify(incomingSettings)
   const warnings: string[] = []
 
@@ -119,20 +122,40 @@ export async function normalizeIncomingSettings(
       incomingSettings.allowNonAppliedPatches
   }
 
-  const allowBuildsFromLegacy = await collectAllowBuildsFromLegacy(
-    incomingSettings,
-    cwd,
-  )
-  if (allowBuildsFromLegacy) {
-    incomingSettings.allowBuilds = {
-      ...allowBuildsFromLegacy,
-      ...(incomingSettings.allowBuilds || {}),
+  const supportsAllowBuilds =
+    compatibility !== 'v10' ||
+    supportsMinimumVersion(
+      target.version,
+      PNPM_V10_ALLOW_BUILDS_MINIMUM_VERSION,
+    )
+  if (supportsAllowBuilds) {
+    const allowBuildsFromLegacy = await collectAllowBuildsFromLegacy(
+      incomingSettings,
+      cwd,
+    )
+    if (allowBuildsFromLegacy) {
+      incomingSettings.allowBuilds = {
+        ...allowBuildsFromLegacy,
+        ...(incomingSettings.allowBuilds || {}),
+      }
     }
+  } else if (
+    PNPM_REPLACEABLE_IN_V10_SETTINGS.some(
+      key =>
+        key !== 'allowNonAppliedPatches' &&
+        Object.hasOwn(incomingSettings, key),
+    )
+  ) {
+    warnings.push(
+      'Legacy build settings were kept because allowBuilds requires a confirmed pnpm version of at least 10.26.0.',
+    )
   }
 
   if (compatibility === 'v10') {
     for (const key of PNPM_REPLACEABLE_IN_V10_SETTINGS) {
-      Reflect.deleteProperty(incomingSettings, key)
+      if (supportsAllowBuilds || key === 'allowNonAppliedPatches') {
+        Reflect.deleteProperty(incomingSettings, key)
+      }
     }
 
     return {
@@ -148,7 +171,11 @@ export async function normalizeIncomingSettings(
 
   normalizeAuditConfig(incomingSettings, warnings)
   if (replaceDeprecated) {
-    normalizeCurrentAliases(incomingSettings, warnings)
+    normalizeCurrentAliases(
+      incomingSettings,
+      warnings,
+      options.canonicalSettings,
+    )
   }
   const runtimeVersion = resolveRuntimeVersion(incomingSettings, warnings)
 

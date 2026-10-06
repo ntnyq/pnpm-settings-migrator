@@ -75,6 +75,10 @@ export interface ResolveMigrationSourcesOptions {
  */
 export interface PersistMigrationOptions {
   /**
+   * Combined normalized source settings, including ordered filter sequences.
+   */
+  incomingSettings: PnpmWorkspace
+  /**
    * Whether to prune applied keys from root and project `.npmrc` files.
    */
   cleanNpmrc: boolean
@@ -157,6 +161,10 @@ export interface PersistMigrationOptions {
  */
 export interface SelectAppliedRootKeysOptions {
   /**
+   * Ordered filters whose combined source sequence is preserved at the destination.
+   */
+  appliedOrderedFilterKeys: ReadonlySet<string>
+  /**
    * Workspace settings after applying the conflict strategy.
    */
   finalSettings: PnpmWorkspace
@@ -184,6 +192,31 @@ export interface SelectAppliedRootKeysOptions {
    * Source values before normalization, used to check runtime equality.
    */
   sourceSettings: object
+}
+
+/**
+ * Normalized source and destination sequences needed to verify filter cleanup.
+ */
+export type ResolveAppliedOrderedFilterKeysOptions = Pick<
+  PersistMigrationOptions,
+  | 'cleanPackageJson'
+  | 'finalSettings'
+  | 'incomingSettings'
+  | 'normalizedPackageJsonSettings'
+>
+
+/**
+ * Filter keys eligible for cleanup while keeping repeated migrations stable.
+ */
+export interface AppliedOrderedFilterKeys {
+  /**
+   * Package filters preserved within the combined destination suffix.
+   */
+  packageJson: ReadonlySet<string>
+  /**
+   * Npmrc filters whose removal cannot change retained package filter precedence.
+   */
+  npmrc: ReadonlySet<string>
 }
 
 /**

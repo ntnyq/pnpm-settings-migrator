@@ -43,6 +43,10 @@ The CLI no longer prints a startup banner, missing optional files, a zero-change
 count, or a duplicate completion message. Use `--version` to see the version.
 Warnings are reserved for settings requiring attention. Information blocks have
 one blank line between them, with no extra blank lines at the start or end.
+URL credentials are hidden in diffs, warnings, and errors. Parser diagnostics
+keep available locations but omit configuration source excerpts. For example,
+`https://user:p@ssword@proxy.example/` is displayed as
+`https://***@proxy.example/`; the stored setting is preserved.
 
 Other outcomes are reported according to the files actually changed:
 
@@ -259,11 +263,11 @@ Notes:
   `overrides`, `saveExact`, and `savePrefix`. Supported subproject `.npmrc`
   fields are moved there by package name. pnpm 12.0–12.3 does not support
   `packageConfigs`.
-- For v12 targets from 12.4.0, migrating `packageConfigs` or subproject settings
-  requires `sharedWorkspaceLockfile: false` in the merged workspace. Otherwise
-  source settings remain with a warning; existing `packageConfigs` blocks
-  migration until the effective lockfile mode is compatible. This restriction
-  does not apply to v11. The migrator does not change this mode automatically.
+- For v11 targets and v12 targets from 12.4.0, migrating `packageConfigs` or
+  subproject settings requires `sharedWorkspaceLockfile: false` in the merged
+  workspace. Otherwise source settings remain with a warning; existing
+  `packageConfigs` blocks migration until the effective lockfile mode is
+  compatible. The migrator does not change this mode automatically.
 - Cleanup removes only source keys represented in the final workspace after
   applying the selected merge strategy.
   Each source is checked against its own values, including deprecated-key
@@ -332,6 +336,12 @@ for the upstream release and schema references.
 
 Force replacing deprecated pnpm settings with new keys and remove old keys during migration.
 
+For v10, replacing legacy build permissions with `allowBuilds` requires a
+confirmed stable target of 10.26.0 or later. Older or unconfirmed targets keep
+the legacy setting names and report a warning. Canonical `update` sections
+and registry prefixes take precedence over their deprecated aliases, including
+when they come from different configuration sources.
+
 <details>
 <summary>Deprecated setting conversion examples</summary>
 
@@ -363,6 +373,10 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 `packageConfigs` matcher arrays preserve order and repeated entries because the
 last matching entry wins. With `merge`, incoming matchers follow existing ones;
 an overlapping end/start sequence is reused to keep repeated migrations stable.
+`filter` and `filterProd` use the same ordered merging: a repeated inclusion can
+restore projects removed by an earlier exclusion. Cleanup verifies the combined
+selector sequence. If package cleanup is disabled, later `.npmrc` selectors are
+retained when needed to keep repeated migrations stable.
 
 ### `--no-yarn-resolutions`
 

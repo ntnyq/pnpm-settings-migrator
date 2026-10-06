@@ -24,6 +24,30 @@ describe('migratePnpmSettings/base', () => {
     })
   })
 
+  it.each([[], null, false, 1, 'manifest'])(
+    'rejects a non-object package manifest %j before changing any files',
+    async manifest => {
+      await writePackageJson(manifest)
+      await writeWorkspaceYaml('useNodeVersion: 22.13.0\n')
+      await writeNpmrc('save-exact=true\n')
+      const originalManifest = await readWorkspaceFile('package.json')
+
+      await expect(
+        migratePnpmSettings({ cwd: testDir, compatibility: 'v11' }),
+      ).rejects.toThrow('package.json must contain a root object.')
+
+      await expect(readWorkspaceFile('package.json')).resolves.toBe(
+        originalManifest,
+      )
+      await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+        'useNodeVersion: 22.13.0\n',
+      )
+      await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+        'save-exact=true\n',
+      )
+    },
+  )
+
   it('migrates pnpm settings from package.json', async () => {
     await writePackageJson({
       name: 'test-workspace',

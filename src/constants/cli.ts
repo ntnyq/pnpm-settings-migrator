@@ -4,8 +4,8 @@
 export const MAX_LCS_CELLS = 1_000_000
 
 /**
- * URL userinfo can contain proxy usernames and passwords. It must never be
- * printed in a migration report.
+ * Match URL userinfo through its final @, including whitespace and @
+ * characters accepted by URL parsers. Stop at authority boundaries.
  */
 export const URL_USERINFO_PATTERN =
-  /(?<scheme>(?:[a-z][a-z\d+.-]*:)?\/\/)[^/\s@]+@/giu
+  /(?<scheme>(?:[a-z][a-z\d+.-]*:)?\/\/)[^/?#]*@/giu

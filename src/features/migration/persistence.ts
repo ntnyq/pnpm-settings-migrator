@@ -3,6 +3,7 @@ import camelcaseKeys from 'camelcase-keys'
 import {
   REPLACEMENT_SETTING_KEYS,
   SETTINGS_WITHOUT_REPLACEMENT,
+  ORDERED_FILTER_SETTINGS,
 } from '../../constants'
 import type {
   SelectAppliedRootKeysOptions,
@@ -12,8 +13,13 @@ import type {
   PersistenceResult,
 } from '../../types'
 import { fsWriteFileIfChanged } from '../../utils/fs'
+import { resolveSourceRuntimeVersion } from '../compatibility/runtime'
 import { cleanPackageJsonSettings } from '../sources/config'
 import { pruneNpmrc } from '../sources/npmrc'
+import {
+  containsOrderedFilterValue,
+  resolveAppliedOrderedFilterKeys,
+} from './filters'
 
 /**
  * Check that a destination contains the selected value after merging.
@@ -80,34 +86,6 @@ function resolvePackageConfigs(
 }
 
 /**
- * Read the original runtime version before checking whether cleanup is safe.
- *
- * @param sourceSettings - Legacy settings before normalization
- * @param targetKey - Runtime setting key identifying the source representation
- *
- * @returns Unvalidated runtime value, or `undefined` when it is absent
- */
-function resolveSourceRuntimeVersion(
-  sourceSettings: object,
-  targetKey: string,
-): unknown {
-  if (targetKey === 'useNodeVersion') {
-    return Reflect.get(sourceSettings, 'useNodeVersion')
-  }
-
-  const executionEnv = Reflect.get(sourceSettings, 'executionEnv')
-  if (
-    !executionEnv ||
-    typeof executionEnv !== 'object' ||
-    isArray(executionEnv)
-  ) {
-    return undefined
-  }
-
-  return (executionEnv as Record<string, unknown>).nodeVersion
-}
-
-/**
  * Find the destination key used to verify a normalized legacy setting.
  *
  * @param sourceKey - Original key, including any `.npmrc` channel suffix
@@ -135,6 +113,7 @@ function resolveReplacementSettingKey(
  * checked against their normalized destination values before removal.
  *
  * @param options - Selected source keys, normalized settings, and runtime status
+ * @param options.appliedOrderedFilterKeys - Filters whose combined source order survived
  * @param options.finalSettings - Workspace settings after merging
  * @param options.normalizedSettings - This source's settings after normalization
  * @param options.keys - Original source keys selected for migration
@@ -146,6 +125,7 @@ function resolveReplacementSettingKey(
  * @returns Original source keys that can be pruned
  */
 function selectAppliedRootKeys({
+  appliedOrderedFilterKeys,
   finalSettings,
   normalizedSettings,
   keys,
@@ -198,6 +178,15 @@ function selectAppliedRootKeys({
       const expected = resolvePackageConfigs(normalizedSettings.packageConfigs)
       return Boolean(
         actual && expected && containsMigratedValue(actual, expected),
+      )
+    }
+
+    if (ORDERED_FILTER_SETTINGS.includes(targetKey)) {
+      const actual: unknown = Reflect.get(finalSettings, targetKey)
+      const expected: unknown = Reflect.get(normalizedSettings, targetKey)
+      return (
+        appliedOrderedFilterKeys.has(targetKey) &&
+        containsOrderedFilterValue(actual, expected)
       )
     }
 
@@ -298,7 +287,9 @@ export async function persistMigration(
     runtimeVersion,
     runtimeApplied,
   } = options
+  const appliedOrderedFilterKeys = resolveAppliedOrderedFilterKeys(options)
   const appliedPackageJsonKeys = selectAppliedRootKeys({
+    appliedOrderedFilterKeys: appliedOrderedFilterKeys.packageJson,
     finalSettings,
     normalizedSettings: normalizedPackageJsonSettings,
     keys: packageJsonSettings.keys,
@@ -307,6 +298,7 @@ export async function persistMigration(
     sourceSettings: packageJsonSettings.settings,
   })
   const appliedNpmrcKeys = selectAppliedRootKeys({
+    appliedOrderedFilterKeys: appliedOrderedFilterKeys.npmrc,
     finalSettings,
     normalizedSettings: normalizedNpmrcSettings,
     keys: npmrc.keys,

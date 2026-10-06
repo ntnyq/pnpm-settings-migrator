@@ -7,6 +7,14 @@ export const SETTINGS_WITHOUT_REPLACEMENT = new Set([
 ])
 
 /**
+ * Ordered filter selectors whose repeated inclusions restore excluded projects.
+ */
+export const ORDERED_FILTER_SETTINGS: readonly string[] = [
+  'filter',
+  'filterProd',
+]
+
+/**
  * Legacy-to-current setting keys used to verify replacements before cleanup.
  */
 export const REPLACEMENT_SETTING_KEYS: Readonly<Record<string, string>> = {

@@ -130,7 +130,7 @@ async function readProjectManifestCandidates(
 /**
  * Collect supported settings from subproject `.npmrc` files.
  *
- * pnpm v11 and v12.4 accept five fields in `packageConfigs`. v12.4 requires
+ * pnpm v11 and v12.4 accept five fields in `packageConfigs`. Both require
  * separate project lockfiles before these settings can be migrated.
  *
  * @param cwd - Workspace root directory
@@ -165,7 +165,7 @@ export async function readProjectNpmrcMigrations(
   const projects: ProjectNpmrcMigration[] = []
   const allowedFields =
     target.workspaceSettings.has('packageConfigs') &&
-    (compatibility === 'v11' || sharedWorkspaceLockfile === false)
+    sharedWorkspaceLockfile === false
       ? PNPM_V11_PACKAGE_CONFIG_FIELDS
       : []
 
@@ -185,7 +185,6 @@ export async function readProjectNpmrcMigrations(
       const [candidate] = namedCandidates
       if (
         target.workspaceSettings.has('packageConfigs') &&
-        compatibility !== 'v11' &&
         sharedWorkspaceLockfile !== false
       ) {
         return {

@@ -327,7 +327,9 @@ describe('migratePnpmSettings/versioned schema', () => {
 
   it('moves supported subproject .npmrc fields to v11 packageConfigs', async () => {
     await writePackageJson({ name: 'test-workspace', private: true })
-    await writeWorkspaceYaml('packages:\n  - packages/*\n')
+    await writeWorkspaceYaml(
+      'sharedWorkspaceLockfile: false\npackages:\n  - packages/*\n',
+    )
     await writeWorkspaceFile(
       'packages/app/package.json',
       JSON.stringify({ name: '@example/app', version: '1.0.0' }),
@@ -393,7 +395,9 @@ describe('migratePnpmSettings/versioned schema', () => {
       packages,
       strategy,
     }) => {
-      await writeWorkspaceYaml('packages:\n  - packages/*\n')
+      await writeWorkspaceYaml(
+        'sharedWorkspaceLockfile: false\npackages:\n  - packages/*\n',
+      )
       await writePackageJson({
         name: 'test-workspace',
         pnpm: { packages: ['apps/*'] },
@@ -438,6 +442,7 @@ describe('migratePnpmSettings/versioned schema', () => {
       await writePackageJson({ name: 'test-workspace', private: true })
       await writeWorkspaceYaml(
         [
+          'sharedWorkspaceLockfile: false',
           'packages:',
           '  - packages/*',
           'packageConfigs:',

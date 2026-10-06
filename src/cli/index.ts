@@ -4,6 +4,7 @@ import type { Options } from '../types'
 import { red } from '../utils/color'
 import { createCli } from './options'
 import { formatMigrationOutput } from './output'
+import { formatCliError } from './redaction'
 
 /**
  * Command-line parser configured with the executable's migration action.
@@ -24,7 +25,6 @@ try {
   cli.parse(process.argv, { run: false })
   await cli.runMatchedCommand()
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error)
-  process.stderr.write(`${red('✖')} ${message.trim()}\n`)
+  process.stderr.write(`${red('✖')} ${formatCliError(error)}\n`)
   process.exitCode = 1
 }

@@ -51,7 +51,7 @@ describe('migratePnpmSettings/strategy', () => {
       const packageConfigs = [second, first]
       await writePackageJson({ pnpm: { packageConfigs } })
       await writeWorkspaceYaml(
-        'packageConfigs:\n  - match: [app]\n    saveExact: true\n  - match: [app]\n    saveExact: false\n',
+        'sharedWorkspaceLockfile: false\npackageConfigs:\n  - match: [app]\n    saveExact: true\n  - match: [app]\n    saveExact: false\n',
       )
 
       await migratePnpmSettings({
@@ -66,6 +66,7 @@ describe('migratePnpmSettings/strategy', () => {
         overwrite: { packageConfigs, pnpm: undefined },
       }[strategy]
       await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        sharedWorkspaceLockfile: false,
         packageConfigs: expected.packageConfigs,
       })
       expect(
@@ -78,7 +79,9 @@ describe('migratePnpmSettings/strategy', () => {
     const first = { match: ['app'], saveExact: true }
     const packageConfigs = [first, { match: ['app'], saveExact: false }, first]
     await writePackageJson({ pnpm: { packageConfigs } })
-    await writeWorkspaceYaml('packageConfigs: []\n')
+    await writeWorkspaceYaml(
+      'sharedWorkspaceLockfile: false\npackageConfigs: []\n',
+    )
     const options = {
       cwd: testDir,
       compatibility: 'v11' as const,
@@ -87,14 +90,19 @@ describe('migratePnpmSettings/strategy', () => {
 
     await migratePnpmSettings(options)
 
-    await expect(readWorkspaceYaml()).resolves.toStrictEqual({ packageConfigs })
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      sharedWorkspaceLockfile: false,
+      packageConfigs,
+    })
     expect((await migratePnpmSettings(options)).changedFiles).toStrictEqual([])
   })
 
   it('retains malformed matchers ignored by discard', async () => {
     const pnpm = { packageConfigs: [{ saveExact: true }] }
     await writePackageJson({ pnpm })
-    await writeWorkspaceYaml('packageConfigs: []\n')
+    await writeWorkspaceYaml(
+      'sharedWorkspaceLockfile: false\npackageConfigs: []\n',
+    )
 
     await migratePnpmSettings({
       cwd: testDir,
@@ -106,6 +114,7 @@ describe('migratePnpmSettings/strategy', () => {
       JSON.parse(await readWorkspaceFile('package.json')).pnpm,
     ).toStrictEqual(pnpm)
     await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      sharedWorkspaceLockfile: false,
       packageConfigs: [],
     })
   })
@@ -280,12 +289,13 @@ describe('migratePnpmSettings/strategy', () => {
       },
     })
     await writeWorkspaceYaml(
-      'packageConfigs:\n  - match: [app]\n    saveExact: true\n',
+      'sharedWorkspaceLockfile: false\npackageConfigs:\n  - match: [app]\n    saveExact: true\n',
     )
 
     await migratePnpmSettings({ cwd: testDir, compatibility: 'v11' })
 
     await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      sharedWorkspaceLockfile: false,
       packageConfigs: [
         { match: ['app'], saveExact: true },
         { match: ['app'], saveExact: false },
@@ -299,7 +309,7 @@ describe('migratePnpmSettings/strategy', () => {
       const packageConfigs = [{ match: ['app'], saveExact: true }]
       await writePackageJson({ pnpm: { packageConfigs } })
       await writeWorkspaceYaml(
-        'packageConfigs:\n  - match: [app]\n    saveExact: true\n',
+        'sharedWorkspaceLockfile: false\npackageConfigs:\n  - match: [app]\n    saveExact: true\n',
       )
 
       const options = {
@@ -312,6 +322,7 @@ describe('migratePnpmSettings/strategy', () => {
       const result = await migratePnpmSettings(options)
 
       await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        sharedWorkspaceLockfile: false,
         packageConfigs,
       })
       expect(result.settingsChanges).toStrictEqual([])

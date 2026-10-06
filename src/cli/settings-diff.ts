@@ -1,7 +1,8 @@
 import { stringify } from 'yaml'
-import { MAX_LCS_CELLS, URL_USERINFO_PATTERN } from '../constants'
+import { MAX_LCS_CELLS } from '../constants'
 import type { SettingsDiffLine, SettingsChange } from '../types'
 import { green, red, dim } from '../utils/color'
+import { redactUrlCredentials } from './redaction'
 
 /**
  * Create a bounded-memory diff that retains shared prefixes and suffixes.
@@ -141,21 +142,14 @@ function formatSettingLines(key: string, value: unknown): string[] {
     return []
   }
 
-  return stringify({ [key]: value })
+  // Keep credentials on one physical line until redaction, including URLs
+  // containing newlines or long passwords that YAML would otherwise fold.
+  return stringify(
+    { [key]: value },
+    { blockQuote: false, doubleQuotedAsJSON: true, lineWidth: 0 },
+  )
     .trimEnd()
     .split('\n')
-}
-
-/**
- * Remove credentials embedded in URLs while preserving enough context to
- * identify the changed setting.
- *
- * @param value - Rendered YAML diff line
- *
- * @returns Diff line safe to print to a terminal or CI log
- */
-function redactUrlCredentials(value: string): string {
-  return value.replace(URL_USERINFO_PATTERN, '$<scheme>***@')
 }
 
 /**

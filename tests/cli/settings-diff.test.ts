@@ -6,6 +6,42 @@ import {
 } from '../../src/cli/settings-diff'
 
 describe('settings diff', () => {
+  it.each([
+    ['embedded @', 'https:', 'review@secret'],
+    ['spaces', 'https:', 'review secret'],
+    ['scheme-relative URL', '', 'review@secret'],
+    ['long password', 'https:', 'review secret '.repeat(30)],
+    ['multiline password', 'https:', 'review\nsecret'],
+  ])(
+    'redacts %s without losing password changes',
+    (_name, scheme, password) => {
+      const lines = createSettingsDiffLines({
+        key: 'httpsProxy',
+        before: `${scheme}//user:before-${password}@proxy.example.test/`,
+        after: `${scheme}//user:after-${password}@proxy.example.test/`,
+      })
+
+      expect(lines.map(line => line.kind)).toStrictEqual(['removed', 'added'])
+      for (const line of lines) {
+        expect(line.value).toContain(`${scheme}//***@proxy.example.test/`)
+        expect(line.value).not.toMatch(/user|review|secret|before|after/u)
+      }
+    },
+  )
+
+  it('preserves @ characters outside URL userinfo', () => {
+    expect(
+      createSettingsDiffLines({
+        key: 'overrides',
+        before: undefined,
+        after: { foo: 'https://example.test/path@revision' },
+      }),
+    ).toStrictEqual([
+      { kind: 'added', value: 'overrides:' },
+      { kind: 'added', value: '  foo: https://example.test/path@revision' },
+    ])
+  })
+
   it('redacts credentials from scheme-relative proxy URLs', () => {
     expect(
       createSettingsDiffLines({

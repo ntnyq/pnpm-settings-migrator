@@ -1,5 +1,6 @@
 import type { MigrationResult } from '../types'
 import { green, bold } from '../utils/color'
+import { redactUrlCredentials } from './redaction'
 import { formatSettingsChanges } from './settings-diff'
 
 /**
@@ -44,7 +45,9 @@ export function formatMigrationOutput(
   const blocks: string[] = []
   if (result.warnings.length) {
     blocks.push(
-      result.warnings.map(warning => `${bold('WARN')} ${warning}`).join('\n'),
+      result.warnings
+        .map(warning => `${bold('WARN')} ${redactUrlCredentials(warning)}`)
+        .join('\n'),
     )
   }
   blocks.push(formatMigrationSummary(result))

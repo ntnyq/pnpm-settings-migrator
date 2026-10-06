@@ -1,9 +1,37 @@
-import { toArray } from '@ntnyq/utils'
+import { isArray, toArray } from '@ntnyq/utils'
 import type {
   PackageJson,
   RuntimeMigrationResult,
   MergeStrategy,
 } from '../../types'
+
+/**
+ * Read the original runtime version before checking whether cleanup is safe.
+ *
+ * @param sourceSettings - Legacy settings before normalization
+ * @param targetKey - Runtime setting key identifying the source representation
+ *
+ * @returns Unvalidated runtime value, or `undefined` when it is absent
+ */
+export function resolveSourceRuntimeVersion(
+  sourceSettings: object,
+  targetKey: string,
+): unknown {
+  if (targetKey === 'useNodeVersion') {
+    return Reflect.get(sourceSettings, 'useNodeVersion')
+  }
+
+  const executionEnv = Reflect.get(sourceSettings, 'executionEnv')
+  if (
+    !executionEnv ||
+    typeof executionEnv !== 'object' ||
+    isArray(executionEnv)
+  ) {
+    return undefined
+  }
+
+  return (executionEnv as Record<string, unknown>).nodeVersion
+}
 
 /**
  * Move a removed Node.js runtime setting to `package.json#devEngines.runtime`.

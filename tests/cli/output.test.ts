@@ -15,6 +15,117 @@ describe('cli output', () => {
   } = createTestWorkspace('cli-output')
   const runCli = createTestCli(testDir)
 
+  it.each([
+    'https://user:review@secret@proxy.example.test/',
+    'https://user:review secret@proxy.example.test/',
+    '//user:review@secret@proxy.example.test/',
+    `https://user:${'review secret '.repeat(30)}@proxy.example.test/`,
+    'https://user:review\nsecret@proxy.example.test/',
+  ])(
+    'redacts proxy credentials while preserving the migrated value %#',
+    async httpsProxy => {
+      await writePackageJson({
+        packageManager: 'pnpm@12.9.1',
+        pnpm: { httpsProxy },
+      })
+
+      const result = await runCli()
+
+      expect(result.code).toBe(0)
+      expect(result.stderr).toBe('')
+      expect(result.stdout).toContain('***@proxy.example.test/')
+      expect(result.stdout).not.toMatch(/user|review|secret/u)
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({ httpsProxy })
+      expect(JSON.parse(await readWorkspaceFile('package.json'))).toStrictEqual(
+        {
+          packageManager: 'pnpm@12.9.1',
+        },
+      )
+    },
+  )
+
+  it('redacts credentials from retained-setting warnings', async () => {
+    await writePackageJson({
+      resolutions: {
+        'https://user:review secret@registry.example.test/package': '1.0.0',
+      },
+    })
+
+    const result = await runCli('--no-show-changes')
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('WARN Kept Yarn resolution')
+    expect(result.stdout).toContain('https://***@registry.example.test/package')
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(
+      /user|review|secret/u,
+    )
+  })
+
+  it.each([
+    [
+      'duplicate key',
+      'httpsProxy: https://user:review-secret@proxy.example.test/\nhttpsProxy: other\n',
+      'Map keys must be unique',
+    ],
+    [
+      'unclosed sequence',
+      'httpsProxy: [https://user:review-secret@proxy.example.test/\n',
+      'Flow sequence',
+    ],
+    [
+      'malformed mapping',
+      'httpsProxy: https://user:review-secret@proxy.example.test/: :\n',
+      'Nested mappings',
+    ],
+  ])(
+    'omits sensitive YAML excerpts for %s',
+    async (_name, content, diagnostic) => {
+      await writeWorkspaceFile('pnpm-workspace.yaml', content)
+
+      const result = await runCli('--no-show-changes')
+
+      expect(result.code).toBe(1)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain(diagnostic)
+      expect(result.stderr).toMatch(/at line \d+, column \d+/u)
+      expect(result.stderr).toMatch(/^✖ [^\n]+\n$/u)
+      expect(result.stderr).not.toContain('review-secret')
+      await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+        content,
+      )
+    },
+  )
+
+  it('omits JSON parser source snippets', async () => {
+    const content = 'review-secret'
+    await writeWorkspaceFile('package.json', content)
+
+    const result = await runCli()
+
+    expect(result.code).toBe(1)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('Invalid JSON configuration')
+    expect(result.stderr).not.toContain('review-secret')
+    await expect(readWorkspaceFile('package.json')).resolves.toBe(content)
+  })
+
+  it.each(['review secret', 'review\nsecret'])(
+    'redacts credentials from non-parser errors %#',
+    async password => {
+      const result = await runCli(
+        '--strategy',
+        `https://user:${password}@proxy.example.test/`,
+      )
+
+      expect(result.code).toBe(1)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain(
+        'Invalid strategy: https://***@proxy.example.test/',
+      )
+      expect(result.stderr).not.toMatch(/user|review|secret/u)
+    },
+  )
+
   it('never prints scheme-relative registry credentials', async () => {
     await writePackageJson({
       pnpm: {

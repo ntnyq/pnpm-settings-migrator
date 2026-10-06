@@ -142,7 +142,7 @@ export async function pruneNpmrc(
   const migratedKeySet = new Set(migratedKeys.map(normalizeNpmrcKey))
   const content = await fsReadFile(path)
   let inSection = false
-  const lines = content.split(/\r?\n/u).filter(line => {
+  const lines = content.split(/\r\n|[\r\n]/u).filter(line => {
     // Match the section syntax used by the INI reader, including empty names.
     if (/^\[[^\]]*\]\s*$/u.test(line.replace(/^\uFEFF/u, ''))) {
       inSection = true

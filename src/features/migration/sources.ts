@@ -72,7 +72,7 @@ export async function resolveMigrationSources(
     strategy,
   )
   if (
-    target.compatibility !== 'v11' &&
+    target.compatibility !== 'v10' &&
     target.workspaceSettings.has('packageConfigs') &&
     destination.sharedWorkspaceLockfile !== false
   ) {

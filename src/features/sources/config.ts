@@ -1,3 +1,4 @@
+import { isPlainObject } from '@ntnyq/utils'
 import { defu } from 'defu'
 import detectIndent from 'detect-indent'
 import { Document, parseDocument, isMap } from 'yaml'
@@ -37,6 +38,7 @@ function resolveYamlIndent(content: string): number {
  * @returns Parsed package manifest and detected indentation
  *
  * @throws {SyntaxError} When the package manifest contains invalid JSON
+ * @throws {TypeError} When the JSON root is not an object
  */
 export async function readPackageJson(
   path: string,
@@ -47,10 +49,14 @@ export async function readPackageJson(
   }
 
   const content = await fsReadFile(path)
+  const value: unknown = JSON.parse(content)
+  if (!isPlainObject(value)) {
+    throw new TypeError('package.json must contain a root object.')
+  }
 
   return {
     indent: detectIndent(content).indent,
-    value: JSON.parse(content) as PackageJson,
+    value: value as PackageJson,
   }
 }
 

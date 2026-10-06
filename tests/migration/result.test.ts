@@ -85,7 +85,7 @@ describe('migratePnpmSettings/result', () => {
 
   it('tracks subproject npmrc cleanup with no settings diff', async () => {
     await writeWorkspaceYaml(
-      'packages:\n  - packages/*\n\npackageConfigs:\n  app:\n    saveExact: true\n',
+      'sharedWorkspaceLockfile: false\n\npackages:\n  - packages/*\n\npackageConfigs:\n  app:\n    saveExact: true\n',
     )
     await writeWorkspaceFile('packages/app/package.json', '{"name":"app"}')
     await writeWorkspaceFile('packages/app/.npmrc', 'save-exact=true\n')

@@ -434,6 +434,7 @@ describe('migratePnpmSettings/compatibility', () => {
   it('replaces deprecated settings when replaceDeprecated is true in v10 mode', async () => {
     await writePackageJson({
       name: 'test-workspace',
+      packageManager: 'pnpm@10.26.0',
       pnpm: {
         allowNonAppliedPatches: true,
         ignoredBuiltDependencies: ['core-js'],

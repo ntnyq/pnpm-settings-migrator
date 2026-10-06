@@ -26,14 +26,26 @@ function normalizeAuditSettings(settings: PnpmWorkspace): void {
  * Replace deprecated update fields with the structured `update` setting.
  *
  * @param settings - Workspace settings to normalize in place
+ * @param canonicalSettings - Merged settings whose canonical section wins
  */
-function normalizeUpdateSettings(settings: PnpmWorkspace): void {
+function normalizeUpdateSettings(
+  settings: PnpmWorkspace,
+  canonicalSettings: Pick<PnpmWorkspace, 'update'>,
+): void {
   const { updateConfig } = settings
   if (!updateConfig) {
     return
   }
 
-  settings.update = {
+  if (
+    canonicalSettings.update !== undefined &&
+    canonicalSettings.update !== null
+  ) {
+    Reflect.deleteProperty(settings, 'updateConfig')
+    return
+  }
+
+  settings.update ??= {
     ...(updateConfig.ignoreDependencies === undefined
       ? {}
       : { ignoreDeps: updateConfig.ignoreDependencies }),
@@ -46,7 +58,6 @@ function normalizeUpdateSettings(settings: PnpmWorkspace): void {
     ...(updateConfig.githubActionsServer === undefined
       ? {}
       : { githubActionsServer: updateConfig.githubActionsServer }),
-    ...settings.update,
   }
   Reflect.deleteProperty(settings, 'updateConfig')
 }
@@ -128,6 +139,33 @@ function addRegistryScope(
 }
 
 /**
+ * Find source URLs with multiple active aliases across the merged settings.
+ *
+ * @param prefixesByUrl - Active aliases in the source being normalized
+ * @param namedRegistries - Legacy aliases in the merged destination
+ * @param canonicalPrefixes - Canonical prefixes that supersede legacy aliases
+ *
+ * @returns URLs and conflicting prefixes that require manual resolution
+ */
+function findRegistryAliasConflicts(
+  prefixesByUrl: ReadonlyMap<string, readonly string[]>,
+  namedRegistries: PnpmWorkspace['namedRegistries'],
+  canonicalPrefixes: ReadonlySet<string>,
+): [string, Set<string>][] {
+  const allPrefixesByUrl = new Map(
+    [...prefixesByUrl].map(([url, prefixes]) => [url, new Set(prefixes)]),
+  )
+  for (const [prefix, url] of Object.entries(namedRegistries ?? {})) {
+    if (!canonicalPrefixes.has(prefix)) {
+      allPrefixesByUrl.get(url)?.add(prefix)
+    }
+  }
+  return [...allPrefixesByUrl.entries()].filter(
+    ([, prefixes]) => prefixes.size > 1,
+  )
+}
+
+/**
  * Replace `namedRegistries` with URL-keyed registry declarations.
  *
  * A URL can expose only one canonical prefix. Conflicting legacy aliases are
@@ -135,32 +173,15 @@ function addRegistryScope(
  *
  * @param settings - Workspace settings to normalize in place
  * @param warnings - Collection that receives unresolved conflict warnings
+ * @param canonicalSettings - Merged registry declarations whose prefixes win
  */
 function normalizeNamedRegistries(
   settings: PnpmWorkspace,
   warnings: string[],
+  canonicalSettings: Pick<PnpmWorkspace, 'namedRegistries' | 'registries'>,
 ): void {
   const { namedRegistries } = settings
   if (!namedRegistries) {
-    return
-  }
-
-  const prefixesByUrl = new Map<string, string[]>()
-  for (const [prefix, url] of Object.entries(namedRegistries)) {
-    const prefixes = prefixesByUrl.get(url) ?? []
-    prefixes.push(prefix)
-    prefixesByUrl.set(url, prefixes)
-  }
-
-  const conflicts = [...prefixesByUrl.entries()].filter(
-    ([, prefixes]) => prefixes.length > 1,
-  )
-  if (conflicts.length) {
-    warnings.push(
-      `namedRegistries was kept because the new registries format supports one prefix per URL: ${conflicts
-        .map(([url, prefixes]) => `${url} (${prefixes.join(', ')})`)
-        .join('; ')}.`,
-    )
     return
   }
 
@@ -173,12 +194,47 @@ function normalizeNamedRegistries(
     }
   }
 
+  const canonicalPrefixes = new Set(
+    Object.values(canonicalSettings.registries ?? {}).flatMap(value =>
+      !isString(value) && isString(value?.prefix) ? [value.prefix] : [],
+    ),
+  )
+  const prefixesByUrl = new Map<string, string[]>()
+  // pnpm ignores legacy aliases already declared by the canonical setting.
+  const registryAliases = Object.entries(namedRegistries).filter(
+    ([prefix]) => !canonicalPrefixes.has(prefix),
+  )
+  for (const [prefix, url] of registryAliases) {
+    const prefixes = prefixesByUrl.get(url) ?? []
+    prefixes.push(prefix)
+    prefixesByUrl.set(url, prefixes)
+  }
+
+  const conflicts = findRegistryAliasConflicts(
+    prefixesByUrl,
+    canonicalSettings.namedRegistries,
+    canonicalPrefixes,
+  )
+  if (conflicts.length) {
+    warnings.push(
+      `namedRegistries was kept because the new registries format supports one prefix per URL: ${conflicts
+        .map(([url, prefixes]) => `${url} (${[...prefixes].join(', ')})`)
+        .join('; ')}.`,
+    )
+    return
+  }
+
   for (const [url, [prefix]] of prefixesByUrl) {
     declarations[url] ??= {}
     const declaration = declarations[url]
-    if (declaration.prefix && declaration.prefix !== prefix) {
+    const canonicalDeclaration = canonicalSettings.registries?.[url]
+    const declaredPrefix =
+      (isString(canonicalDeclaration)
+        ? undefined
+        : canonicalDeclaration?.prefix) ?? declaration.prefix
+    if (isString(declaredPrefix) && declaredPrefix !== prefix) {
       warnings.push(
-        `namedRegistries was kept because ${url} already declares prefix ${declaration.prefix}.`,
+        `namedRegistries was kept because ${url} already declares prefix ${declaredPrefix}.`,
       )
       return
     }
@@ -194,16 +250,21 @@ function normalizeNamedRegistries(
  *
  * @param settings - Workspace settings to normalize in place
  * @param warnings - Collection that receives unresolved conflict warnings
+ * @param canonicalSettings - Merged canonical sections used for alias precedence
  *
  * @returns Nothing; settings and warnings are updated in place
  */
 export function normalizeCurrentAliases(
   settings: PnpmWorkspace,
   warnings: string[],
+  canonicalSettings: Pick<
+    PnpmWorkspace,
+    'namedRegistries' | 'registries' | 'update'
+  > = settings,
 ): void {
   normalizeAuditSettings(settings)
-  normalizeUpdateSettings(settings)
+  normalizeUpdateSettings(settings, canonicalSettings)
   normalizeScalarAliases(settings)
   normalizeSideEffectsCache(settings)
-  normalizeNamedRegistries(settings, warnings)
+  normalizeNamedRegistries(settings, warnings, canonicalSettings)
 }

@@ -145,7 +145,7 @@ export interface PnpmSettingsV11 {
   minimumReleaseAgeExcludePrune?: boolean
   /**
    * Per-project settings accepted by v11 and v12.4 as arrays or package-name maps.
-   * v12.4 requires sharedWorkspaceLockfile: false.
+   * Both majors require sharedWorkspaceLockfile: false.
    */
   packageConfigs?:
     | {

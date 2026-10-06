@@ -1,5 +1,6 @@
 import type { CompatibilityTarget } from './options'
 import type { PackageManagerEngine } from './package-json'
+import type { PnpmWorkspace } from './workspace'
 
 /**
  * Result of normalizing pnpm settings for a compatibility target.
@@ -26,9 +27,17 @@ export interface NormalizedSettingsResult {
  */
 export interface NormalizeSettingsOptions {
   /**
-   * Concrete pnpm compatibility target.
+   * Concrete pnpm version and capabilities used to select replacements.
    */
-  compatibility: Exclude<CompatibilityTarget, 'auto'>
+  target: ResolvedPnpmTarget
+
+  /**
+   * Canonical sections in the merged destination, used for alias precedence.
+   */
+  canonicalSettings?: Pick<
+    PnpmWorkspace,
+    'namedRegistries' | 'registries' | 'update'
+  >
 
   /**
    * Working directory used to resolve referenced files.
@@ -36,7 +45,7 @@ export interface NormalizeSettingsOptions {
   cwd: string
 
   /**
-   * Whether deprecated settings should be replaced for pnpm v10.
+   * Whether optional deprecated aliases should be replaced with supported keys.
    */
   replaceDeprecated: boolean
 }

@@ -7,6 +7,7 @@ import {
   uniqueWith,
 } from '@ntnyq/utils'
 import { defu } from 'defu'
+import { ORDERED_FILTER_SETTINGS } from '../constants'
 import type { PnpmWorkspace, MergeStrategy } from '../types'
 
 /**
@@ -107,7 +108,7 @@ function mergeWithArrayDedupe(
  *
  * @returns Combined matchers with the incoming sequence at the end
  */
-function mergeOrderedMatchers<T>(existing: T[], incoming: T[]): T[] {
+function mergeOrderedSequence<T>(existing: T[], incoming: T[]): T[] {
   let overlap = Math.min(existing.length, incoming.length)
   while (
     overlap > 0 &&
@@ -154,15 +155,17 @@ export function mergeByStrategy(
 
     case 'merge': {
       const result = mergeWithArrayDedupe(existing, incoming)
-      // packageConfigs uses last-match precedence rather than set semantics.
-      if (
-        isArray(existing.packageConfigs) &&
-        isArray(incoming.packageConfigs)
-      ) {
-        result.packageConfigs = mergeOrderedMatchers(
-          existing.packageConfigs,
-          incoming.packageConfigs,
-        )
+      // Matchers and filters use last-match precedence rather than set semantics.
+      for (const key of ['packageConfigs', ...ORDERED_FILTER_SETTINGS]) {
+        const existingValue: unknown = Reflect.get(existing, key)
+        const incomingValue: unknown = Reflect.get(incoming, key)
+        if (isArray(existingValue) && isArray(incomingValue)) {
+          Reflect.set(
+            result,
+            key,
+            mergeOrderedSequence(existingValue, incomingValue),
+          )
+        }
       }
       return result
     }

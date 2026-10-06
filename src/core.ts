@@ -172,7 +172,7 @@ export async function migratePnpmSettings(
   )
   assertCompatibleWorkspaceSettings(destinationSettings, target)
   if (
-    compatibility !== 'v11' &&
+    compatibility !== 'v10' &&
     target.workspaceSettings.has('packageConfigs') &&
     destinationSettings.packageConfigs !== undefined &&
     destinationSettings.sharedWorkspaceLockfile !== false
@@ -192,7 +192,8 @@ export async function migratePnpmSettings(
   )
   const normalizedNpmrcSettings = structuredClone(sources.npmrc.settings)
   const normalizationOptions = {
-    compatibility,
+    target,
+    canonicalSettings: destinationSettings,
     cwd: options.cwd,
     replaceDeprecated: options.replaceDeprecated,
   }
@@ -265,6 +266,7 @@ export async function migratePnpmSettings(
   })
 
   const persistence = await persistMigration({
+    incomingSettings,
     cleanNpmrc: options.cleanNpmrc,
     cleanPackageJson: options.cleanPackageJson,
     compatibility,

@@ -13,6 +13,52 @@ describe('migratePnpmSettings/source cleanup', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('source-cleanup')
 
+  describe.each(['v10', 'v11', 'v12'] as const)(
+    '%s npmrc line endings',
+    compatibility => {
+      it.each(['\r', '\r\n', '\n'])(
+        'preserves authentication and sections after %j separators',
+        async separator => {
+          await writeNpmrc(
+            [
+              'node-linker=hoisted',
+              '//registry.npmjs.org/:_authToken=example-token',
+              'custom-setting=keep',
+              '[custom]',
+              'node-linker=isolated',
+              '',
+            ].join(separator),
+          )
+
+          await migratePnpmSettings({ cwd: testDir, compatibility })
+
+          await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+            nodeLinker: 'hoisted',
+          })
+          await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+            '//registry.npmjs.org/:_authToken=example-token\ncustom-setting=keep\n[custom]\nnode-linker=isolated\n',
+          )
+        },
+      )
+
+      it('preserves authentication after mixed line separators', async () => {
+        await writeNpmrc(
+          'node-linker=hoisted\r//registry.npmjs.org/:_authToken=example-token\r\nsave-exact=true\nregistry=https://registry.npmjs.org/\r',
+        )
+
+        await migratePnpmSettings({ cwd: testDir, compatibility })
+
+        await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+          nodeLinker: 'hoisted',
+          saveExact: true,
+        })
+        await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
+          '//registry.npmjs.org/:_authToken=example-token\nregistry=https://registry.npmjs.org/\n',
+        )
+      })
+    },
+  )
+
   it.each([
     ['discard', '2.0.0'],
     ['merge', '2.0.0'],

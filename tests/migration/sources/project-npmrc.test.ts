@@ -50,7 +50,7 @@ describe('migratePnpmSettings/project npmrc discovery', () => {
   it('respects negated workspace package patterns', async () => {
     await writePackageJson({ name: 'test-workspace', private: true })
     await writeWorkspaceYaml(
-      'packages:\n  - packages/*\n  - "!packages/excluded"\n',
+      'sharedWorkspaceLockfile: false\npackages:\n  - packages/*\n  - "!packages/excluded"\n',
     )
     await writeWorkspaceFile(
       'packages/included/package.json',
