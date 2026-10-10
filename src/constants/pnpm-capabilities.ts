@@ -78,6 +78,21 @@ export const PNPM_V12_9_MINIMUM_VERSION = [12, 9, 0] as const
 export const PNPM_V12_10_MINIMUM_VERSION = [12, 10, 0] as const
 
 /**
+ * Release introducing package permissions, agent skills, and workspace provenance.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_11_MINIMUM_VERSION = [12, 11, 0] as const
+
+/**
+ * Workspace settings first consumed by pnpm v12 in 12.11.0.
+ */
+export const PNPM_V12_11_WORKSPACE_SETTINGS: readonly string[] = [
+  'permissions',
+  'skills',
+  'provenance',
+]
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.10.0.
  */
 export const PNPM_V12_10_WORKSPACE_SETTINGS: readonly string[] = [
@@ -99,6 +114,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_11_MINIMUM_VERSION,
+    workspaceFields: PNPM_V12_11_WORKSPACE_SETTINGS,
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V11_28_MINIMUM_VERSION,
     workspaceFields: ['forceIgnoresPlatform'],

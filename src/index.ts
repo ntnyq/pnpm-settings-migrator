@@ -20,6 +20,8 @@ export type {
   PnpmRegistryDeclaration,
   PnpmLoadedNodeLinkerSettings,
   PnpmLockfileSettings,
+  PnpmPackagePermissions,
+  PnpmSkillsSettings,
   PnpmWorkspace,
   MigrationResult,
   SettingsChange,

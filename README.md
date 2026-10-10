@@ -217,6 +217,26 @@ the lockfile. Existing linker strings and boolean `lockfile` values still work.
 it from workspace configuration. Unsupported or invalid nested settings stay
 intact in their source; the migrator does not add pnpm's defaults.
 
+For pnpm 12.11.0 and later stable v12 releases, `permissions` maps dependency
+names or package IDs to `build` and `skills` decisions. Boolean `build`
+decisions override matching `allowBuilds` entries; strings are undecided prompts
+and null leaves a capability unset. Both settings are preserved for pnpm to
+apply its precedence. Unknown capabilities or invalid nested values keep the
+entire source object intact.
+
+`skills.dirs` accepts an array of workspace-relative agent skill directories;
+an empty array disables linking. Workspace `provenance` also requires 12.11.0
+for v12 targets and accepts boolean or null values. Its v11 support is unchanged.
+For example, targeting 12.11.0 migrates
+`{ "pnpm": { "permissions": { "example": { "build": false, "skills": true } }, "skills": { "dirs": [".agents/skills"] } } }`
+to equivalent workspace YAML. Targeting 12.10.1 retains these settings with
+diagnostics.
+
+pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
+hooks, not workspace YAML. These settings remain in their source with
+diagnostics for v12 targets; existing YAML containing them blocks migration.
+The 12.11.2 hook fix does not add workspace support.
+
 </details>
 
 <details>
@@ -291,14 +311,15 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.5 and 12.10.0, including 11.28.0,
+- Compatibility checks cover pnpm 11.28.5 and 12.11.2, including 11.28.0,
   11.28.1, 11.28.2, 11.28.3, 11.28.4, 12.7.0, 12.8.0, 12.8.1, 12.8.2,
-  12.9.0, and 12.9.1. Earlier regressions remain at 11.25.0,
+  12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, and 12.11.1.
+  Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-06](docs/research/pnpm-settings-bump-2026-10-06.md),
-  npm `latest` is 12.9.1; the highest confirmed stable release is 12.10.0 on
+  As [audited on 2026-10-10](docs/research/pnpm-settings-bump-2026-10-10.md),
+  npm `latest` is 12.10.1; the highest confirmed stable release is 12.11.2 on
   `next-12`. The v11 target is 11.28.5 on `next-11`, while `latest-11` is
-  11.28.2. The project is pinned to 12.9.1. These checks verify the documented
+  11.28.2. The project is pinned to 12.10.1. These checks verify the documented
   fixtures, not every setting in every release. v10 has unit regressions and
   source review through 10.34.6; real v10 consumption remains unverified.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings
@@ -373,7 +394,7 @@ Strategy to handle conflicts when merging settings with existing `pnpm-workspace
 `packageConfigs` matcher arrays preserve order and repeated entries because the
 last matching entry wins. With `merge`, incoming matchers follow existing ones;
 an overlapping end/start sequence is reused to keep repeated migrations stable.
-`filter` and `filterProd` use the same ordered merging: a repeated inclusion can
+For v11 targets, `filter` and `filterProd` use the same ordered merging: a repeated inclusion can
 restore projects removed by an earlier exclusion. Cleanup verifies the combined
 selector sequence. If package cleanup is disabled, later `.npmrc` selectors are
 retained when needed to keep repeated migrations stable.

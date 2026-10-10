@@ -13,6 +13,46 @@ describe('migratePnpmSettings/ordered filters', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('filters')
 
+  it.each(['12.10.0', '12.10.1', '12.11.0', '12.11.2'])(
+    'retains filters ignored by pnpm %s in both sources',
+    async targetVersion => {
+      const settings = { filter: ['app', '!app', 'app'], filterProd: ['other'] }
+      const npmrc = 'filter[]=app\nfilter-prod[]=other\n'
+      await writePackageJson({ pnpm: { ...settings, saveExact: true } })
+      await writeNpmrc(npmrc)
+      const result = await migratePnpmSettings({ cwd: testDir, targetVersion })
+      expect(result.warnings.join()).toContain('incompatible')
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        saveExact: true,
+      })
+      await expect(readWorkspaceFile('.npmrc')).resolves.toBe(npmrc)
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toStrictEqual(settings)
+    },
+  )
+
+  it.each(['discard', 'merge', 'overwrite'] as const)(
+    'rejects ignored v12 workspace filters before writes with %s',
+    async strategy => {
+      const original = 'filter: [app]\nfilterProd: [other]\n'
+      await writeWorkspaceYaml(original)
+      await writePackageJson({ pnpm: { saveExact: true } })
+      const manifest = await readWorkspaceFile('package.json')
+      await expect(
+        migratePnpmSettings({
+          cwd: testDir,
+          targetVersion: '12.11.2',
+          strategy,
+        }),
+      ).rejects.toThrow('incompatible')
+      await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+        original,
+      )
+      await expect(readWorkspaceFile('package.json')).resolves.toBe(manifest)
+    },
+  )
+
   describe.each([
     ['filter', 'filter'],
     ['filterProd', 'filter-prod'],

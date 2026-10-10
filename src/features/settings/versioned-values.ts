@@ -12,6 +12,7 @@ import {
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+import { hasInvalidPermissionSettings } from './permissions'
 import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
 
 /**
@@ -91,6 +92,9 @@ function hasInvalidScalarValue(
         (!value.includes('${') &&
           !['default', 'append-only', 'ndjson', 'silent'].includes(value))
       )
+    }
+    if (key === 'provenance') {
+      return value !== null && !isBoolean(value)
     }
     if (key === 'progress') {
       return !isBoolean(value)
@@ -177,6 +181,7 @@ export function hasIncompatibleSettingValue(
   target: ResolvedPnpmTarget,
 ): boolean {
   if (
+    hasInvalidPermissionSettings(key, value) ||
     hasInvalidReleaseValue(key, value, target) ||
     hasInvalidV11PatchValue(key, value, target) ||
     hasIncompatibleV12SettingValue(key, value, target)

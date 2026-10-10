@@ -19,6 +19,7 @@ import {
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
 import { verifyInstallSettings } from './verify-pnpm-install-settings'
 import { verifyMinorCapabilities } from './verify-pnpm-minor-compatibility'
+import { verifyPermissions } from './verify-pnpm-permissions'
 import { verifyReleaseSettings } from './verify-pnpm-release-settings'
 
 /**
@@ -68,6 +69,10 @@ const DEFAULT_PNPM_VERSIONS = [
   '12.9.0',
   '12.9.1',
   '12.10.0',
+  '12.10.1',
+  '12.11.0',
+  '12.11.1',
+  '12.11.2',
 ]
 
 /**
@@ -308,6 +313,7 @@ await Promise.all(
     await verifyVersion(version)
     const parsedVersion = parsePnpmVersion(version)
     await verifyConfigShapes(version, runPnpm)
+    await verifyPermissions(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||
       supportsMinimumVersion(parsedVersion, PNPM_V12_7_MINIMUM_VERSION)

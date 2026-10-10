@@ -9,6 +9,7 @@ import {
   parsePnpmVersion,
   supportsMinimumVersion,
 } from '../src/features/compatibility/version'
+import { verifyIgnoredFilters } from './verify-pnpm-filters'
 import { verifyRegistryRequestConcurrency } from './verify-pnpm-registry-concurrency'
 
 /**
@@ -322,6 +323,7 @@ export async function verifyConfigShapes(
     if (checksV11) {
       await verifyV11Validation(version, fixtureDir, runPnpm)
     } else {
+      await verifyIgnoredFilters(version, fixtureDir, runPnpm)
       await verifyRegistryConcurrency(version, fixtureDir, runPnpm)
       // eslint-disable-next-line no-magic-numbers -- Include the immediate loaded-linker predecessor.
       if (supportsMinimumVersion(parsedVersion, [12, 9, 1])) {

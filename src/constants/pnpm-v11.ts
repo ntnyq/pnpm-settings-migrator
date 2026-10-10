@@ -173,6 +173,8 @@ export const PNPM_V11_WORKSPACE_SETTINGS_FIELDS: readonly string[] = unique([
  */
 export const PNPM_V11_ONLY_WORKSPACE_SETTINGS: readonly string[] = [
   'confirmModulesPurge',
+  'filter',
+  'filterProd',
   'packageConfigs',
 ]
 

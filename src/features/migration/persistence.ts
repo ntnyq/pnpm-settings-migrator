@@ -134,6 +134,11 @@ function selectAppliedRootKeys({
   runtimeVersion,
   sourceSettings,
 }: SelectAppliedRootKeysOptions): string[] {
+  // An empty directory list disables linking rather than adding no directories.
+  const hasUnappliedSkillsDisable =
+    normalizedSettings.skills?.dirs?.length === 0 &&
+    finalSettings.skills?.dirs?.length !== 0
+
   return keys.filter(sourceKey => {
     const targetKey = npmrc
       ? (Object.keys(camelcaseKeys({ [sourceKey]: true }))[0] ?? sourceKey)
@@ -188,6 +193,10 @@ function selectAppliedRootKeys({
         appliedOrderedFilterKeys.has(targetKey) &&
         containsOrderedFilterValue(actual, expected)
       )
+    }
+
+    if (targetKey === 'skills' && hasUnappliedSkillsDisable) {
+      return false
     }
 
     return containsMigratedValue(

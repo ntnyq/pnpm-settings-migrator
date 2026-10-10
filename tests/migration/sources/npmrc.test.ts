@@ -88,8 +88,6 @@ describe('migratePnpmSettings/npmrc values', () => {
     ['changed-files-ignore-pattern', 'changedFilesIgnorePattern', '*.md'],
     ['external-dependencies', 'externalDependencies', 'react'],
     ['extra-bin-paths', 'extraBinPaths', './bin'],
-    ['filter', 'filter', 'app'],
-    ['filter-prod', 'filterProd', 'app'],
     ['packages', 'packages', 'packages/*'],
     ['test-pattern', 'testPattern', '*test*'],
     ['workspace-package-patterns', 'workspacePackagePatterns', 'packages/*'],

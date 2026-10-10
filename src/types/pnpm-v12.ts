@@ -150,9 +150,44 @@ export interface PnpmLockfileSettings {
 }
 
 /**
+ * Dependency capabilities introduced in pnpm 12.11.0. Strings are undecided
+ * prompts; null leaves a capability unset.
+ */
+export interface PnpmPackagePermissions {
+  /**
+   * Lifecycle script decision, taking precedence over the matching allowBuilds
+   * entry when boolean. An undecided string leaves that entry effective.
+   */
+  build?: boolean | string | null
+  /**
+   * Whether pnpm may link the agent skills shipped by the dependency.
+   */
+  skills?: boolean | string | null
+}
+
+/**
+ * Agent skill linking configuration introduced in pnpm 12.11.0.
+ */
+export interface PnpmSkillsSettings {
+  /**
+   * Workspace-relative agent skill directories, replacing detected directories.
+   * An empty list disables linking; null leaves directory detection enabled.
+   */
+  dirs?: string[] | null
+}
+
+/**
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Per-dependency build and agent skill permissions (pnpm 12.11+).
+   */
+  permissions?: Record<string, PnpmPackagePermissions | null> | null
+  /**
+   * Agent skill linking options (pnpm 12.11+).
+   */
+  skills?: PnpmSkillsSettings | null
   /**
    * Dependency linking mode. Loaded linking and its options require pnpm 12.10+.
    */
