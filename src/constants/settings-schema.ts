@@ -6,6 +6,7 @@ import {
 import {
   PNPM_V12_ONLY_WORKSPACE_SETTINGS,
   PNPM_V12_WORKSPACE_SETTINGS_FIELDS,
+  PNPM_V12_IGNORED_WORKSPACE_SETTINGS,
 } from './pnpm-v12'
 import { PNPM_PROJECT_REFUSED_SETTINGS } from './settings-fields'
 
@@ -27,7 +28,10 @@ export const PROJECT_REFUSED_SETTINGS = new Set(PNPM_PROJECT_REFUSED_SETTINGS)
 /**
  * Fields reported as incompatible when selecting settings for v12.
  */
-export const PNPM_V11_ONLY_SETTINGS = new Set(PNPM_V11_ONLY_WORKSPACE_SETTINGS)
+export const PNPM_V11_ONLY_SETTINGS = new Set([
+  ...PNPM_V11_ONLY_WORKSPACE_SETTINGS,
+  ...PNPM_V12_IGNORED_WORKSPACE_SETTINGS,
+])
 
 /**
  * Allowed workspace fields for the v11 target.

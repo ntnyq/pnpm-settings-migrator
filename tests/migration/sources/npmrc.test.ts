@@ -25,7 +25,6 @@ describe('migratePnpmSettings/npmrc values', () => {
         'mergeGitBranchLockfilesBranchPattern',
         'main',
       ],
-      ['required-scripts', 'requiredScripts', 'build'],
       [
         'sync-injected-deps-after-scripts',
         'syncInjectedDepsAfterScripts',
@@ -87,10 +86,8 @@ describe('migratePnpmSettings/npmrc values', () => {
   it.each([
     ['changed-files-ignore-pattern', 'changedFilesIgnorePattern', '*.md'],
     ['external-dependencies', 'externalDependencies', 'react'],
-    ['extra-bin-paths', 'extraBinPaths', './bin'],
     ['packages', 'packages', 'packages/*'],
     ['test-pattern', 'testPattern', '*test*'],
-    ['workspace-package-patterns', 'workspacePackagePatterns', 'packages/*'],
   ])('converts v12 scalar %s to a YAML list', async (key, field, value) => {
     await writeNpmrc(`${key}=${value}\n`)
 
@@ -99,5 +96,31 @@ describe('migratePnpmSettings/npmrc values', () => {
     await expect(readWorkspaceYaml()).resolves.toStrictEqual({
       [field]: [value],
     })
+  })
+
+  it.each(['v10', 'v11'] as const)(
+    'converts required-scripts for %s',
+    async compatibility => {
+      await writeNpmrc('required-scripts=build\n')
+      await migratePnpmSettings({ cwd: testDir, compatibility })
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        requiredScripts: ['build'],
+      })
+    },
+  )
+
+  it.each([
+    'required-scripts=build',
+    'extra-bin-paths=./bin',
+    'workspace-package-patterns=packages/*',
+  ])('retains the ignored v12 list setting %s', async line => {
+    await writeNpmrc(`${line}\n`)
+    const result = await migratePnpmSettings({
+      cwd: testDir,
+      compatibility: 'v12',
+    })
+    expect(result.changedFiles).toStrictEqual([])
+    expect(result.warnings.join()).toContain(line.split('=')[0])
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe(`${line}\n`)
   })
 })

@@ -129,13 +129,13 @@ function normalizeSideEffectsCache(settings: PnpmWorkspace): void {
  * @returns Nothing; the URL's declaration is created or updated in place
  */
 function addRegistryScope(
-  declarations: Record<string, RegistryDeclaration>,
+  declarations: Map<string, RegistryDeclaration>,
   url: string,
   scope: string,
 ): void {
-  declarations[url] ??= {}
-  const declaration = declarations[url]
+  const declaration = declarations.get(url) ?? {}
   declaration.scopes = unique([...(declaration.scopes ?? []), scope])
+  declarations.set(url, declaration)
 }
 
 /**
@@ -185,12 +185,12 @@ function normalizeNamedRegistries(
     return
   }
 
-  const declarations: Record<string, RegistryDeclaration> = {}
+  const declarations = new Map<string, RegistryDeclaration>()
   for (const [key, value] of Object.entries(settings.registries ?? {})) {
     if (isString(value)) {
       addRegistryScope(declarations, value, key === 'default' ? '@' : key)
     } else {
-      declarations[key] = { ...value }
+      declarations.set(key, { ...value })
     }
   }
 
@@ -225,9 +225,12 @@ function normalizeNamedRegistries(
   }
 
   for (const [url, [prefix]] of prefixesByUrl) {
-    declarations[url] ??= {}
-    const declaration = declarations[url]
-    const canonicalDeclaration = canonicalSettings.registries?.[url]
+    const declaration = declarations.get(url) ?? {}
+    const canonicalDeclaration =
+      canonicalSettings.registries &&
+      Object.hasOwn(canonicalSettings.registries, url)
+        ? canonicalSettings.registries[url]
+        : undefined
     const declaredPrefix =
       (isString(canonicalDeclaration)
         ? undefined
@@ -239,9 +242,10 @@ function normalizeNamedRegistries(
       return
     }
     declaration.prefix = prefix
+    declarations.set(url, declaration)
   }
 
-  settings.registries = declarations
+  settings.registries = Object.fromEntries(declarations)
   Reflect.deleteProperty(settings, 'namedRegistries')
 }
 

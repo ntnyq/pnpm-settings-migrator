@@ -84,6 +84,18 @@ export const PNPM_V12_10_MINIMUM_VERSION = [12, 10, 0] as const
 export const PNPM_V12_11_MINIMUM_VERSION = [12, 11, 0] as const
 
 /**
+ * Release introducing remote cache configuration and missing peer types.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_12_MINIMUM_VERSION = [12, 12, 0] as const
+
+/**
+ * Release reserving the tool registry prefix.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_12_1_MINIMUM_VERSION = [12, 12, 1] as const
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.11.0.
  */
 export const PNPM_V12_11_WORKSPACE_SETTINGS: readonly string[] = [
@@ -114,6 +126,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_12_MINIMUM_VERSION,
+    workspaceFields: ['addMissingPeerTypes', 'remoteCache'],
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V12_11_MINIMUM_VERSION,
     workspaceFields: PNPM_V12_11_WORKSPACE_SETTINGS,

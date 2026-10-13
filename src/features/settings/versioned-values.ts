@@ -9,11 +9,13 @@ import {
   PNPM_V12_8_2_MINIMUM_VERSION,
   PNPM_V12_5_MINIMUM_VERSION,
   PNPM_V12_5_1_MINIMUM_VERSION,
+  PNPM_V12_12_1_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasInvalidPermissionSettings } from './permissions'
 import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
+import { hasInvalidRemoteCacheValue } from './remote-cache'
 
 /**
  * Bounds of the signed 32-bit integer used by pnpm's task priority.
@@ -93,7 +95,7 @@ function hasInvalidScalarValue(
           !['default', 'append-only', 'ndjson', 'silent'].includes(value))
       )
     }
-    if (key === 'provenance') {
+    if (key === 'provenance' || key === 'addMissingPeerTypes') {
       return value !== null && !isBoolean(value)
     }
     if (key === 'progress') {
@@ -165,6 +167,26 @@ function hasInvalidReleaseValue(
 }
 
 /**
+ * Check release-specific reserved aliases without broadening case sensitivity.
+ *
+ * @param prefix - Registry alias as declared
+ * @param target - Confirmed target version
+ *
+ * @returns Whether the alias shadows a protocol introduced by these releases
+ */
+function isReservedRegistryPrefix(
+  prefix: string,
+  target: ResolvedPnpmTarget,
+): boolean {
+  return (
+    (prefix.toLowerCase() === 'pkg' &&
+      supportsMinimumVersion(target.version, PNPM_V12_5_MINIMUM_VERSION)) ||
+    (prefix === 'tool' &&
+      supportsMinimumVersion(target.version, PNPM_V12_12_1_MINIMUM_VERSION))
+  )
+}
+
+/**
  * Check value shapes that changed within a pnpm major release.
  *
  * Reject the whole setting so cleanup cannot discard unsupported nested values.
@@ -182,6 +204,7 @@ export function hasIncompatibleSettingValue(
 ): boolean {
   if (
     hasInvalidPermissionSettings(key, value) ||
+    hasInvalidRemoteCacheValue(key, value) ||
     hasInvalidReleaseValue(key, value, target) ||
     hasInvalidV11PatchValue(key, value, target) ||
     hasIncompatibleV12SettingValue(key, value, target)
@@ -229,8 +252,10 @@ export function hasIncompatibleSettingValue(
       )
     }
   }
-  if (key === 'namedRegistries' && supportsV12_5) {
-    return Object.keys(value).some(prefix => prefix.toLowerCase() === 'pkg')
+  if (key === 'namedRegistries') {
+    return Object.keys(value).some(prefix =>
+      isReservedRegistryPrefix(prefix, target),
+    )
   }
   if (key === 'registries') {
     return Object.values(value).some(entry => {
@@ -247,7 +272,7 @@ export function hasIncompatibleSettingValue(
         return true
       }
       const prefix: unknown = Reflect.get(entry, 'prefix')
-      return supportsV12_5 && isString(prefix) && prefix.toLowerCase() === 'pkg'
+      return isString(prefix) && isReservedRegistryPrefix(prefix, target)
     })
   }
   return false

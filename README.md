@@ -232,10 +232,36 @@ For example, targeting 12.11.0 migrates
 to equivalent workspace YAML. Targeting 12.10.1 retains these settings with
 diagnostics.
 
+For pnpm 12.12.0 and later stable v12 releases, `addMissingPeerTypes` accepts
+boolean or null values and `remoteCache` accepts the project organization:
+`{ org: 'acme' }`. Empty and null remote-cache sections are preserved. Server,
+team, signing, and publication fields belong in trusted global configuration
+or environment variables. Objects containing those fields, unknown fields,
+or invalid values remain intact in their source with diagnostics; existing
+incompatible workspace values block migration before writes.
+
+`remoteCache` and legacy `sideEffectsCache.remote` are kept independently so
+pnpm applies its field-level precedence. The migrator does not insert defaults
+or rewrite `allowBuilds`: pnpm 12.12 itself now honors explicit build denials
+when `dangerouslyAllowAllBuilds` is true.
+
+From 12.12.1, the registry prefix `tool` is reserved. Both `namedRegistries`
+and URL-keyed `registries` using that exact prefix remain in their sources;
+existing workspace declarations block migration. This restriction is
+case-sensitive (`ToOl` remains valid), unlike the existing `pkg` restriction.
+
 pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
 hooks, not workspace YAML. These settings remain in their source with
 diagnostics for v12 targets; existing YAML containing them blocks migration.
 The 12.11.2 hook fix does not add workspace support.
+
+Other legacy fields ignored by the v12 workspace reader also stay in their
+sources with diagnostics. These include `production`, `dev`, `recursive`,
+`lockfileOnly`, `force`, `depth`, `saveDev`, `fetchingConcurrency`,
+`requiredScripts`, `extraBinPaths`, `extraEnv`, and `workspacePackagePatterns`.
+Existing YAML containing ignored fields blocks migration before writes.
+For example, `production=true` cannot be moved into v12 YAML; use
+`pnpm install --prod` to select production dependencies.
 
 </details>
 
@@ -273,6 +299,9 @@ Notes:
   such as `globalDir`, `stateDir`, `configDir`, and `scope` stay in `.npmrc`.
 - Registry declarations containing embedded credentials or dynamic `${...}`
   URLs stay in their source with a warning.
+- Invalid registry locations, including relative paths and object property names
+  such as `__proto__`, remain in their sources with diagnostics. Registry
+  conversion never uses inherited object properties as declarations.
 - Dynamic `${...}` values in `httpProxy`, `httpsProxy`, `noProxy`, `proxy`, and
   `noproxy` stay in their source for every target. Project YAML does not expand
   these placeholders; configure them globally in trusted configuration or use
@@ -297,10 +326,16 @@ Notes:
   `package.json#pnpm` child keys remain in `package.json`.
   INI sections in `.npmrc` are retained conservatively; their child names are
   never treated as root keys during cleanup.
+  Bare boolean flags such as `save-exact` and quoted keys such as
+  `"save-exact"=true` are cleaned when migrated. Retained sections alone do not
+  cause repeated cleanup reports or rewrites.
 - Runtime migration writes `devEngines.runtime` before removing a workspace
   runtime declaration. A failed write preserves source settings for retry.
   If an existing runtime declaration conflicts with a workspace runtime, migration
   stops before writing any files. An identical Node.js declaration is reused.
+- An `executionEnv` object containing fields besides `nodeVersion` remains
+  intact in its source with a warning. Existing workspace declarations with
+  such fields block migration before writes, so unmigrated values cannot be lost.
 - YAML aliases remain when their anchors are unchanged and precede them.
   If replacement, removal, or sorting would invalidate an alias, its original
   value is written explicitly so unrelated settings keep their values.
@@ -311,17 +346,17 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.5 and 12.11.2, including 11.28.0,
+- Compatibility checks cover pnpm 11.28.5 and 12.12.1, including 11.28.0,
   11.28.1, 11.28.2, 11.28.3, 11.28.4, 12.7.0, 12.8.0, 12.8.1, 12.8.2,
-  12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, and 12.11.1.
+  12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1, 12.11.2, and 12.12.0.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-10](docs/research/pnpm-settings-bump-2026-10-10.md),
-  npm `latest` is 12.10.1; the highest confirmed stable release is 12.11.2 on
+  As [audited on 2026-10-13](docs/research/pnpm-settings-bump-2026-10-13.md),
+  npm `latest` is 12.11.2; the highest confirmed stable release is 12.12.1 on
   `next-12`. The v11 target is 11.28.5 on `next-11`, while `latest-11` is
-  11.28.2. The project is pinned to 12.10.1. These checks verify the documented
+  11.28.2. The project is pinned to 12.11.2. These checks verify the documented
   fixtures, not every setting in every release. v10 has unit regressions and
-  source review through 10.34.6; real v10 consumption remains unverified.
+  source review through 10.34.7; real v10 consumption remains unverified.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings
   migrator's scope; replace it with `pnpm peers check` in scripts before upgrading.
 

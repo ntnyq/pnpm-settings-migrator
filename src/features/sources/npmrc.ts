@@ -17,7 +17,7 @@ import type {
   MigratableNpmrc,
   NpmRC,
 } from '../../types'
-import { fsReadFile, fsRemoveFile, fsWriteFile } from '../../utils/fs'
+import { fsReadFile, fsRemoveFile, fsWriteFileIfChanged } from '../../utils/fs'
 import { createSettingsIssues, selectPnpmSettings } from '../settings/schema'
 
 /**
@@ -83,11 +83,35 @@ function getNpmrcLineKey(line: string): string | undefined {
   }
 
   const index = trimmed.indexOf('=')
-  if (index <= 0) {
+  if (index === 0) {
     return undefined
   }
 
-  return normalizeNpmrcKey(trimmed.slice(0, index))
+  let key = (index < 0 ? trimmed : trimmed.slice(0, index)).trim()
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    // Match INI's quoted-key decoding, including JSON escape sequences.
+    if (key.startsWith("'")) {
+      key = key.slice(1, -1)
+    }
+    try {
+      const parsed: unknown = JSON.parse(key)
+      if (!isString(parsed)) {
+        return undefined
+      }
+      key = parsed
+    } catch {
+      // INI keeps the undecoded text when it is not a JSON string.
+    }
+  } else {
+    key = key.replace(
+      /\\(?<escaped>[\\;#])|[;#].*$/gu,
+      (_, escaped: string | undefined) => escaped ?? '',
+    )
+  }
+  return normalizeNpmrcKey(key)
 }
 
 /**
@@ -125,7 +149,7 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  * @param compatibility - Concrete pnpm compatibility target
  * @param migratedKeys - Original `.npmrc` keys that were migrated
  *
- * @returns A promise that resolves when the file has been pruned
+ * @returns Whether the file was changed or removed
  *
  * @throws {Error} When file read/write operations fail
  *
@@ -138,10 +162,11 @@ export async function pruneNpmrc(
   path: string,
   compatibility: Exclude<CompatibilityTarget, 'auto'>,
   migratedKeys: string[],
-): Promise<void> {
+): Promise<boolean> {
   const migratedKeySet = new Set(migratedKeys.map(normalizeNpmrcKey))
   const content = await fsReadFile(path)
   let inSection = false
+  let removed = false
   const lines = content.split(/\r\n|[\r\n]/u).filter(line => {
     // Match the section syntax used by the INI reader, including empty names.
     if (/^\[[^\]]*\]\s*$/u.test(line.replace(/^\uFEFF/u, ''))) {
@@ -155,16 +180,23 @@ export async function pruneNpmrc(
       return true
     }
 
-    return !migratedKeySet.has(key)
+    if (migratedKeySet.has(key)) {
+      removed = true
+      return false
+    }
+    return true
   })
 
+  if (!removed) {
+    return false
+  }
   const updatedContent = lines.join('\n').trimEnd()
   if (compatibility !== 'v10' && !updatedContent.trim()) {
     await fsRemoveFile(path)
-    return
+    return true
   }
 
-  await fsWriteFile(path, updatedContent)
+  return fsWriteFileIfChanged(path, updatedContent)
 }
 
 /**
