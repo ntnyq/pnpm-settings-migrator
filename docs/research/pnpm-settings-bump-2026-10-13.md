@@ -31,8 +31,8 @@ Confirmed `package.json#name` is `pnpm-settings-migrator` and the initial workin
 tree was clean. The development pin changes from **12.10.1 to 12.11.2**, following
 `latest`. The user-managed executable was already 12.11.2 and initially warned
 about the older project pin. All subsequent package operations used the matching
-pin with `/Users/ntnyq/Library/pnpm/bin` prepended to the existing PATH. Neither
-Codex's bundled pnpm nor its runtime cache was modified.
+user-managed pnpm, with its executable directory prepended to the existing PATH
+and the active Node version preserved.
 
 The package engine requirement stays `^22.19.0 || >=24.11.0`, and normal CI stays
 on 22.19.0, 24.11.0, and 26.x. The pnpm npm wrapper declares `node: >=18.*`;
@@ -147,15 +147,18 @@ remain unchanged.
 
 ## Verification
 
-Commands used the user-managed pnpm with the existing Node and PATH preserved:
+Verification used Node **24.21.0** on macOS and user-managed pnpm **12.11.2**,
+matching the repository's package-manager pin. To reproduce the checks, use the
+pinned pnpm version and a Node version supported by the package. Equivalent
+commands without local environment wrappers are shown below:
 
 ```sh
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm install --lockfile-only --ignore-scripts
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm install --frozen-lockfile --ignore-scripts
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm run release:check
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm run build
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm run test:compatibility -- 12.11.2 12.12.0 12.12.1
-rtk proxy env PATH="/Users/ntnyq/Library/pnpm/bin:$PATH" pnpm run test:compatibility
+pnpm install --lockfile-only --ignore-scripts
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run release:check
+pnpm run build
+pnpm run test:compatibility -- 12.11.2 12.12.0 12.12.1
+pnpm run test:compatibility
 ```
 
 - Lockfile generation and frozen dependency installation passed with pnpm
