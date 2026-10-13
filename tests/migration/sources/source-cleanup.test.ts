@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { migratePnpmSettings } from '../../../src/core'
+import { pruneNpmrc } from '../../../src/features/sources/npmrc'
 import { fsExists } from '../../../src/utils/fs'
 import { createTestWorkspace } from '../../helpers'
 
@@ -12,6 +13,56 @@ describe('migratePnpmSettings/source cleanup', () => {
     writePackageJson,
     writeWorkspaceYaml,
   } = createTestWorkspace('source-cleanup')
+
+  describe.each(['v10', 'v11', 'v12'] as const)(
+    '%s INI key spellings',
+    compatibility => {
+      it.each([
+        'save-exact',
+        'save-exact # a bare flag',
+        '"save-exact"=true',
+        "'save-exact'=true",
+        '"\\u0073ave-exact"=true',
+      ])('cleans %s and reports no changes on rerun', async spelling => {
+        const retained =
+          '# keep this comment\nregistry=https://registry.npmjs.org/\n[custom]\nsave-exact=false\n'
+        await writeNpmrc(`${spelling}\n${retained}`)
+        const options = { cwd: testDir, compatibility }
+        const result = await migratePnpmSettings(options)
+        await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+          saveExact: true,
+        })
+        await expect(readWorkspaceFile('.npmrc')).resolves.toBe(retained)
+        expect(result.sourceSettingsCleaned).toBe(true)
+        await expect(migratePnpmSettings(options)).resolves.toMatchObject({
+          changedFiles: [],
+          sourceSettingsCleaned: false,
+        })
+      })
+
+      it('does not report a rewrite when a selected key only occurs in a section', async () => {
+        const original = '[overrides]\nfoo=1.0.0\n'
+        await writeNpmrc(original)
+        await migratePnpmSettings({ cwd: testDir, compatibility })
+        const result = await migratePnpmSettings({
+          cwd: testDir,
+          compatibility,
+        })
+        expect(result.changedFiles).toStrictEqual([])
+        expect(result.sourceSettingsCleaned).toBe(false)
+        await expect(readWorkspaceFile('.npmrc')).resolves.toBe(original)
+      })
+    },
+  )
+
+  it('leaves unmatched INI text byte-for-byte unchanged', async () => {
+    const original = '# comment\r\ncustom=value\r\n\r\n'
+    await writeNpmrc(original)
+    await expect(
+      pruneNpmrc(`${testDir}/.npmrc`, 'v11', ['save-exact']),
+    ).resolves.toBe(false)
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe(original)
+  })
 
   describe.each(['v10', 'v11', 'v12'] as const)(
     '%s npmrc line endings',

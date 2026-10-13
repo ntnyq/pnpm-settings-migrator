@@ -22,7 +22,55 @@ import type {
   SelectedPnpmSettings,
   PnpmWorkspace,
 } from '../../types'
+import { hasInvalidRegistryLocations } from './registries'
 import { hasIncompatibleSettingValue } from './versioned-values'
+
+/**
+ * Detect legacy runtime fields without a destination in pnpm v11 and newer.
+ *
+ * @param key - Canonical setting name
+ * @param value - Untrusted legacy runtime declaration
+ * @param compatibility - Target major controlling runtime conversion
+ *
+ * @returns Whether converting the runtime would discard sibling fields
+ */
+function hasUnmigratableRuntimeFields(
+  key: string,
+  value: unknown,
+  compatibility: Exclude<CompatibilityTarget, 'auto'>,
+): boolean {
+  return Boolean(
+    key === 'executionEnv' &&
+    compatibility !== 'v10' &&
+    value &&
+    typeof value === 'object' &&
+    Object.keys(value).some(field => field !== 'nodeVersion'),
+  )
+}
+
+/**
+ * Check task declarations against the fields consumed by the target release.
+ *
+ * @param value - Untrusted task declarations
+ * @param taskSettings - Supported task field names
+ *
+ * @returns Whether any declared task field is unsupported
+ */
+function hasUnsupportedTaskFields(
+  value: unknown,
+  taskSettings: ReadonlySet<string>,
+): boolean {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    Object.values(value).some(
+      task =>
+        task &&
+        typeof task === 'object' &&
+        Object.keys(task).some(field => !taskSettings.has(field)),
+    ),
+  )
+}
 
 /**
  * Create an empty collection of schema selection issues.
@@ -177,20 +225,14 @@ function resolveSettingIssue({
   if (PROXY_SETTINGS.has(key) && isString(value) && value.includes('${')) {
     return 'unsafe'
   }
-  if (hasIncompatibleSettingValue(key, value, target)) {
+  if (
+    hasInvalidRegistryLocations(key, value) ||
+    hasUnmigratableRuntimeFields(key, value, compatibility) ||
+    hasIncompatibleSettingValue(key, value, target)
+  ) {
     return 'incompatible'
   }
-  if (
-    key === 'tasks' &&
-    value &&
-    typeof value === 'object' &&
-    Object.values(value).some(
-      task =>
-        task &&
-        typeof task === 'object' &&
-        Object.keys(task).some(field => !taskSettings.has(field)),
-    )
-  ) {
+  if (key === 'tasks' && hasUnsupportedTaskFields(value, taskSettings)) {
     return 'incompatible'
   }
   if (!workspaceSettings.has(key)) {

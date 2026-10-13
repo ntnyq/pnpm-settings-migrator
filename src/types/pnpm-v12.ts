@@ -181,6 +181,15 @@ export interface PnpmSkillsSettings {
  */
 export interface PnpmSettingsV12 {
   /**
+   * Link available companion @types packages as optional peers (pnpm 12.12+).
+   * Null leaves pnpm's default unchanged.
+   */
+  addMissingPeerTypes?: boolean | null
+  /**
+   * Project-owned remote cache configuration (pnpm 12.12+).
+   */
+  remoteCache?: PnpmRemoteCacheSettings | null
+  /**
    * Per-dependency build and agent skill permissions (pnpm 12.11+).
    */
   permissions?: Record<string, PnpmPackagePermissions | null> | null
@@ -279,4 +288,15 @@ export interface PnpmSettingsV12 {
    * Named task execution and cache settings.
    */
   tasks?: Record<string, PnpmTaskSettings>
+}
+
+/**
+ * Remote cache options allowed in project YAML. Server and signing settings
+ * belong in trusted global configuration or environment variables.
+ */
+export interface PnpmRemoteCacheSettings {
+  /**
+   * Organization owning shared artifacts; null leaves it unset.
+   */
+  org?: string | null
 }

@@ -375,19 +375,19 @@ export async function persistMigration(
     return appliedKeys.length
       ? [
           pruneNpmrc(project.npmrcPath, compatibility, appliedKeys).then(
-            () => project.npmrcPath,
+            changed => (changed ? project.npmrcPath : undefined),
           ),
         ]
       : []
   })
   if (npmrcExists && appliedNpmrcKeys.length) {
     pruneTasks.push(
-      pruneNpmrc(npmrcPath, compatibility, appliedNpmrcKeys).then(
-        () => npmrcPath,
+      pruneNpmrc(npmrcPath, compatibility, appliedNpmrcKeys).then(changed =>
+        changed ? npmrcPath : undefined,
       ),
     )
   }
-  const cleanedNpmrcPaths = await Promise.all(pruneTasks)
+  const cleanedNpmrcPaths = (await Promise.all(pruneTasks)).filter(isString)
   result.changedFiles.push(...cleanedNpmrcPaths)
   result.sourceSettingsCleaned ||= cleanedNpmrcPaths.length > 0
   return result

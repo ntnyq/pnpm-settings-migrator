@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { stringify } from 'yaml'
 import { migratePnpmSettings } from '../../../src/core'
@@ -11,6 +12,73 @@ describe('migratePnpmSettings/deprecated settings', () => {
     writePackageJson,
     writeWorkspaceYaml,
   } = createTestWorkspace('deprecated-settings')
+
+  describe.each(['v11', 'v12'] as const)(
+    '%s registry location validation',
+    compatibility => {
+      it.each(['__proto__', 'constructor', 'toString', 'relative/path'])(
+        'retains invalid location %s without modifying built-in objects',
+        async location => {
+          const prototypeBefore = Object.getOwnPropertyDescriptors(
+            Object.prototype,
+          )
+          const constructorBefore = Object.getOwnPropertyDescriptors(Object)
+          const registries = { default: location }
+          const namedRegistries = { corp: location }
+          await writePackageJson({
+            pnpm: { namedRegistries, registries, saveExact: true },
+          })
+          const options = {
+            cwd: testDir,
+            compatibility,
+            replaceDeprecated: true,
+          }
+          const result = await migratePnpmSettings(options)
+          expect(
+            isDeepStrictEqual(
+              Object.getOwnPropertyDescriptors(Object.prototype),
+              prototypeBefore,
+            ),
+          ).toBe(true)
+          expect(
+            isDeepStrictEqual(
+              Object.getOwnPropertyDescriptors(Object),
+              constructorBefore,
+            ),
+          ).toBe(true)
+          await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+            saveExact: true,
+          })
+          expect(
+            JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+          ).toStrictEqual({ namedRegistries, registries })
+          expect(result.warnings.join()).toContain('namedRegistries')
+          expect(result.warnings.join()).toContain('registries')
+          await expect(migratePnpmSettings(options)).resolves.toMatchObject({
+            changedFiles: [],
+          })
+        },
+      )
+
+      it('rejects invalid URL-keyed workspace registries before writes', async () => {
+        const workspace = 'registries:\n  __proto__:\n    prefix: corp\n'
+        await writeWorkspaceYaml(workspace)
+        await writePackageJson({ pnpm: { saveExact: true } })
+        const manifest = await readWorkspaceFile('package.json')
+        await expect(
+          migratePnpmSettings({
+            cwd: testDir,
+            compatibility,
+            replaceDeprecated: true,
+          }),
+        ).rejects.toThrow('registries')
+        await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+          workspace,
+        )
+        await expect(readWorkspaceFile('package.json')).resolves.toBe(manifest)
+      })
+    },
+  )
 
   it('keeps canonical values when aliases are also declared', async () => {
     await writePackageJson({

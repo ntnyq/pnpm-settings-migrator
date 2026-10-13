@@ -22,6 +22,7 @@ export type {
   PnpmLockfileSettings,
   PnpmPackagePermissions,
   PnpmSkillsSettings,
+  PnpmRemoteCacheSettings,
   PnpmWorkspace,
   MigrationResult,
   SettingsChange,

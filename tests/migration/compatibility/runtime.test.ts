@@ -13,6 +13,68 @@ describe('migratePnpmSettings/runtime migration', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('runtime')
 
+  describe.each(['v11', 'v12'] as const)(
+    '%s runtime sibling retention',
+    compatibility => {
+      it.each(['discard', 'merge', 'overwrite'] as const)(
+        'retains the complete legacy runtime object with %s',
+        async strategy => {
+          const executionEnv = { nodeVersion: '22.13.0', custom: 'preserve' }
+          await writePackageJson({ pnpm: { executionEnv, saveExact: true } })
+          const result = await migratePnpmSettings({
+            cwd: testDir,
+            compatibility,
+            strategy,
+          })
+
+          await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+            saveExact: true,
+          })
+          expect(
+            JSON.parse(await readWorkspaceFile('package.json')),
+          ).toStrictEqual({
+            pnpm: { executionEnv },
+          })
+          expect(result.packageJsonRuntimeChanged).toBe(false)
+          expect(result.warnings.join()).toContain('executionEnv')
+          await expect(
+            migratePnpmSettings({ cwd: testDir, compatibility, strategy }),
+          ).resolves.toMatchObject({ changedFiles: [] })
+        },
+      )
+
+      it('retains an INI runtime section with unmigrated fields', async () => {
+        const npmrc = '[execution-env]\nnodeVersion=22.13.0\ncustom=preserve\n'
+        await writeNpmrc(npmrc)
+        await writePackageJson({ pnpm: { saveExact: true } })
+        const result = await migratePnpmSettings({
+          cwd: testDir,
+          compatibility,
+        })
+        await expect(readWorkspaceFile('.npmrc')).resolves.toBe(npmrc)
+        expect(
+          JSON.parse(await readWorkspaceFile('package.json')),
+        ).toStrictEqual({})
+        expect(result.warnings.join()).toContain('execution-env')
+      })
+
+      it('rejects workspace runtime siblings before writing either destination', async () => {
+        const workspace =
+          'executionEnv:\n  nodeVersion: 22.13.0\n  custom: preserve\n'
+        await writeWorkspaceYaml(workspace)
+        await writePackageJson({ pnpm: { saveExact: true } })
+        const manifest = await readWorkspaceFile('package.json')
+        await expect(
+          migratePnpmSettings({ cwd: testDir, compatibility }),
+        ).rejects.toThrow('executionEnv')
+        await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+          workspace,
+        )
+        await expect(readWorkspaceFile('package.json')).resolves.toBe(manifest)
+      })
+    },
+  )
+
   it('moves useNodeVersion to package.json devEngines.runtime in v11', async () => {
     await writePackageJson({
       name: 'test-workspace',
