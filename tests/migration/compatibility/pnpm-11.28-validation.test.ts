@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { stringify } from 'yaml'
 import { migratePnpmSettings } from '../../../src'
+import type { PnpmWorkspace } from '../../../src'
 import { createTestWorkspace } from '../../helpers'
 
 describe('pnpm 11.28 patch validation', () => {
@@ -42,7 +43,26 @@ describe('pnpm 11.28 patch validation', () => {
     { targetVersion: '11.28.5', settings: { httpProxy: false } },
     { targetVersion: '11.28.5', settings: { httpsProxy: null } },
     { targetVersion: '11.28.5', settings: { httpsProxy: ['https://proxy'] } },
+    { targetVersion: '11.28.6', settings: { httpProxy: false } },
+    { targetVersion: '11.28.6', settings: { httpsProxy: [] } },
   ]
+
+  it('exposes restored null proxy values in the public workspace type', () => {
+    expectTypeOf<null>().toExtend<PnpmWorkspace['httpProxy']>()
+    expectTypeOf<null>().toExtend<PnpmWorkspace['httpsProxy']>()
+  })
+
+  it('preserves existing null proxies on 11.28.6 without writing', async () => {
+    const original = 'httpProxy: null\nhttpsProxy:\n'
+    await writePackageJson({ packageManager: 'pnpm@11.28.6' })
+    await writeWorkspaceYaml(original)
+    const result = await migratePnpmSettings({ cwd: testDir })
+    expect(result.warnings).toStrictEqual([])
+    expect(result.changedFiles).toStrictEqual([])
+    await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+      original,
+    )
+  })
 
   it.each(invalidSettings)(
     'retains invalid $settings intact at $targetVersion',
@@ -84,6 +104,10 @@ describe('pnpm 11.28 patch validation', () => {
       settings: { allowUnusedPatches: 'false', requiredScripts: 'build' },
     },
     { targetVersion: '11.28.4', settings: { httpsProxy: null } },
+    {
+      targetVersion: '11.28.6',
+      settings: { httpProxy: null, httpsProxy: null },
+    },
   ])(
     'preserves the preceding $targetVersion behavior',
     async ({ settings, targetVersion }) => {

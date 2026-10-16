@@ -2,10 +2,123 @@ import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
 import {
   PNPM_V12_9_MINIMUM_VERSION,
   PNPM_V12_10_MINIMUM_VERSION,
+  PNPM_V12_13_MINIMUM_VERSION,
+  PNPM_V12_14_MINIMUM_VERSION,
   PNPM_V12_REGISTRY_DECLARATION_FIELDS,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+
+/**
+ * Validate the package-map section without dropping future or misspelled keys.
+ *
+ * @param value - Untrusted package-map value
+ *
+ * @returns Whether the section is outside the pnpm 12.13 schema
+ */
+function hasInvalidNodePackageMap(value: unknown): boolean {
+  if (value === null) {
+    return false
+  }
+  if (!value || typeof value !== 'object' || isArray(value)) {
+    return true
+  }
+  return Object.entries(value).some(([field, entry]) => {
+    let values: string[] = []
+    if (field === 'mode') {
+      values = ['off', 'write-only', 'load']
+    } else if (field === 'type') {
+      values = ['standard', 'loose']
+    }
+    return (
+      values.length === 0 ||
+      (entry !== null &&
+        (!isString(entry) ||
+          (!entry.includes('${') && !values.includes(entry))))
+    )
+  })
+}
+
+/**
+ * Validate cache exclusions and retain their whole section on older targets.
+ *
+ * @param value - Untrusted cache section
+ * @param target - Confirmed release controlling exclusion support
+ *
+ * @returns Whether a section containing exclusions cannot migrate
+ */
+function hasInvalidCacheExclusions(
+  value: object,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (!Object.hasOwn(value, 'exclude')) {
+    return false
+  }
+  if (!supportsMinimumVersion(target.version, PNPM_V12_14_MINIMUM_VERSION)) {
+    return true
+  }
+  return Object.entries(value).some(([field, entry]) => {
+    if (field === 'exclude') {
+      return entry !== null && (!isArray(entry) || !entry.every(isString))
+    }
+    if (field === 'read' || field === 'write') {
+      return (
+        entry !== null &&
+        !isBoolean(entry) &&
+        !(isString(entry) && entry.includes('${'))
+      )
+    }
+    if (field !== 'remote') {
+      return true
+    }
+    if (entry === null) {
+      return false
+    }
+    if (!entry || typeof entry !== 'object' || isArray(entry)) {
+      return true
+    }
+    return Object.entries(entry).some(([key, setting]) => {
+      if (key === 'org' || key === 'organization') {
+        return !isString(setting)
+      }
+      return key !== 'packages' || !isArray(setting) || !setting.every(isString)
+    })
+  })
+}
+
+/**
+ * Check the value expansions introduced by pnpm 12.13 and 12.14.
+ *
+ * @param key - Canonical setting name
+ * @param value - Untrusted setting value
+ * @param target - Confirmed target release
+ *
+ * @returns Whether a package-map, store-index, or cache value is incompatible
+ */
+function hasIncompatiblePackageMapOrCache(
+  key: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (key === 'nodePackageMap') {
+    return (
+      !supportsMinimumVersion(target.version, PNPM_V12_13_MINIMUM_VERSION) ||
+      hasInvalidNodePackageMap(value)
+    )
+  }
+  if (key === 'storeIndexFormat') {
+    return (
+      !supportsMinimumVersion(target.version, PNPM_V12_13_MINIMUM_VERSION) ||
+      (value !== null &&
+        (!isString(value) ||
+          (!value.includes('${') && !['sqlite', 'files'].includes(value))))
+    )
+  }
+  if (key === 'sideEffectsCache' && value && typeof value === 'object') {
+    return hasInvalidCacheExclusions(value, target)
+  }
+  return false
+}
 
 /**
  * Check a loaded linker object without discarding unsupported options.
@@ -133,6 +246,9 @@ export function hasIncompatibleV12SettingValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
+  if (hasIncompatiblePackageMapOrCache(key, value, target)) {
+    return true
+  }
   const supportsV12_10 = supportsMinimumVersion(
     target.version,
     PNPM_V12_10_MINIMUM_VERSION,

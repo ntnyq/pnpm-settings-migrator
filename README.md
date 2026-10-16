@@ -202,7 +202,8 @@ From 11.28.3, non-null `allowBuilds` values must be maps of booleans or strings.
 From 11.28.4, non-null `allowUnusedPatches` must be boolean, and non-null
 `ignoredOptionalDependencies` / `requiredScripts` must be string arrays.
 From 11.28.5, `httpProxy` and `httpsProxy` must be strings, including when empty;
-null is incompatible. Invalid values remain in their sources with diagnostics.
+null is incompatible in 11.28.5. From 11.28.6, null is accepted again and leaves
+the proxy unset. Invalid values remain in their sources with diagnostics.
 
 For pnpm 12.9.0 and later stable v12 releases, URL-keyed `registries` entries
 can set `networkConcurrency` to a positive safe integer, or null to leave it
@@ -249,6 +250,23 @@ From 12.12.1, the registry prefix `tool` is reserved. Both `namedRegistries`
 and URL-keyed `registries` using that exact prefix remain in their sources;
 existing workspace declarations block migration. This restriction is
 case-sensitive (`ToOl` remains valid), unlike the existing `pkg` restriction.
+
+For pnpm 12.13.0 and later stable v12 releases, `nodePackageMap` accepts
+`mode: off | write-only | load` and `type: standard | loose`. The section and
+its fields may be null to leave them unset. New and legacy
+`nodeExperimentalPackageMap` / `nodePackageMapType` values are preserved so pnpm
+applies the new section's field-level precedence. `storeIndexFormat` accepts
+`sqlite`, `files`, or null; `files` supports stores shared over network filesystems.
+Enum values may use environment placeholders, which are preserved without expansion.
+Older or unconfirmed targets retain these settings in their source.
+
+For pnpm 12.14.0 and later stable v12 releases, `sideEffectsCache.exclude`
+accepts package patterns such as `['java', '@native/*', 'example@1']`, an empty
+array, or null. Excluded builds are neither restored nor saved in local or remote
+caches. Cache `read` and `write` values may also use preserved environment
+placeholders. On older targets, the complete cache section stays in its source.
+Invalid nested values and unknown fields also preserve the complete source
+section; existing incompatible workspace values block writes.
 
 pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
 hooks, not workspace YAML. These settings remain in their source with
@@ -346,15 +364,16 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.5 and 12.12.1, including 11.28.0,
-  11.28.1, 11.28.2, 11.28.3, 11.28.4, 12.7.0, 12.8.0, 12.8.1, 12.8.2,
-  12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1, 12.11.2, and 12.12.0.
+- Compatibility checks cover pnpm 11.28.6 and 12.14.0, including 11.28.0,
+  11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 12.7.0, 12.8.0, 12.8.1,
+  12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1, 12.11.2,
+  12.12.0, 12.12.1, and 12.13.0.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-13](docs/research/pnpm-settings-bump-2026-10-13.md),
-  npm `latest` is 12.11.2; the highest confirmed stable release is 12.12.1 on
-  `next-12`. The v11 target is 11.28.5 on `next-11`, while `latest-11` is
-  11.28.2. The project is pinned to 12.11.2. These checks verify the documented
+  As [audited on 2026-10-17](docs/research/pnpm-settings-bump-2026-10-17.md),
+  npm `latest` and the highest confirmed stable release are 12.14.0, also on
+  `latest-12` and `next-12`. The v11 target is 11.28.6 on both `latest-11` and
+  `next-11`. The project is pinned to 12.14.0. These checks verify the documented
   fixtures, not every setting in every release. v10 has unit regressions and
   source review through 10.34.7; real v10 consumption remains unverified.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings

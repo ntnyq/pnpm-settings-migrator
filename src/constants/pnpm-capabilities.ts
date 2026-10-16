@@ -54,6 +54,12 @@ export const PNPM_V11_28_4_MINIMUM_VERSION = [11, 28, 4] as const
 export const PNPM_V11_28_5_MINIMUM_VERSION = [11, 28, 5] as const
 
 /**
+ * Release restoring null proxy values as unset configuration.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_6_MINIMUM_VERSION = [11, 28, 6] as const
+
+/**
  * Release adding force, publishing, and reporter settings.
  */
 // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
@@ -96,6 +102,18 @@ export const PNPM_V12_12_MINIMUM_VERSION = [12, 12, 0] as const
 export const PNPM_V12_12_1_MINIMUM_VERSION = [12, 12, 1] as const
 
 /**
+ * Release introducing package map options and file-based store indexes.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_13_MINIMUM_VERSION = [12, 13, 0] as const
+
+/**
+ * Release introducing side-effects cache exclusions.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_14_MINIMUM_VERSION = [12, 14, 0] as const
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.11.0.
  */
 export const PNPM_V12_11_WORKSPACE_SETTINGS: readonly string[] = [
@@ -126,6 +144,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_13_MINIMUM_VERSION,
+    workspaceFields: ['nodePackageMap', 'storeIndexFormat'],
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V12_12_MINIMUM_VERSION,
     workspaceFields: ['addMissingPeerTypes', 'remoteCache'],

@@ -23,6 +23,8 @@ export type {
   PnpmPackagePermissions,
   PnpmSkillsSettings,
   PnpmRemoteCacheSettings,
+  PnpmNodePackageMapSettings,
+  PnpmSideEffectsCacheSettings,
   PnpmWorkspace,
   MigrationResult,
   SettingsChange,

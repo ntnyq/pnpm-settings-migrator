@@ -1,4 +1,8 @@
-import type { PnpmSettings, RegistryDeclaration } from '@pnpm/types'
+import type {
+  PnpmSettings,
+  RegistryDeclaration,
+  SideEffectsCacheSettings,
+} from '@pnpm/types'
 
 /**
  * Policy used by pnpm v12's project-aware global shims.
@@ -181,6 +185,18 @@ export interface PnpmSkillsSettings {
  */
 export interface PnpmSettingsV12 {
   /**
+   * Package-map generation and loading options (pnpm 12.13+).
+   */
+  nodePackageMap?: PnpmNodePackageMapSettings | null
+  /**
+   * Store package index backend; files supports network shares (pnpm 12.13+).
+   */
+  storeIndexFormat?: 'sqlite' | 'files' | null
+  /**
+   * Build cache policy, including exclusions from pnpm 12.14 onward.
+   */
+  sideEffectsCache?: boolean | PnpmSideEffectsCacheSettings
+  /**
    * Link available companion @types packages as optional peers (pnpm 12.12+).
    * Null leaves pnpm's default unchanged.
    */
@@ -288,6 +304,33 @@ export interface PnpmSettingsV12 {
    * Named task execution and cache settings.
    */
   tasks?: Record<string, PnpmTaskSettings>
+}
+
+/**
+ * Package-map section introduced in pnpm 12.13. Explicit fields take precedence
+ * over nodeExperimentalPackageMap and nodePackageMapType in the same source.
+ */
+export interface PnpmNodePackageMapSettings {
+  /**
+   * Disable the map, write it for tools, or also load it in Node.js scripts.
+   * Null leaves the legacy setting or pnpm's default effective.
+   */
+  mode?: 'off' | 'write-only' | 'load' | null
+  /**
+   * Map format; null leaves the legacy setting or default effective.
+   */
+  type?: 'standard' | 'loose' | null
+}
+
+/**
+ * Structured build cache options with pnpm 12.14 package exclusions.
+ */
+export interface PnpmSideEffectsCacheSettings extends SideEffectsCacheSettings {
+  /**
+   * Package name, scope, or name@version patterns whose builds are neither
+   * restored nor saved; null leaves exclusions unset.
+   */
+  exclude?: string[] | null
 }
 
 /**

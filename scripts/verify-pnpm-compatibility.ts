@@ -17,6 +17,7 @@ import {
   supportsMinimumVersion,
 } from '../src/features/compatibility/version'
 import { verifyPnpm12_12 } from './verify-pnpm-12.12'
+import { verifyPnpm12_13 } from './verify-pnpm-12.13'
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
 import { verifyIgnoredWorkspaceSettings } from './verify-pnpm-ignored-settings'
 import { verifyInstallSettings } from './verify-pnpm-install-settings'
@@ -57,6 +58,7 @@ const DEFAULT_PNPM_VERSIONS = [
   '11.28.3',
   '11.28.4',
   '11.28.5',
+  '11.28.6',
   '12.2.1',
   '12.3.4',
   '12.4.0',
@@ -77,6 +79,8 @@ const DEFAULT_PNPM_VERSIONS = [
   '12.11.2',
   '12.12.0',
   '12.12.1',
+  '12.13.0',
+  '12.14.0',
 ]
 
 /**
@@ -320,6 +324,7 @@ await Promise.all(
     await verifyConfigShapes(version, runPnpm)
     await verifyPermissions(version, runPnpm)
     await verifyPnpm12_12(version, runPnpm)
+    await verifyPnpm12_13(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||
       supportsMinimumVersion(parsedVersion, PNPM_V12_7_MINIMUM_VERSION)

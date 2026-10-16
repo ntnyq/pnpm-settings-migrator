@@ -19,10 +19,10 @@ export const PNPM_V12_ONLY_WORKSPACE_SETTINGS: readonly string[] = [
 ]
 
 /**
- * Legacy fields absent from pnpm v12's workspace reader through 12.12.1.
+ * Legacy fields absent from pnpm v12's workspace reader through 12.14.0.
  * Removed aliases with explicit migration replacements are kept separately.
  *
- * @see https://github.com/pnpm/pnpm/blob/v12.12.1/pnpm/crates/config/src/workspace_yaml/settings.rs
+ * @see https://github.com/pnpm/pnpm/blob/v12.14.0/pnpm/crates/config/src/workspace_yaml/settings.rs
  */
 export const PNPM_V12_IGNORED_WORKSPACE_SETTINGS: readonly string[] = [
   'access',

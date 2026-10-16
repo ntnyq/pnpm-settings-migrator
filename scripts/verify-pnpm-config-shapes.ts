@@ -71,7 +71,12 @@ async function verifyV11Validation(
   const manifestPath = join(fixtureDir, 'package.json')
   const workspacePath = join(fixtureDir, 'pnpm-workspace.yaml')
   for (const { settings, minimum } of cases) {
-    const rejectsValue = supportsMinimumVersion(parsedVersion, minimum)
+    const restoredProxy =
+      ('httpProxy' in settings || 'httpsProxy' in settings) &&
+      // eslint-disable-next-line no-magic-numbers -- Exact upstream restoration boundary.
+      supportsMinimumVersion(parsedVersion, [11, 28, 6])
+    const rejectsValue =
+      supportsMinimumVersion(parsedVersion, minimum) && !restoredProxy
     await rm(workspacePath, { force: true })
     await writeFile(
       manifestPath,

@@ -5,6 +5,7 @@ import {
   PNPM_V11_28_3_MINIMUM_VERSION,
   PNPM_V11_28_4_MINIMUM_VERSION,
   PNPM_V11_28_5_MINIMUM_VERSION,
+  PNPM_V11_28_6_MINIMUM_VERSION,
   PNPM_V12_7_MINIMUM_VERSION,
   PNPM_V12_8_2_MINIMUM_VERSION,
   PNPM_V12_5_MINIMUM_VERSION,
@@ -41,6 +42,12 @@ function hasInvalidV11PatchValue(
     ['httpProxy', 'httpsProxy'].includes(key) &&
     supportsMinimumVersion(target.version, PNPM_V11_28_5_MINIMUM_VERSION)
   ) {
+    if (
+      value === null &&
+      supportsMinimumVersion(target.version, PNPM_V11_28_6_MINIMUM_VERSION)
+    ) {
+      return false
+    }
     return !isString(value)
   }
   if (value === null || value === undefined) {

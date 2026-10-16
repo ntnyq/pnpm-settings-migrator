@@ -122,6 +122,14 @@ export interface PnpmSettingsDeprecated {
  */
 export interface PnpmSettingsV11 {
   /**
+   * HTTP proxy; null leaves the proxy unset except in pnpm 11.28.5.
+   */
+  httpProxy?: string | null
+  /**
+   * HTTPS proxy; null leaves the proxy unset except in pnpm 11.28.5.
+   */
+  httpsProxy?: string | null
+  /**
    * Publish provenance preference. Consumed from workspace configuration by
    * pnpm v11 and pnpm v12 starting with 12.11. Null leaves it unset.
    */
@@ -175,10 +183,13 @@ export interface PnpmSettingsV11 {
  */
 export type PnpmWorkspace = Omit<
   PnpmSettings,
+  | 'httpProxy'
+  | 'httpsProxy'
   | 'lockfile'
   | 'nodeLinker'
   | 'provenance'
   | 'registries'
+  | 'sideEffectsCache'
   | 'supportedArchitectures'
   | 'tasks'
 > &
