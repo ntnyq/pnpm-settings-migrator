@@ -76,6 +76,47 @@ export function updateYamlDocument(
     },
   })
 
+  // Removing an inherited root key requires expanding the merge; deleting a
+  // direct key alone would leave the original value effective on the next run.
+  if (
+    isMap(document.contents) &&
+    Object.keys(before).some(
+      key => !Object.hasOwn(after, key) && !document.has(key),
+    )
+  ) {
+    const merges = document.contents.items.filter(
+      pair =>
+        isScalar(pair.key) &&
+        typeof pair.key.value === 'symbol' &&
+        pair.key.value.description === '<<',
+    )
+    for (const pair of merges) {
+      if (isNode(pair.key) && pair.key.commentBefore) {
+        document.commentBefore = [
+          document.commentBefore,
+          pair.key.commentBefore,
+        ]
+          .filter(Boolean)
+          .join('\n')
+      }
+      if (isNode(pair.value)) {
+        visit(pair.value, {
+          Node: (_, child) => {
+            replacedNodes.add(child)
+          },
+        })
+      }
+    }
+    document.contents.items = document.contents.items.filter(
+      pair => !merges.includes(pair),
+    )
+    for (const [key, value] of Object.entries(before)) {
+      if (!document.has(key)) {
+        document.set(key, value)
+      }
+    }
+  }
+
   for (const key of Object.keys(before)) {
     if (!Object.hasOwn(after, key)) {
       document.delete(key)

@@ -183,6 +183,8 @@ export interface PnpmSettingsV11 {
  */
 export type PnpmWorkspace = Omit<
   PnpmSettings,
+  | 'autoInstallPeersFromHighestMatch'
+  | 'externalDependencies'
   | 'httpProxy'
   | 'httpsProxy'
   | 'lockfile'

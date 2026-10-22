@@ -4,10 +4,12 @@ import {
   PNPM_V12_10_MINIMUM_VERSION,
   PNPM_V12_13_MINIMUM_VERSION,
   PNPM_V12_14_MINIMUM_VERSION,
+  PNPM_V12_15_MINIMUM_VERSION,
   PNPM_V12_REGISTRY_DECLARATION_FIELDS,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+import { hasIncompatibleBootSetting } from './boot-config'
 
 /**
  * Validate the package-map section without dropping future or misspelled keys.
@@ -146,10 +148,15 @@ function hasInvalidNodeLinkerOptions(value: object): boolean {
  *
  * @param field - Registry declaration field name
  * @param value - Untrusted option value
+ * @param target - Release controlling registry server types
  *
  * @returns Whether a nested option is invalid for pnpm 12.9
  */
-function hasInvalidRegistryOptionValue(field: string, value: unknown): boolean {
+function hasInvalidRegistryOptionValue(
+  field: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
   switch (field) {
     case 'networkConcurrency':
       return !isNumber(value) || !Number.isSafeInteger(value) || value <= 0
@@ -165,7 +172,19 @@ function hasInvalidRegistryOptionValue(field: string, value: unknown): boolean {
     case 'prefix':
       return !isString(value)
     case 'serverType':
-      return !isString(value) || !['npm', 'artifactory'].includes(value)
+      return (
+        !isString(value) ||
+        ![
+          'npm',
+          'artifactory',
+          ...(supportsMinimumVersion(
+            target.version,
+            PNPM_V12_15_MINIMUM_VERSION,
+          )
+            ? ['pnpr']
+            : []),
+        ].includes(value)
+      )
     case 'supportsTimeField':
       return !isBoolean(value)
     default:
@@ -176,12 +195,14 @@ function hasInvalidRegistryOptionValue(field: string, value: unknown): boolean {
 /**
  * Validate a registry declaration that opts into per-registry concurrency.
  *
- * @param declaration - Registry options containing networkConcurrency
+ * @param declaration - Registry options containing versioned fields
+ * @param target - Release controlling registry server types
  *
  * @returns Whether a nested option is invalid for pnpm 12.9
  */
 function hasInvalidRegistryConcurrencyDeclaration(
   declaration: object,
+  target: ResolvedPnpmTarget,
 ): boolean {
   const ecosystem: unknown = Reflect.get(declaration, 'ecosystem') ?? 'npm'
   return Object.entries(declaration).some(([field, value]) => {
@@ -200,7 +221,7 @@ function hasInvalidRegistryConcurrencyDeclaration(
     ) {
       return true
     }
-    return hasInvalidRegistryOptionValue(field, value)
+    return hasInvalidRegistryOptionValue(field, value, target)
   })
 }
 
@@ -230,6 +251,51 @@ function hasInvalidLinkerOrLockfileScalarValue(
 }
 
 /**
+ * Check lockfile options against their exact introduction releases.
+ *
+ * @param value - Untrusted object form of the lockfile setting
+ * @param target - Confirmed target release
+ *
+ * @returns Whether the entire section must remain in its source
+ */
+function hasInvalidLockfileOptions(
+  value: object,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (
+    !supportsMinimumVersion(target.version, PNPM_V12_10_MINIMUM_VERSION) ||
+    isArray(value) ||
+    Object.keys(value).some(
+      field =>
+        !['includeResolutionSettings', 'integrityTarget'].includes(field),
+    )
+  ) {
+    return true
+  }
+  if (Object.hasOwn(value, 'integrityTarget')) {
+    const integrityTarget: unknown = Reflect.get(value, 'integrityTarget')
+    if (
+      !supportsMinimumVersion(target.version, PNPM_V12_15_MINIMUM_VERSION) ||
+      (integrityTarget !== null &&
+        (!isString(integrityTarget) ||
+          (!integrityTarget.includes('${') &&
+            !['resource', 'tar'].includes(integrityTarget))))
+    ) {
+      return true
+    }
+  }
+  const includeResolutionSettings: unknown = Reflect.get(
+    value,
+    'includeResolutionSettings',
+  )
+  return (
+    Object.hasOwn(value, 'includeResolutionSettings') &&
+    includeResolutionSettings !== null &&
+    !isBoolean(includeResolutionSettings)
+  )
+}
+
+/**
  * Validate settings whose accepted shapes expanded in pnpm 12.9 and 12.10.
  *
  * Reject an entire setting when a nested value is unsupported so source cleanup
@@ -246,7 +312,10 @@ export function hasIncompatibleV12SettingValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
-  if (hasIncompatiblePackageMapOrCache(key, value, target)) {
+  if (
+    hasIncompatibleBootSetting(key, value, target) ||
+    hasIncompatiblePackageMapOrCache(key, value, target)
+  ) {
     return true
   }
   const supportsV12_10 = supportsMinimumVersion(
@@ -269,22 +338,7 @@ export function hasIncompatibleV12SettingValue(
     return !supportsV12_10 || hasInvalidNodeLinkerOptions(value)
   }
   if (key === 'lockfile') {
-    if (
-      !supportsV12_10 ||
-      isArray(value) ||
-      Object.keys(value).some(field => field !== 'includeResolutionSettings')
-    ) {
-      return true
-    }
-    const includeResolutionSettings: unknown = Reflect.get(
-      value,
-      'includeResolutionSettings',
-    )
-    return (
-      Object.hasOwn(value, 'includeResolutionSettings') &&
-      includeResolutionSettings !== null &&
-      !isBoolean(includeResolutionSettings)
-    )
+    return hasInvalidLockfileOptions(value, target)
   }
   if (key === 'registries') {
     const entries: unknown[] = Object.values(value)
@@ -292,16 +346,20 @@ export function hasIncompatibleV12SettingValue(
       if (
         !entry ||
         typeof entry !== 'object' ||
-        !Object.hasOwn(entry, 'networkConcurrency')
+        (!Object.hasOwn(entry, 'networkConcurrency') &&
+          !Object.hasOwn(entry, 'serverType'))
       ) {
         return false
       }
-      if (!supportsMinimumVersion(target.version, PNPM_V12_9_MINIMUM_VERSION)) {
+      if (
+        Object.hasOwn(entry, 'networkConcurrency') &&
+        !supportsMinimumVersion(target.version, PNPM_V12_9_MINIMUM_VERSION)
+      ) {
         return true
       }
       return (
         entries.some(isString) ||
-        hasInvalidRegistryConcurrencyDeclaration(entry)
+        hasInvalidRegistryConcurrencyDeclaration(entry, target)
       )
     })
   }

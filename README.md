@@ -70,7 +70,7 @@ const result = await migratePnpmSettings({ cwd: '/path/to/workspace' })
 <summary>Library results and error handling</summary>
 
 Library calls now return a `MigrationResult` and do not print logs. The result
-contains `settingsChanges` (before/after root workspace settings), `changedFiles`
+contains `settingsChanges` (before/after effective workspace settings, including includes), `changedFiles`
 (absolute paths, including created or removed files), `sourceSettingsCleaned`,
 `packageJsonRuntimeChanged`, `hasConfigurationFiles`, and `warnings`. Errors are
 thrown to the caller. Consumers that relied on console output should render the
@@ -92,7 +92,7 @@ Current working directory.
 - **Type**: `boolean`
 - **Default**: `false`
 
-Sort keys when write `pnpm-workspace.yaml`.
+Sort keys in written workspace and local include YAML documents.
 
 ### `--compatibility`
 
@@ -268,6 +268,71 @@ placeholders. On older targets, the complete cache section stays in its source.
 Invalid nested values and unknown fields also preserve the complete source
 section; existing incompatible workspace values block writes.
 
+For pnpm 12.15.0 and later stable v12 releases, `bootConfig` accepts bootstrap
+release-age and trust-policy settings: `minimumReleaseAge`,
+`minimumReleaseAgeExclude`, `minimumReleaseAgeStrict`,
+`minimumReleaseAgeIgnoreMissingTime`, `trustPolicy`, `trustPolicyExclude`, and
+`trustPolicyIgnoreAfter`. The section and individual fields may be null.
+Bootstrap policy stays separate from normal install policy; neither is copied
+into the other. Unknown nested keys or invalid values preserve the entire section.
+
+`maxTarballUnpackedSize` requires 11.28.7+ or 12.15.0+ and accepts a nonnegative
+safe integer in bytes, or null to leave pnpm's default effective. Numeric
+`.npmrc` values become YAML numbers. The migrator does not add pnpm's 4 GiB
+default. From 11.28.7, v11 also accepts `autoInstallPeersFromHighestMatch`
+(boolean or null) and `externalDependencies` (string array or null).
+
+From 12.15.0, `lockfile.integrityTarget` accepts `resource`, `tar`, or null,
+and npm `registries` declarations accept `serverType: pnpr` for tar registries.
+Unsupported nested fields keep the complete lockfile or registry section in its
+source. For example, `lockfile: { integrityTarget: tar }` migrates at 12.15.0
+and remains in the source at 12.14.0.
+
+pnpm 12.15's `include` delegates settings to local YAML files or declared
+config dependencies. The migrator reads the effective workspace and writes
+settings to their physical owners, preserving the include index, YAML comments,
+and unchanged files. Explicit lists reserve settings even when absent;
+`'*'` is allowed only for local files and owns the settings they already define.
+`catalog` / `catalogs.default` refer to the default catalog, `catalogs.name`
+selects one named catalog, and `catalogs` reserves every catalog.
+
+```yaml
+include:
+  ./config/layout.yaml: [modulesDir, packages]
+  ./config/catalogs.yaml: [catalogs.frontend]
+  '@acme/policy': [minimumReleaseAge, trustPolicy]
+configDependencies:
+  '@acme/policy': 1.0.0
+```
+
+A legacy `modulesDir: ./node_modules` value is written as
+`modulesDir: ../node_modules` in `config/layout.yaml`, keeping the same location.
+Path settings, package globs, pnpmfiles, patch paths, and local catalog/override
+specifiers use the owning file's directory. New settings without an owner stay
+in the root. `discard`, `merge`, and `overwrite` apply inside local owners.
+YAML merge keys participate in ownership checks and are expanded when removing
+an inherited legacy key is necessary.
+
+Config dependencies remain read-only. The migrator reads each installed
+package's `pnpm.config` entry under `node_modules/.pnpm-config`. A source value
+already represented by that policy can be cleaned; conflicting values remain
+with diagnostics under every strategy. If a policy package is not installed or
+its installed version differs from the proposed declaration, its delegated
+source values remain until the matching version is installed and migration is
+run again. Legacy workspace settings are also retained when conversion would
+lose their values behind a read-only replacement. The migrator does not install
+packages. Nested includes, overlapping
+owners, undelegated fields, invalid entries, and paths escaping a config
+dependency's package stop migration before writes. Included local files must
+already exist; installed policy files cannot also be writable destinations,
+including through symlinks or hard links. A merge that would define both
+`catalog` and `catalogs.default` stops before writes; consolidate them into one
+form first. All destinations are
+validated and rendered before writing, and legacy sources are retained if any
+destination write fails. Credentials and trusted global settings keep their
+existing protections. Earlier or unconfirmed targets retain incoming include
+indexes with diagnostics and reject existing included workspaces.
+
 pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
 hooks, not workspace YAML. These settings remain in their source with
 diagnostics for v12 targets; existing YAML containing them blocks migration.
@@ -364,18 +429,21 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.6 and 12.14.0, including 11.28.0,
-  11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 12.7.0, 12.8.0, 12.8.1,
-  12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1, 12.11.2,
-  12.12.0, 12.12.1, and 12.13.0.
+- Compatibility checks cover pnpm 11.28.7 and 12.15.0, including 11.28.0,
+  11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
+  12.8.1, 12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1,
+  12.11.2, 12.12.0, 12.12.1, 12.13.0, and 12.14.0.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-17](docs/research/pnpm-settings-bump-2026-10-17.md),
-  npm `latest` and the highest confirmed stable release are 12.14.0, also on
-  `latest-12` and `next-12`. The v11 target is 11.28.6 on both `latest-11` and
-  `next-11`. The project is pinned to 12.14.0. These checks verify the documented
-  fixtures, not every setting in every release. v10 has unit regressions and
-  source review through 10.34.7; real v10 consumption remains unverified.
+  As [audited on 2026-10-22](docs/research/pnpm-settings-bump-2026-10-22.md),
+  npm `latest` and the highest confirmed stable release are 12.15.0, also on
+  `latest-12` and `next-12`. The highest stable v11 release, 11.28.7, is on
+  `next-11`; `latest-11` still points to 11.28.6. GitHub marks both targets as
+  non-prereleases. The project is pinned to 12.15.0. These checks verify the
+  documented fixtures, not every setting in every release. Local and config
+  dependency `include` consumption is verified on 12.15.0, with 12.14.0 as the
+  preceding boundary. v10 has unit regressions and source review
+  through 10.34.7; real v10 consumption remains unverified.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings
   migrator's scope; replace it with `pnpm peers check` in scripts before upgrading.
 

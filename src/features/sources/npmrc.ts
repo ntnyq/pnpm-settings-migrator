@@ -265,7 +265,9 @@ export async function readMigratableNpmrc(
       } else {
         const [canonicalKey] = Object.keys(camelcaseKeys({ [key]: true }))
         const settingValue =
-          canonicalKey === 'publishWaitTimeout' &&
+          ['publishWaitTimeout', 'maxTarballUnpackedSize'].includes(
+            canonicalKey ?? '',
+          ) &&
           isString(value) &&
           /^\d+$/u.test(value)
             ? Number(value)

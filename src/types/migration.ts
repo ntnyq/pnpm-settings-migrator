@@ -1,5 +1,6 @@
 import type { ResolvedPnpmTarget } from './compatibility'
 import type { ResolvedPackageJsonSettings, ParsedPackageJson } from './config'
+import type { WorkspaceFileWrite } from './includes'
 import type { MigratableNpmrc, ProjectNpmrcMigrations } from './npmrc'
 import type { CompatibilityTarget, MergeStrategy } from './options'
 import type { PackageJson } from './package-json'
@@ -143,6 +144,10 @@ export interface PersistMigrationOptions {
    */
   pnpmWorkspaceContent: string
   /**
+   * Additional local include destinations, persisted before legacy source cleanup.
+   */
+  workspaceFiles?: WorkspaceFileWrite[]
+  /**
    * Absolute path to the destination workspace manifest.
    */
   pnpmWorkspacePath: string
@@ -237,7 +242,7 @@ export interface MigrationResult {
   hasConfigurationFiles: boolean
 
   /**
-   * Changed root settings in pnpm-workspace.yaml.
+   * Changed effective workspace settings, including delegated local settings.
    */
   settingsChanges: SettingsChange[]
 

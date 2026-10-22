@@ -83,7 +83,7 @@ export async function readPnpmWorkspace(
   }
 
   const content = await fsReadFile(path)
-  const document: Document = parseDocument(content)
+  const document: Document = parseDocument(content, { merge: true })
   const [parseError] = document.errors
 
   if (parseError) {
@@ -101,6 +101,7 @@ export async function readPnpmWorkspace(
 
   return {
     document,
+    content,
     indent: resolveYamlIndent(content),
     value: (parsedValue as PnpmWorkspace | null) ?? {},
   }

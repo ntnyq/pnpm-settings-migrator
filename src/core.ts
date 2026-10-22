@@ -6,16 +6,21 @@ import {
   readPnpmWorkspace,
   resolvePnpmTarget,
   assertCompatibleWorkspaceSettings,
-  resolveMigrationSources,
   normalizeIncomingSettings,
   resolveRuntimeVersionByStrategy,
   migrateRuntimeToPackageJson,
   persistMigration,
   collectSettingsChanges,
 } from './features'
+import { resolveIncludedMigration } from './features/migration/includes'
+import {
+  mergeIncludedWorkspace,
+  normalizeIncludedWorkspace,
+  reportReadonlyIncludes,
+} from './features/sources/includes/migration'
+import { renderIncludedWorkspace } from './features/sources/includes/render'
 import type { Options, MigrationResult, PnpmWorkspace } from './types'
 import { fsExists } from './utils/fs'
-import { mergeByStrategy } from './utils/merge'
 import { updateYamlDocument, formatRootSpacing } from './utils/yaml-document'
 
 /**
@@ -73,8 +78,8 @@ function assertCanMigrateRuntime(
 /**
  * Migrate pnpm settings from legacy locations to `pnpm-workspace.yaml`.
  *
- * This function collects pnpm configurations from multiple sources and consolidates
- * them into a single `pnpm-workspace.yaml` file:
+ * This function collects pnpm configurations from multiple sources and writes
+ * settings to the root workspace or their delegated local YAML owner:
  * - `package.json` pnpm field
  * - `.npmrc` pnpm-related settings
  * - `package.json` resolutions (optional, converts to pnpm overrides)
@@ -143,7 +148,6 @@ export async function migratePnpmSettings(
     readPackageJson(packageJsonPath, packageJsonExists),
     readPnpmWorkspace(pnpmWorkspaceYamlPath, pnpmWorkspaceExists),
   ])
-  const pnpmWorkspaceBefore = structuredClone(pnpmWorkspace.value)
 
   const target = resolvePnpmTarget({
     compatibility: options.compatibility,
@@ -153,8 +157,11 @@ export async function migratePnpmSettings(
   })
   const { compatibility } = target
 
-  assertCompatibleWorkspaceSettings(pnpmWorkspace.value, target)
-  const sources = await resolveMigrationSources({
+  const {
+    workspace,
+    sources,
+    before: pnpmWorkspaceBefore,
+  } = await resolveIncludedMigration(pnpmWorkspace, {
     target,
     cwd: options.cwd,
     npmrcExists,
@@ -165,8 +172,8 @@ export async function migratePnpmSettings(
     yarnResolutions: options.yarnResolutions,
   })
   const { incomingSettings } = sources
-  const destinationSettings = mergeByStrategy(
-    pnpmWorkspace.value,
+  const destinationSettings = mergeIncludedWorkspace(
+    workspace,
     incomingSettings,
     options.strategy,
   )
@@ -198,7 +205,7 @@ export async function migratePnpmSettings(
     replaceDeprecated: options.replaceDeprecated,
   }
   const [existingNormalization, incomingNormalization] = await Promise.all([
-    normalizeIncomingSettings(pnpmWorkspace.value, normalizationOptions),
+    normalizeIncludedWorkspace(workspace, normalizationOptions),
     normalizeIncomingSettings(incomingSettings, normalizationOptions),
     normalizeIncomingSettings(
       normalizedPackageJsonSettings,
@@ -211,6 +218,11 @@ export async function migratePnpmSettings(
     ...sources.warnings,
     ...existingNormalization.warnings,
     ...incomingNormalization.warnings,
+    ...reportReadonlyIncludes(workspace, [
+      normalizedPackageJsonSettings,
+      normalizedNpmrcSettings,
+      incomingSettings,
+    ]),
   )
 
   const runtimeVersion = resolveRuntimeVersionByStrategy(
@@ -249,21 +261,33 @@ export async function migratePnpmSettings(
   }
 
   // Merge based on strategy
-  const pnpmWorkspaceResult: PnpmWorkspace = mergeByStrategy(
-    pnpmWorkspace.value,
+  const pnpmWorkspaceResult: PnpmWorkspace = mergeIncludedWorkspace(
+    workspace,
     incomingSettings,
     options.strategy,
   )
 
-  updateYamlDocument(pnpmWorkspace.document, {
-    after: pnpmWorkspaceResult,
-    before: pnpmWorkspaceBefore,
-    sortKeys: options.sortKeys,
-  })
-  formatRootSpacing(pnpmWorkspace.document, options.newlineBetween)
-  const finalYamlContent = pnpmWorkspace.document.toString({
-    indent: pnpmWorkspace.indent,
-  })
+  const workspaceFiles =
+    workspace.include === undefined
+      ? []
+      : renderIncludedWorkspace(workspace, pnpmWorkspaceResult, {
+          ...options,
+          target,
+        })
+  let finalYamlContent = workspaceFiles.find(
+    file => file.path === pnpmWorkspaceYamlPath,
+  )?.content
+  if (finalYamlContent === undefined) {
+    updateYamlDocument(pnpmWorkspace.document, {
+      after: pnpmWorkspaceResult,
+      before: pnpmWorkspaceBefore,
+      sortKeys: options.sortKeys,
+    })
+    formatRootSpacing(pnpmWorkspace.document, options.newlineBetween)
+    finalYamlContent = pnpmWorkspace.document.toString({
+      indent: pnpmWorkspace.indent,
+    })
+  }
 
   const persistence = await persistMigration({
     incomingSettings,
@@ -283,6 +307,9 @@ export async function migratePnpmSettings(
     runtimeApplied: runtimeMigration.applied,
     packageJsonSettings: sources.packageJson,
     pnpmWorkspaceContent: finalYamlContent,
+    workspaceFiles: workspaceFiles.filter(
+      file => file.path !== pnpmWorkspaceYamlPath,
+    ),
     pnpmWorkspacePath: pnpmWorkspaceYamlPath,
     projectNpmrcs: sources.projectNpmrcs,
     runtimeVersion,

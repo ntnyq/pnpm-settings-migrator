@@ -178,3 +178,43 @@ export function mergeByStrategy(
       return defu(existing, incoming)
   }
 }
+
+/**
+ * Check that a destination contains the selected value after merging.
+ *
+ * Objects may have extra properties and arrays may have extra items; every
+ * expected value must still be present before its source can be removed.
+ *
+ * @param actual - Value stored in the final destination
+ * @param expected - Incoming value that must be preserved
+ *
+ * @returns Whether the destination recursively contains the expected value
+ */
+export function containsMigratedValue(
+  actual: unknown,
+  expected: unknown,
+): boolean {
+  if (isArray(actual) && isArray(expected)) {
+    return expected.every(expectedItem =>
+      actual.some(actualItem =>
+        containsMigratedValue(actualItem, expectedItem),
+      ),
+    )
+  }
+
+  if (
+    actual &&
+    expected &&
+    typeof actual === 'object' &&
+    typeof expected === 'object'
+  ) {
+    return Object.entries(expected).every(([key, expectedValue]) =>
+      containsMigratedValue(
+        (actual as Record<string, unknown>)[key],
+        expectedValue,
+      ),
+    )
+  }
+
+  return Object.is(actual, expected)
+}
