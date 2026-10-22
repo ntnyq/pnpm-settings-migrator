@@ -1,6 +1,13 @@
 import { realpath, stat } from 'node:fs/promises'
 import { isPlainObject, isString } from '@ntnyq/utils'
-import { dirname, extname, isAbsolute, relative, resolve } from 'pathe'
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  normalize,
+  relative,
+  resolve,
+} from 'pathe'
 import { PNPM_V12_15_MINIMUM_VERSION } from '../../../constants'
 import type {
   IncludedWorkspace,
@@ -90,10 +97,10 @@ async function readPackageEntry(options: {
       'Included config dependency must declare a package-relative YAML pnpm.config entry.',
     )
   }
-  const packageRoot = await realpath(packageDir)
-  const path = await realpath(resolve(packageDir, entry))
+  const packageRoot = normalize(await realpath(packageDir))
+  const path = normalize(await realpath(resolve(packageDir, entry)))
   const location = relative(packageRoot, path)
-  const information = await stat(path)
+  const information = await stat(path, { bigint: true })
   if (
     location === '..' ||
     location.startsWith('../') ||
@@ -135,7 +142,7 @@ async function readLocalIncludes(
   const rootPath = resolve(workspace.cwd, 'pnpm-workspace.yaml')
   const seen = new Set<string>()
   try {
-    const root = await stat(rootPath)
+    const root = await stat(rootPath, { bigint: true })
     seen.add(`${root.dev}:${root.ino}`)
   } catch (error) {
     if (
@@ -148,7 +155,8 @@ async function readLocalIncludes(
     .slice(1)
     .filter(entry => !entry.readonly)) {
     const path = resolve(workspace.cwd, file.source)
-    const information = await stat(path)
+    // File identities can exceed Number.MAX_SAFE_INTEGER on Windows.
+    const information = await stat(path, { bigint: true })
     const identity = `${information.dev}:${information.ino}`
     if (!information.isFile() || seen.has(identity)) {
       throw new TypeError(
@@ -156,7 +164,7 @@ async function readLocalIncludes(
       )
     }
     seen.add(identity)
-    file.path = await realpath(path)
+    file.path = normalize(await realpath(path))
     file.parsed = await readPnpmWorkspace(path, true)
   }
   return seen
