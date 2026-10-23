@@ -349,7 +349,11 @@ export function hasIncompatibleV12SettingValue(
         (!Object.hasOwn(entry, 'networkConcurrency') &&
           !(
             Object.hasOwn(entry, 'serverType') &&
-            supportsMinimumVersion(target.version, PNPM_V12_15_MINIMUM_VERSION)
+            (Reflect.get(entry, 'serverType') === 'pnpr' ||
+              supportsMinimumVersion(
+                target.version,
+                PNPM_V12_15_MINIMUM_VERSION,
+              ))
           ))
       ) {
         return false

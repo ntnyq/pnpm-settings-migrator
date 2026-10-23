@@ -212,8 +212,37 @@ describe('pnpm 12.15 settings', () => {
     ).toStrictEqual(invalid)
   })
 
+  it.each(['11.28.6', '11.28.7', '12.2.0', '12.8.2', '12.9.0', '12.14.0'])(
+    'retains a pnpr-only registry declaration at %s',
+    async targetVersion => {
+      const unsupported = {
+        registries: { 'https://registry.example/': { serverType: 'pnpr' } },
+      }
+      await writePackageJson({ pnpm: { ...unsupported, saveExact: true } })
+      expect(
+        (
+          await migratePnpmSettings({ cwd: testDir, targetVersion })
+        ).warnings.join(),
+      ).toContain('incompatible')
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        saveExact: true,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toStrictEqual(unsupported)
+    },
+  )
+
   it.each([
     ...invalidSettings.map(invalid => ({ invalid, targetVersion: '12.15.0' })),
+    ...['11.28.6', '11.28.7', '12.2.0', '12.8.2', '12.9.0', '12.14.0'].map(
+      targetVersion => ({
+        invalid: {
+          registries: { 'https://registry.example/': { serverType: 'pnpr' } },
+        },
+        targetVersion,
+      }),
+    ),
     ...Object.entries(settings).map(([key, value]) => ({
       invalid: { [key]: value },
       targetVersion: '12.14.0',
