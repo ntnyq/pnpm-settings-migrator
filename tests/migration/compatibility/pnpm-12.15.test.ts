@@ -25,6 +25,11 @@ const settings = {
   },
 } satisfies PnpmWorkspace
 
+const legacyRegistries = {
+  default: 'https://registry.npmjs.org/',
+  'https://registry.example/': { serverType: 'artifactory' },
+}
+
 const invalidSettings = [
   { bootConfig: true },
   { bootConfig: [] },
@@ -45,6 +50,7 @@ const invalidSettings = [
   { lockfile: { integrityTarget: 'tgz' } },
   { lockfile: { integrityTarget: false } },
   { lockfile: { integrityTarget: 'tar', unknown: null } },
+  { registries: legacyRegistries },
   {
     registries: {
       'https://registry.example/': { serverType: 'pnpr', unknown: null },
@@ -154,6 +160,40 @@ describe('pnpm 12.15 settings', () => {
       expect(
         JSON.parse(await readWorkspaceFile('package.json')).pnpm,
       ).toStrictEqual(retained)
+    },
+  )
+
+  it.each(['12.2.0', '12.8.2', '12.9.0', '12.14.0'])(
+    'migrates mixed registry maps with serverType at %s',
+    async targetVersion => {
+      await writePackageJson({ pnpm: { registries: legacyRegistries } })
+      expect(
+        (await migratePnpmSettings({ cwd: testDir, targetVersion })).warnings,
+      ).toStrictEqual([])
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        registries: legacyRegistries,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toBeUndefined()
+    },
+  )
+
+  it.each(['12.2.0', '12.8.2', '12.9.0', '12.14.0'])(
+    'preserves existing mixed registry maps with serverType at %s',
+    async targetVersion => {
+      await writeWorkspaceYaml(stringify({ registries: legacyRegistries }))
+      await writePackageJson({ pnpm: { saveExact: true } })
+      expect(
+        (await migratePnpmSettings({ cwd: testDir, targetVersion })).warnings,
+      ).toStrictEqual([])
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        registries: legacyRegistries,
+        saveExact: true,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toBeUndefined()
     },
   )
 
