@@ -123,7 +123,7 @@ export interface FormatSettingsIssuesOptions {
 }
 
 /**
- * Before and after values for one changed root setting.
+ * Before and after values for one changed effective workspace setting.
  */
 export interface SettingsChange {
   /**
@@ -137,7 +137,7 @@ export interface SettingsChange {
   before: unknown
 
   /**
-   * Root pnpm setting key.
+   * Top-level pnpm setting key.
    */
   key: string
 }

@@ -111,7 +111,14 @@ export interface PnpmCargoSettings {
 /**
  * URL-keyed registry declaration with pnpm 12.5 ecosystem support.
  */
-export interface PnpmRegistryDeclaration extends RegistryDeclaration {
+export interface PnpmRegistryDeclaration extends Omit<
+  RegistryDeclaration,
+  'serverType'
+> {
+  /**
+   * Registry protocol; pnpr tar registries require pnpm 12.15+.
+   */
+  serverType?: 'npm' | 'artifactory' | 'pnpr' | null
   /**
    * Positive integer limiting requests to this registry's origin within the
    * global networkConcurrency limit (pnpm 12.9+). Null leaves it unset.
@@ -151,6 +158,11 @@ export interface PnpmLockfileSettings {
    * default; an empty options object also enables the lockfile.
    */
   includeResolutionSettings?: boolean | null
+  /**
+   * Hash the downloaded resource or its uncompressed tar (pnpm 12.15+).
+   * Null leaves pnpm's default effective.
+   */
+  integrityTarget?: 'resource' | 'tar' | null
 }
 
 /**
@@ -184,6 +196,20 @@ export interface PnpmSkillsSettings {
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Settings delegated to local YAML files or config dependencies (12.15+).
+   * Wildcards are allowed only for local files.
+   */
+  include?: PnpmIncludeSettings
+  /**
+   * Policy for installing config dependencies and the pinned pnpm (12.15+).
+   */
+  bootConfig?: PnpmBootConfigSettings | null
+  /**
+   * Maximum unpacked bytes per tarball (11.28.7+ or 12.15+).
+   * Null leaves the upstream default effective.
+   */
+  maxTarballUnpackedSize?: number | null
   /**
    * Package-map generation and loading options (pnpm 12.13+).
    */
@@ -267,13 +293,13 @@ export interface PnpmSettingsV12 {
    */
   registries?: Record<string, PnpmRegistryDeclaration | string>
   /**
-   * Peer auto-installation policy accepted only by the v12 target.
+   * Peer auto-installation policy (v12 or confirmed v11 from 11.28.7).
    */
-  autoInstallPeersFromHighestMatch?: boolean
+  autoInstallPeersFromHighestMatch?: boolean | null
   /**
-   * External dependency names accepted only by the v12 target.
+   * External dependency names (v12 or confirmed v11 from 11.28.7).
    */
-  externalDependencies?: string[]
+  externalDependencies?: string[] | null
   /**
    * Project-aware global shim policies, or `false` to disable global shims.
    * Project configuration is accepted only before pnpm 12.8.2.
@@ -343,3 +369,44 @@ export interface PnpmRemoteCacheSettings {
    */
   org?: string | null
 }
+
+/**
+ * Bootstrap policy introduced in pnpm 12.15. Null fields fall through to the
+ * normal settings; config dependency policy never governs its own installation.
+ */
+export interface PnpmBootConfigSettings {
+  /**
+   * Minimum package age in minutes during bootstrap.
+   */
+  minimumReleaseAge?: number | null
+  /**
+   * Package patterns exempt from the bootstrap release-age policy.
+   */
+  minimumReleaseAgeExclude?: string[] | null
+  /**
+   * Require every selected version to satisfy the bootstrap release age.
+   */
+  minimumReleaseAgeStrict?: boolean | null
+  /**
+   * Permit missing publication times during bootstrap.
+   */
+  minimumReleaseAgeIgnoreMissingTime?: boolean | null
+  /**
+   * Trust evidence policy applied during bootstrap.
+   */
+  trustPolicy?: 'off' | 'no-downgrade' | null
+  /**
+   * Package patterns exempt from the bootstrap trust policy.
+   */
+  trustPolicyExclude?: string[] | null
+  /**
+   * Minutes after publication when bootstrap trust checks stop applying.
+   */
+  trustPolicyIgnoreAfter?: number | null
+}
+
+/**
+ * Settings owned by each local YAML file or declared config dependency.
+ * Lists reserve the named settings even when the source omits their values.
+ */
+export type PnpmIncludeSettings = Record<string, '*' | string[]>

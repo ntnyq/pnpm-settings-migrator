@@ -23,6 +23,10 @@ export interface ParsedPackageJson {
  */
 export interface ParsedPnpmWorkspace {
   /**
+   * Original bytes retained for unchanged included files.
+   */
+  content?: string
+  /**
    * Parsed YAML document, including comments and source formatting metadata.
    */
   document: Document

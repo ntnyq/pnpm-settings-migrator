@@ -114,6 +114,18 @@ export const PNPM_V12_13_MINIMUM_VERSION = [12, 13, 0] as const
 export const PNPM_V12_14_MINIMUM_VERSION = [12, 14, 0] as const
 
 /**
+ * Release adding unpacked tarball limits and fixing v11 peer/external settings.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_7_MINIMUM_VERSION = [11, 28, 7] as const
+
+/**
+ * Release adding boot policy, tar integrity, and unpacked tarball limits.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_15_MINIMUM_VERSION = [12, 15, 0] as const
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.11.0.
  */
 export const PNPM_V12_11_WORKSPACE_SETTINGS: readonly string[] = [
@@ -144,6 +156,20 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V11_28_7_MINIMUM_VERSION,
+    workspaceFields: [
+      'autoInstallPeersFromHighestMatch',
+      'externalDependencies',
+      'maxTarballUnpackedSize',
+    ],
+    taskFields: [],
+  },
+  {
+    minimumVersion: PNPM_V12_15_MINIMUM_VERSION,
+    workspaceFields: ['bootConfig', 'include', 'maxTarballUnpackedSize'],
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V12_13_MINIMUM_VERSION,
     workspaceFields: ['nodePackageMap', 'storeIndexFormat'],

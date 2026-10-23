@@ -20,6 +20,8 @@ export type {
   PnpmRegistryDeclaration,
   PnpmLoadedNodeLinkerSettings,
   PnpmLockfileSettings,
+  PnpmBootConfigSettings,
+  PnpmIncludeSettings,
   PnpmPackagePermissions,
   PnpmSkillsSettings,
   PnpmRemoteCacheSettings,
