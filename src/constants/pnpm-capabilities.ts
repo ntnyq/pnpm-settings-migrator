@@ -90,6 +90,12 @@ export const PNPM_V12_10_MINIMUM_VERSION = [12, 10, 0] as const
 export const PNPM_V12_11_MINIMUM_VERSION = [12, 11, 0] as const
 
 /**
+ * Release canonicalizing npm's HTTPS and protocol-relative registry aliases.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_11_1_MINIMUM_VERSION = [12, 11, 1] as const
+
+/**
  * Release introducing remote cache configuration and missing peer types.
  */
 // eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
@@ -126,6 +132,29 @@ export const PNPM_V11_28_7_MINIMUM_VERSION = [11, 28, 7] as const
 export const PNPM_V12_15_MINIMUM_VERSION = [12, 15, 0] as const
 
 /**
+ * Release introducing pnpr registry declarations in v11.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V11_28_9_MINIMUM_VERSION = [11, 28, 9] as const
+
+/**
+ * Release consuming TLS, runtime, script requirements, and dist-tag settings.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_16_MINIMUM_VERSION = [12, 16, 0] as const
+
+/**
+ * Workspace settings first consumed by pnpm v12 in 12.16.0.
+ */
+export const PNPM_V12_16_WORKSPACE_SETTINGS: readonly string[] = [
+  'localAddress',
+  'requiredScripts',
+  'runtime',
+  'strictSsl',
+  'tag',
+]
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.11.0.
  */
 export const PNPM_V12_11_WORKSPACE_SETTINGS: readonly string[] = [
@@ -156,6 +185,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_16_MINIMUM_VERSION,
+    workspaceFields: PNPM_V12_16_WORKSPACE_SETTINGS,
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V11_28_7_MINIMUM_VERSION,
     workspaceFields: [

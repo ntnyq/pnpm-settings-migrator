@@ -33,6 +33,7 @@ export const PNPM_PROJECT_REFUSED_SETTINGS: readonly string[] = [
   'scope',
   'selectedProjectsGraph',
   'stateDir',
+  'symlinkedLockfileTargetDirs',
   'tools',
   'userConfig',
   'userconfig',

@@ -120,6 +120,37 @@ describe('pnpm 12.9 registry concurrency', () => {
   })
 
   it.each([
+    { serverType: 'typo' },
+    { scopes: '@invalid' },
+    { prefix: false },
+    { unknown: true },
+    null,
+    [],
+  ])(
+    'retains a versioned map when another registry is invalid: %j',
+    async declaration => {
+      const invalid = {
+        registries: {
+          ...settings.registries,
+          'https://invalid.example/': declaration,
+        },
+      }
+      await writePackageJson({ pnpm: { ...invalid, saveExact: true } })
+      const result = await migratePnpmSettings({
+        cwd: testDir,
+        targetVersion: '12.9.0',
+      })
+      expect(result.warnings.join()).toContain('registries')
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        saveExact: true,
+      })
+      expect(
+        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
+      ).toStrictEqual(invalid)
+    },
+  )
+
+  it.each([
     { typo: true },
     { scopes: '@acme' },
     { scopes: [true] },

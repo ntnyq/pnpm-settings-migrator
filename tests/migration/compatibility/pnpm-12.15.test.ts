@@ -164,36 +164,40 @@ describe('pnpm 12.15 settings', () => {
   )
 
   it.each(['12.2.0', '12.8.2', '12.9.0', '12.14.0'])(
-    'migrates mixed registry maps with serverType at %s',
+    'retains mixed registry maps with serverType at %s',
     async targetVersion => {
       await writePackageJson({ pnpm: { registries: legacyRegistries } })
       expect(
-        (await migratePnpmSettings({ cwd: testDir, targetVersion })).warnings,
-      ).toStrictEqual([])
-      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
-        registries: legacyRegistries,
+        (
+          await migratePnpmSettings({ cwd: testDir, targetVersion })
+        ).warnings.join(),
+      ).toContain('registries')
+      await expect(readWorkspaceYaml()).rejects.toMatchObject({
+        code: 'ENOENT',
       })
       expect(
         JSON.parse(await readWorkspaceFile('package.json')).pnpm,
-      ).toBeUndefined()
+      ).toStrictEqual({ registries: legacyRegistries })
     },
   )
 
   it.each(['12.2.0', '12.8.2', '12.9.0', '12.14.0'])(
-    'preserves existing mixed registry maps with serverType at %s',
+    'rejects existing mixed registry maps with serverType at %s before writes',
     async targetVersion => {
-      await writeWorkspaceYaml(stringify({ registries: legacyRegistries }))
+      const original = stringify({ registries: legacyRegistries })
+      await writeWorkspaceYaml(original)
       await writePackageJson({ pnpm: { saveExact: true } })
-      expect(
-        (await migratePnpmSettings({ cwd: testDir, targetVersion })).warnings,
-      ).toStrictEqual([])
-      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
-        registries: legacyRegistries,
-        saveExact: true,
-      })
-      expect(
-        JSON.parse(await readWorkspaceFile('package.json')).pnpm,
-      ).toBeUndefined()
+      await writeNpmrc('save-prefix=~\n')
+      const manifest = await readWorkspaceFile('package.json')
+
+      await expect(
+        migratePnpmSettings({ cwd: testDir, targetVersion }),
+      ).rejects.toThrow(/incompatible.*registries/u)
+      await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+        original,
+      )
+      await expect(readWorkspaceFile('package.json')).resolves.toBe(manifest)
+      await expect(readWorkspaceFile('.npmrc')).resolves.toBe('save-prefix=~\n')
     },
   )
 

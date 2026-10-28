@@ -19,7 +19,8 @@ export const PNPM_V12_ONLY_WORKSPACE_SETTINGS: readonly string[] = [
 ]
 
 /**
- * Legacy fields absent from pnpm v12's workspace reader through 12.15.0.
+ * Legacy fields absent from pnpm v12's base workspace reader.
+ * Version capabilities restore fields consumed by later releases.
  * Removed aliases with explicit migration replacements are kept separately.
  *
  * @see https://github.com/pnpm/pnpm/blob/v12.15.0/pnpm/crates/config/src/workspace_yaml/settings.rs
@@ -31,6 +32,7 @@ export const PNPM_V12_IGNORED_WORKSPACE_SETTINGS: readonly string[] = [
   'auditIgnorePrune',
   'autoConfirmAllPrompts',
   'binLinks',
+  'ci',
   'commitHooks',
   'cpu',
   'depth',

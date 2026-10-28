@@ -12,6 +12,11 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { parse, stringify } from 'yaml'
 import { migratePnpmSettings } from '../src'
+import { PNPM_V12_16_MINIMUM_VERSION } from '../src/constants'
+import {
+  parsePnpmVersion,
+  supportsMinimumVersion,
+} from '../src/features/compatibility/version'
 
 /**
  * Verify source retention and actual pnpm behavior for ignored v12 settings.
@@ -45,7 +50,12 @@ export async function verifyIgnoredWorkspaceSettings(
     depth: 2,
     saveDev: true,
     fetchingConcurrency: 3,
-    requiredScripts: ['build'],
+    ...(supportsMinimumVersion(
+      parsePnpmVersion(version),
+      PNPM_V12_16_MINIMUM_VERSION,
+    )
+      ? { scriptsPrependNodePath: true }
+      : { requiredScripts: ['build'] }),
     extraBinPaths: ['./bin'],
     extraEnv: { EXAMPLE: 'value' },
     workspacePackagePatterns: ['packages/*'],

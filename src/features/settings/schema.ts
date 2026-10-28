@@ -22,7 +22,10 @@ import type {
   SelectedPnpmSettings,
   PnpmWorkspace,
 } from '../../types'
-import { hasInvalidRegistryLocations } from './registries'
+import {
+  hasConflictingRegistryRoutes,
+  hasInvalidRegistryLocations,
+} from './registries'
 import { hasIncompatibleSettingValue } from './versioned-values'
 
 /**
@@ -227,6 +230,7 @@ function resolveSettingIssue({
   }
   if (
     hasInvalidRegistryLocations(key, value) ||
+    hasConflictingRegistryRoutes(key, value, target) ||
     hasUnmigratableRuntimeFields(key, value, compatibility) ||
     hasIncompatibleSettingValue(key, value, target)
   ) {
