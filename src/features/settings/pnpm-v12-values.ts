@@ -1,15 +1,14 @@
-import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
+import { isArray, isBoolean, isString } from '@ntnyq/utils'
 import {
-  PNPM_V12_9_MINIMUM_VERSION,
   PNPM_V12_10_MINIMUM_VERSION,
   PNPM_V12_13_MINIMUM_VERSION,
   PNPM_V12_14_MINIMUM_VERSION,
   PNPM_V12_15_MINIMUM_VERSION,
-  PNPM_V12_REGISTRY_DECLARATION_FIELDS,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasIncompatibleBootSetting } from './boot-config'
+import { hasIncompatibleRegistryValue } from './registries'
 
 /**
  * Validate the package-map section without dropping future or misspelled keys.
@@ -144,88 +143,6 @@ function hasInvalidNodeLinkerOptions(value: object): boolean {
 }
 
 /**
- * Check the declared type of a non-null registry option.
- *
- * @param field - Registry declaration field name
- * @param value - Untrusted option value
- * @param target - Release controlling registry server types
- *
- * @returns Whether a nested option is invalid for pnpm 12.9
- */
-function hasInvalidRegistryOptionValue(
-  field: string,
-  value: unknown,
-  target: ResolvedPnpmTarget,
-): boolean {
-  switch (field) {
-    case 'networkConcurrency':
-      return !isNumber(value) || !Number.isSafeInteger(value) || value <= 0
-    case 'ecosystem':
-      return !isString(value) || !['npm', 'cargo', 'pypi'].includes(value)
-    case 'packages':
-      return !isArray(value) || !value.every(isString)
-    case 'scopes':
-      return (
-        !isArray(value) ||
-        value.some(scope => !isString(scope) || !scope.startsWith('@'))
-      )
-    case 'prefix':
-      return !isString(value)
-    case 'serverType':
-      return (
-        !isString(value) ||
-        ![
-          'npm',
-          'artifactory',
-          ...(supportsMinimumVersion(
-            target.version,
-            PNPM_V12_15_MINIMUM_VERSION,
-          )
-            ? ['pnpr']
-            : []),
-        ].includes(value)
-      )
-    case 'supportsTimeField':
-      return !isBoolean(value)
-    default:
-      return true
-  }
-}
-
-/**
- * Validate a registry declaration that opts into per-registry concurrency.
- *
- * @param declaration - Registry options containing versioned fields
- * @param target - Release controlling registry server types
- *
- * @returns Whether a nested option is invalid for pnpm 12.9
- */
-function hasInvalidRegistryConcurrencyDeclaration(
-  declaration: object,
-  target: ResolvedPnpmTarget,
-): boolean {
-  const ecosystem: unknown = Reflect.get(declaration, 'ecosystem') ?? 'npm'
-  return Object.entries(declaration).some(([field, value]) => {
-    if (!PNPM_V12_REGISTRY_DECLARATION_FIELDS.includes(field)) {
-      return true
-    }
-    if (value === null) {
-      return false
-    }
-    if (field === 'packages' && ecosystem !== 'pypi') {
-      return true
-    }
-    if (
-      ['scopes', 'prefix', 'serverType', 'supportsTimeField'].includes(field) &&
-      ecosystem !== 'npm'
-    ) {
-      return true
-    }
-    return hasInvalidRegistryOptionValue(field, value, target)
-  })
-}
-
-/**
  * Validate scalar alternatives of the pnpm 12.10 linker and lockfile unions.
  *
  * @param key - Canonical setting name
@@ -341,34 +258,7 @@ export function hasIncompatibleV12SettingValue(
     return hasInvalidLockfileOptions(value, target)
   }
   if (key === 'registries') {
-    const entries: unknown[] = Object.values(value)
-    return entries.some(entry => {
-      if (
-        !entry ||
-        typeof entry !== 'object' ||
-        (!Object.hasOwn(entry, 'networkConcurrency') &&
-          !(
-            Object.hasOwn(entry, 'serverType') &&
-            (Reflect.get(entry, 'serverType') === 'pnpr' ||
-              supportsMinimumVersion(
-                target.version,
-                PNPM_V12_15_MINIMUM_VERSION,
-              ))
-          ))
-      ) {
-        return false
-      }
-      if (
-        Object.hasOwn(entry, 'networkConcurrency') &&
-        !supportsMinimumVersion(target.version, PNPM_V12_9_MINIMUM_VERSION)
-      ) {
-        return true
-      }
-      return (
-        entries.some(isString) ||
-        hasInvalidRegistryConcurrencyDeclaration(entry, target)
-      )
-    })
+    return hasIncompatibleRegistryValue(value, target)
   }
   return false
 }

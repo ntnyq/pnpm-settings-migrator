@@ -7,11 +7,15 @@ import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { parseAllDocuments, stringify } from 'yaml'
 import { migratePnpmSettings } from '../src'
-import { PNPM_V12_15_MINIMUM_VERSION } from '../src/constants'
+import {
+  PNPM_V11_28_9_MINIMUM_VERSION,
+  PNPM_V12_15_MINIMUM_VERSION,
+} from '../src/constants'
 import {
   parsePnpmVersion,
   supportsMinimumVersion,
 } from '../src/features/compatibility/version'
+import { verifyInvalidRegistrySiblings } from './verify-pnpm-registry-declarations'
 
 /**
  * HTTP response for fixture routes that do not exist.
@@ -82,6 +86,93 @@ async function resetInstall(cwd: string): Promise<void> {
 }
 
 /**
+ * Verify v11 pnpr URLs and frozen installs after registry migration.
+ *
+ * @param options - Release, workspace, runner, registry, and migrated settings
+ *
+ * @returns A promise resolved after fresh and frozen installs
+ */
+async function verifyV11Pnpr(options: {
+  version: string
+  cwd: string
+  runPnpm: PnpmRunner
+  registry: string
+  validSettings: Record<string, unknown>
+}): Promise<void> {
+  const { version, cwd, runPnpm, registry, validSettings } = options
+  if (
+    !supportsMinimumVersion(
+      parsePnpmVersion(version),
+      PNPM_V11_28_9_MINIMUM_VERSION,
+    )
+  ) {
+    return
+  }
+  const manifestPath = join(cwd, 'package.json')
+  const workspacePath = join(cwd, 'pnpm-workspace.yaml')
+  const lockPath = join(cwd, 'pnpm-lock.yaml')
+  const registries = {
+    [registry]: { serverType: 'pnpr', scopes: ['@'], prefix: 'fixture' },
+    'https://unused.example/': { serverType: 'npm', scopes: ['@unused'] },
+  }
+  await writeFile(
+    manifestPath,
+    JSON.stringify({
+      name: 'pnpr-consumption',
+      private: true,
+      dependencies: { [packageName]: 'fixture:1.0.0' },
+      pnpm: { registries },
+    }),
+  )
+  await writeFile(
+    workspacePath,
+    stringify({
+      ...validSettings,
+    }),
+  )
+  assert.deepEqual(
+    (await migratePnpmSettings({ cwd, targetVersion: version })).warnings,
+    [],
+  )
+  const listed = await runPnpm(version, cwd, ['config', 'list', '--json'])
+  assert.doesNotMatch(
+    listed.stderr,
+    /unrecognized|unknown.*setting|were ignored/iu,
+  )
+  await resetInstall(cwd)
+  await rm(lockPath)
+  const installed = await runPnpm(version, cwd, [
+    'install',
+    '--no-frozen-lockfile',
+  ])
+  assert.doesNotMatch(
+    installed.stderr,
+    /unrecognized|unknown.*setting|were ignored/iu,
+  )
+  const pnprLockfileText = await readFile(lockPath, 'utf8')
+  const pnprLockfile = parseAllDocuments(pnprLockfileText)[0]!.toJSON()
+  assert.equal(
+    pnprLockfile.packages[`${packageName}@fixture:1.0.0`].resolution.tarball,
+    undefined,
+  )
+  await resetInstall(cwd)
+  await runPnpm(version, cwd, ['install', '--frozen-lockfile'])
+  assert.equal(await readFile(lockPath, 'utf8'), pnprLockfileText)
+  await verifyInvalidRegistrySiblings(options, registries)
+}
+
+/**
+ * Hash fixture bytes in the integrity representation used by pnpm.
+ *
+ * @param bytes - Compressed or uncompressed tarball bytes
+ *
+ * @returns SHA-512 subresource integrity string
+ */
+function hash(bytes: Uint8Array): string {
+  return `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+}
+
+/**
  * Prove unpack limits and tar integrity through a local, deterministic registry.
  *
  * @param version - Release supporting unpack limits
@@ -101,8 +192,6 @@ export async function verifyTarballConsumption(
   )
   const tgz = await createTarball(version, cwd, runPnpm)
   const tar = gunzipSync(tgz)
-  const hash = (bytes: Uint8Array) =>
-    `sha512-${createHash('sha512').update(bytes).digest('base64')}`
   let registry = ''
   let servesTar = false
   const server = createServer((request, response) => {
@@ -120,7 +209,7 @@ export async function verifyTarballConsumption(
               dist: servesTar
                 ? { integrity: hash(tar) }
                 : {
-                    tarball: `${registry}${packageName}/-/fixture.tgz`,
+                    tarball: `${registry}${packageName}@1.0.0`,
                     integrity: hash(tgz),
                   },
             },
@@ -213,6 +302,8 @@ export async function verifyTarballConsumption(
     }
     await runPnpm(version, cwd, ['install', '--frozen-lockfile'])
     assert.equal(await readFile(lockPath, 'utf8'), lockfileText)
+    await verifyV11Pnpr({ version, cwd, runPnpm, registry, validSettings })
+
     if (supportsTar) {
       servesTar = true
       // A distinct registry URL avoids reusing the tgz registry's cached metadata.

@@ -8,6 +8,7 @@ import { migratePnpmSettings } from '../src'
 import {
   PNPM_V11_28_6_MINIMUM_VERSION,
   PNPM_V11_28_7_MINIMUM_VERSION,
+  PNPM_V11_28_9_MINIMUM_VERSION,
   PNPM_V12_14_MINIMUM_VERSION,
   PNPM_V12_15_MINIMUM_VERSION,
 } from '../src/constants'
@@ -59,6 +60,8 @@ export async function verifyPnpm12_15(
     PNPM_V11_28_7_MINIMUM_VERSION,
   )
   const supportsLimit = supportsTar || supportsV11
+  const supportsPnpr =
+    supportsTar || supportsMinimumVersion(parsed, PNPM_V11_28_9_MINIMUM_VERSION)
   const cwd = await mkdtemp(join(tmpdir(), 'pnpm-settings-12.15-'))
   try {
     const manifestPath = join(cwd, 'package.json')
@@ -91,7 +94,10 @@ export async function verifyPnpm12_15(
     assert.equal(result.warnings.length > 0, !supportsTar)
     const expected = {
       saveExact: true,
-      ...(supportsTar ? newSettings : {}),
+      ...(supportsTar
+        ? { bootConfig: newSettings.bootConfig, lockfile: newSettings.lockfile }
+        : {}),
+      ...(supportsPnpr ? { registries: newSettings.registries } : {}),
       ...(supportsLimit ? { maxTarballUnpackedSize: MAX_UNPACKED_BYTES } : {}),
       ...(supportsV11 || version.startsWith('12.') ? v11Settings : {}),
     }
@@ -102,7 +108,9 @@ export async function verifyPnpm12_15(
       supportsTar
         ? undefined
         : {
-            ...newSettings,
+            bootConfig: newSettings.bootConfig,
+            lockfile: newSettings.lockfile,
+            ...(supportsPnpr ? {} : { registries: newSettings.registries }),
             ...(supportsLimit
               ? {}
               : { maxTarballUnpackedSize: MAX_UNPACKED_BYTES }),

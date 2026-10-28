@@ -11,6 +11,7 @@ import {
   PNPM_V12_5_MINIMUM_VERSION,
   PNPM_V12_5_1_MINIMUM_VERSION,
   PNPM_V12_12_1_MINIMUM_VERSION,
+  PNPM_V12_16_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
@@ -70,6 +71,38 @@ function hasInvalidV11PatchValue(
     if (['ignoredOptionalDependencies', 'requiredScripts'].includes(key)) {
       return !isArray(value) || !value.every(isString)
     }
+  }
+  return false
+}
+
+/**
+ * Validate the fields newly consumed or ignored by pnpm 12.16.
+ *
+ * @param key - Canonical setting name
+ * @param value - Untrusted source value
+ * @param target - Release controlling the workspace reader
+ *
+ * @returns Whether the setting cannot be represented for this target
+ */
+function hasInvalidV12_16Value(
+  key: string,
+  value: unknown,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (!supportsMinimumVersion(target.version, PNPM_V12_16_MINIMUM_VERSION)) {
+    return false
+  }
+  if (key === 'scriptsPrependNodePath') {
+    return true
+  }
+  if (['strictSsl', 'runtime'].includes(key)) {
+    return value !== null && !isBoolean(value)
+  }
+  if (['localAddress', 'tag'].includes(key)) {
+    return value !== null && !isString(value)
+  }
+  if (key === 'requiredScripts') {
+    return value !== null && (!isArray(value) || !value.every(isString))
   }
   return false
 }
@@ -136,6 +169,9 @@ function hasInvalidReleaseValue(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
+  if (hasInvalidV12_16Value(key, value, target)) {
+    return true
+  }
   if (
     key === 'globalShims' &&
     supportsMinimumVersion(target.version, PNPM_V12_8_2_MINIMUM_VERSION)

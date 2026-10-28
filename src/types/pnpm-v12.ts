@@ -116,7 +116,7 @@ export interface PnpmRegistryDeclaration extends Omit<
   'serverType'
 > {
   /**
-   * Registry protocol; pnpr tar registries require pnpm 12.15+.
+   * Registry protocol; pnpr requires pnpm 11.28.9+ or 12.15+.
    */
   serverType?: 'npm' | 'artifactory' | 'pnpr' | null
   /**
@@ -196,6 +196,28 @@ export interface PnpmSkillsSettings {
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Verify registry TLS certificates (consumed by v12 from 12.16).
+   * Null leaves the upstream default effective.
+   */
+  strictSsl?: boolean | null
+  /**
+   * Source IP for registry connections (consumed by v12 from 12.16).
+   * Invalid addresses are treated as unset by pnpm.
+   */
+  localAddress?: string | null
+  /**
+   * Install declared runtimes unless false (consumed by v12 from 12.16).
+   */
+  runtime?: boolean | null
+  /**
+   * Scripts every selected workspace project must define (v12.16+).
+   */
+  requiredScripts?: string[] | null
+  /**
+   * Default distribution tag used when adding packages (v12.16+).
+   */
+  tag?: string | null
   /**
    * Settings delegated to local YAML files or config dependencies (12.15+).
    * Wildcards are allowed only for local files.

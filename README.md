@@ -333,6 +333,26 @@ destination write fails. Credentials and trusted global settings keep their
 existing protections. Earlier or unconfirmed targets retain incoming include
 indexes with diagnostics and reject existing included workspaces.
 
+From pnpm 12.16.0, `strictSsl` and `runtime` accept booleans or null,
+`localAddress` and `tag` accept strings or null, and `requiredScripts` accepts
+string arrays or null. These settings remain in their sources for earlier or
+unconfirmed v12 targets. `runtime: false` disables installing declared runtimes;
+`tag: next` selects that distribution tag when adding a package without a version.
+Invalid IP address strings stay unchanged because pnpm treats them as unset.
+String placeholders are preserved without expansion. Invalid types keep the
+complete setting in its source. For example, `required-scripts[]=build` becomes
+`requiredScripts: [build]` at 12.16.0 and stays in `.npmrc` at 12.15.0.
+
+From pnpm 11.28.9, v11 registry declarations also accept `serverType: pnpr`.
+Earlier or unconfirmed v11 targets retain the complete registry map. The setting
+does not enable v12-only registry fields such as `networkConcurrency` or `ecosystem`.
+
+pnpm 12.16 no longer consumes `scriptsPrependNodePath`, so the migrator keeps
+incoming values in their sources and rejects existing workspace values before
+writes. Project `ci` values and the global-only `symlinkedLockfileTargetDirs`
+also stay in their sources. Configure the latter in trusted global configuration
+or through `PNPM_CONFIG_SYMLINKED_LOCKFILE_TARGET_DIRS`.
+
 pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
 hooks, not workspace YAML. These settings remain in their source with
 diagnostics for v12 targets; existing YAML containing them blocks migration.
@@ -385,6 +405,24 @@ Notes:
 - Invalid registry locations, including relative paths and object property names
   such as `__proto__`, remain in their sources with diagnostics. Registry
   conversion never uses inherited object properties as declarations.
+- Registry maps are validated as a whole, including declarations without
+  versioned fields. An invalid sibling
+  declaration keeps every registry in its source under all merge strategies;
+  existing incompatible maps block migration before any writes.
+- A URL key must name a declaration object. String values are accepted only in
+  the legacy scope map representation, whose keys cannot look like URLs.
+  Invalid registry settings remain intact in `package.json` and `.npmrc`, while
+  unrelated valid settings can still migrate and be cleaned from their sources.
+- Legacy `<scope>: <url>` routes and URL-keyed declarations cannot be mixed,
+  including when `replaceDeprecated` introduces the mixture. The structure is
+  checked independently of versioned registry fields.
+- Registry prefixes must be unique. A scope may be repeated only when it routes
+  to the same registry after the target pnpm version's URL normalization. From
+  12.11.1, the exact HTTPS and protocol-relative npm `.com` registry roots are
+  equivalent to `.org`; earlier or unconfirmed v12 targets compare them literally.
+  Routing conflicts introduced by merging or deprecated-setting conversion stop
+  migration before any destination writes
+  or source cleanup, including when registries belong to an included YAML file.
 - Dynamic `${...}` values in `httpProxy`, `httpsProxy`, `noProxy`, `proxy`, and
   `noproxy` stay in their source for every target. Project YAML does not expand
   these placeholders; configure them globally in trusted configuration or use
@@ -429,21 +467,29 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.7 and 12.15.0, including 11.28.0,
+- Compatibility checks cover pnpm 11.28.9 and 12.16.1, including 11.28.0,
   11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
   12.8.1, 12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1,
-  12.11.2, 12.12.0, 12.12.1, 12.13.0, and 12.14.0.
+  12.11.2, 12.12.0, 12.12.1, 12.13.0, 12.14.0, 11.28.7, 11.28.8,
+  12.15.0, and 12.16.0.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-22](docs/research/pnpm-settings-bump-2026-10-22.md),
-  npm `latest` and the highest confirmed stable release are 12.15.0, also on
-  `latest-12` and `next-12`. The highest stable v11 release, 11.28.7, is on
-  `next-11`; `latest-11` still points to 11.28.6. GitHub marks both targets as
-  non-prereleases. The project is pinned to 12.15.0. These checks verify the
+  As [audited on 2026-10-29](docs/research/pnpm-settings-bump-2026-10-29.md),
+  npm `latest` and the highest confirmed stable release are 12.16.1, also on
+  `latest-12` and `next-12`. The highest stable v11 release, 11.28.9, is on
+  `latest-11` and `next-11`. GitHub marks both targets as non-prereleases.
+  The project is pinned to 12.16.1. These checks verify the
   documented fixtures, not every setting in every release. Local and config
   dependency `include` consumption is verified on 12.15.0, with 12.14.0 as the
   preceding boundary. v10 has unit regressions and source review
-  through 10.34.7; real v10 consumption remains unverified.
+  through 10.34.9; real v10 consumption remains unverified. The 12.16 fixtures
+  verify TLS certificate handling against a temporary HTTPS registry, dist-tag
+  selection, runtime suppression, required script enforcement, and frozen
+  installs. They use OpenSSL to create a disposable certificate.
+  Routing fixtures at 11.28.8, 11.28.9, 12.9.0, 12.10.0, 12.11.0, 12.11.1,
+  12.11.2, 12.15.0, and 12.16.1 verify prefix/scope conflicts, mixed registry
+  representations after conversion, and rejection before writes under all three
+  strategies. They compare native URL normalization across the 12.11.1 boundary.
   The removed `pnpm install --resolution-only` CLI flag is outside this settings
   migrator's scope; replace it with `pnpm peers check` in scripts before upgrading.
 

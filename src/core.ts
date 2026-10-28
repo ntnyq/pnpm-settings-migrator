@@ -266,6 +266,7 @@ export async function migratePnpmSettings(
     incomingSettings,
     options.strategy,
   )
+  assertCompatibleWorkspaceSettings(pnpmWorkspaceResult, target)
 
   const workspaceFiles =
     workspace.include === undefined

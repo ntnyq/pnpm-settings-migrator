@@ -191,6 +191,7 @@ export type PnpmWorkspace = Omit<
   | 'nodeLinker'
   | 'provenance'
   | 'registries'
+  | 'requiredScripts'
   | 'sideEffectsCache'
   | 'supportedArchitectures'
   | 'tasks'
