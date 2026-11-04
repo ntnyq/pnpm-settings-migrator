@@ -1,6 +1,6 @@
-import { isDeepStrictEqual } from 'node:util'
 import { unique } from '@ntnyq/utils'
 import type { PnpmWorkspace, SettingsChange } from '../../types'
+import { isSameSetting } from '../../utils/setting-value'
 
 /**
  * Collect changed root settings between two workspace configurations.
@@ -22,7 +22,7 @@ export function collectSettingsChanges(
   ])
 
   return keys
-    .filter(key => !isDeepStrictEqual(beforeSettings[key], afterSettings[key]))
+    .filter(key => !isSameSetting(key, beforeSettings[key], afterSettings[key]))
     .map(key => ({
       after: afterSettings[key],
       before: beforeSettings[key],

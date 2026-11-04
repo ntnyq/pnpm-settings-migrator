@@ -104,7 +104,7 @@ export function reportReadonlyIncludes(
           settings.skills?.dirs?.length === 0 &&
           workspace.value.skills?.dirs?.length !== 0
         return !disabledSkills &&
-          containsMigratedValue(Reflect.get(workspace.value, key), value)
+          containsMigratedValue(Reflect.get(workspace.value, key), value, key)
           ? []
           : [key]
       })

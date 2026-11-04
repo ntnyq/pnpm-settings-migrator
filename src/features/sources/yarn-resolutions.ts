@@ -1,16 +1,21 @@
 import { YARN_PACKAGE_SELECTOR_PATTERN } from '../../constants'
-import type { ResolvedYarnResolutions } from '../../types'
+import type { ResolvedPnpmTarget, ResolvedYarnResolutions } from '../../types'
+import { hasIncompatibleOverrides } from '../settings/overrides'
 
 /**
  * Translate plain and global Yarn package selectors, retaining path-specific
  * selectors and conflicting translations for manual migration.
  *
+ * @param target - Release that must accept each translated override
  * @param resolutions - Original Yarn version resolutions
+ * @param retainedOverrides - Explicit pnpm overrides that must stay in the source
  *
  * @returns Supported overrides, source selector mappings, and retention warnings
  */
 export function resolveYarnResolutions(
+  target: ResolvedPnpmTarget,
   resolutions: Record<string, string> = {},
+  retainedOverrides?: Record<string, string>,
 ): ResolvedYarnResolutions {
   const result: ResolvedYarnResolutions = {
     overrides: {},
@@ -21,7 +26,14 @@ export function resolveYarnResolutions(
 
   for (const [key, value] of Object.entries(resolutions)) {
     const selector = key.replace(/^\*\*\//u, '')
-    if (YARN_PACKAGE_SELECTOR_PATTERN.test(selector)) {
+    if (retainedOverrides && Object.hasOwn(retainedOverrides, selector)) {
+      result.warnings.push(
+        `Kept Yarn resolution ${JSON.stringify(key)} in package.json because its explicit pnpm override was retained.`,
+      )
+    } else if (
+      YARN_PACKAGE_SELECTOR_PATTERN.test(selector) &&
+      !hasIncompatibleOverrides('overrides', { [selector]: value }, target)
+    ) {
       result.selectors[key] = selector
       if (
         Object.hasOwn(result.overrides, selector) &&

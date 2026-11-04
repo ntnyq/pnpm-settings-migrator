@@ -1,5 +1,4 @@
 import { isPlainObject } from '@ntnyq/utils'
-import { defu } from 'defu'
 import detectIndent from 'detect-indent'
 import { Document, parseDocument, isMap } from 'yaml'
 import { DEFAULT_INDENT } from '../../constants'
@@ -13,6 +12,7 @@ import type {
   CleanPackageJsonSettingsOptions,
 } from '../../types'
 import { fsReadFile } from '../../utils/fs'
+import { mergeByStrategy } from '../../utils/merge'
 import { selectPnpmSettings } from '../settings/schema'
 import { resolveYarnResolutions } from './yarn-resolutions'
 
@@ -129,14 +129,19 @@ export function resolvePackageJsonSettings(
     target,
   )
   const resolutions = resolveYarnResolutions(
+    target,
     yarnResolutions ? packageJson.resolutions : undefined,
+    selected.issues.incompatible.includes('overrides')
+      ? packageJson.pnpm?.overrides
+      : undefined,
   )
   const migrateYarnResolutions = Object.keys(resolutions.selectors).length > 0
   const pnpmSettings: PnpmWorkspace = migrateYarnResolutions
-    ? {
-        ...selected.settings,
-        overrides: defu(selected.settings.overrides, resolutions.overrides),
-      }
+    ? mergeByStrategy(
+        { ...selected.settings, overrides: selected.settings.overrides ?? {} },
+        { overrides: resolutions.overrides },
+        'discard',
+      )
     : { ...selected.settings }
 
   if (pnpmSettings.overrides && !Object.keys(pnpmSettings.overrides).length) {

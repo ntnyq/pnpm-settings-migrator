@@ -1,31 +1,98 @@
-import { isDeepStrictEqual } from 'node:util'
 import type { Alias, Node, Document } from 'yaml'
-import { isMap, isScalar, isNode, isSeq, visit } from 'yaml'
+import { isAlias, isMap, isScalar, isNode, isSeq, visit } from 'yaml'
 import type { UpdateYamlDocumentOptions } from '../types'
+import { hasOrderedSelectors, isSameSetting } from './setting-value'
 
 /**
- * Sort every mapping in a YAML node without replacing its comments or anchors.
+ * Identify a YAML merge directive, including the distinction from a quoted key.
+ *
+ * @param key - Mapping key from the parsed YAML document
+ *
+ * @returns Whether the key inherits entries from another mapping
+ */
+function isMergeKey(key: unknown): boolean {
+  return (
+    isScalar(key) &&
+    typeof key.value === 'symbol' &&
+    key.value.description === '<<'
+  )
+}
+
+/**
+ * Locate order-sensitive overrides, including anchors shared with other
+ * settings and copies used to repair aliases after sorting.
+ *
+ * @param document - YAML document before keys are reordered
+ * @param aliases - Materialized values of aliases in the original document
+ *
+ * @returns Mapping nodes that must retain their selector order
+ */
+function findOrderedOverrides(
+  document: Document,
+  aliases: Map<Alias, Node>,
+): Set<Node> {
+  const ordered = new Set<Node>()
+  const protect = (node: unknown): void => {
+    if (!isNode(node) || ordered.has(node)) {
+      return
+    }
+    if (isAlias(node)) {
+      ordered.add(node)
+      protect(node.resolve(document))
+      protect(aliases.get(node))
+    } else if (isSeq(node)) {
+      ordered.add(node)
+      node.items.forEach(protect)
+    } else if (isMap(node)) {
+      const merges = node.items.filter(pair => isMergeKey(pair.key))
+      const keys = node.items.map(item =>
+        String(isScalar(item.key) ? item.key.value : item.key),
+      )
+      if (merges.length || hasOrderedSelectors(keys)) {
+        ordered.add(node)
+        merges.forEach(pair => protect(pair.value))
+      }
+    }
+  }
+  for (const root of [document, ...aliases.values()]) {
+    visit(root, {
+      Pair(_, pair) {
+        if ((isScalar(pair.key) ? pair.key.value : pair.key) === 'overrides') {
+          protect(pair.value)
+        }
+      },
+    })
+  }
+  return ordered
+}
+
+/**
+ * Sort YAML mappings while preserving override precedence, comments and anchors.
  *
  * @param node - YAML node whose nested mappings should be sorted
+ * @param ordered - Override maps whose selector order is significant
  */
-function sortYamlMappings(node: Node | null): void {
+function sortYamlMappings(node: Node | null, ordered: ReadonlySet<Node>): void {
   if (isMap(node)) {
+    if (ordered.has(node)) {
+      return
+    }
     node.items.sort((left, right) => {
-      const leftKey = isScalar(left.key) ? String(left.key.value) : ''
-      const rightKey = isScalar(right.key) ? String(right.key.value) : ''
+      const leftKey = String(isScalar(left.key) ? left.key.value : left.key)
+      const rightKey = String(isScalar(right.key) ? right.key.value : right.key)
 
       return leftKey.localeCompare(rightKey)
     })
 
     for (const pair of node.items) {
       if (isNode(pair.value)) {
-        sortYamlMappings(pair.value)
+        sortYamlMappings(pair.value, ordered)
       }
     }
   } else if (isSeq(node)) {
     for (const item of node.items) {
       if (isNode(item)) {
-        sortYamlMappings(item)
+        sortYamlMappings(item, ordered)
       }
     }
   }
@@ -49,7 +116,7 @@ export function updateYamlDocument(
   for (const key of Object.keys(before)) {
     if (
       !Object.hasOwn(after, key) ||
-      !isDeepStrictEqual(Reflect.get(before, key), Reflect.get(after, key))
+      !isSameSetting(key, Reflect.get(before, key), Reflect.get(after, key))
     ) {
       const node = document.get(key, true)
       if (isNode(node)) {
@@ -84,12 +151,7 @@ export function updateYamlDocument(
       key => !Object.hasOwn(after, key) && !document.has(key),
     )
   ) {
-    const merges = document.contents.items.filter(
-      pair =>
-        isScalar(pair.key) &&
-        typeof pair.key.value === 'symbol' &&
-        pair.key.value.description === '<<',
-    )
+    const merges = document.contents.items.filter(pair => isMergeKey(pair.key))
     for (const pair of merges) {
       if (isNode(pair.key) && pair.key.commentBefore) {
         document.commentBefore = [
@@ -126,14 +188,17 @@ export function updateYamlDocument(
   for (const [key, value] of Object.entries(after)) {
     if (
       !Object.hasOwn(before, key) ||
-      !isDeepStrictEqual(Reflect.get(before, key), value)
+      !isSameSetting(key, Reflect.get(before, key), value)
     ) {
       document.set(key, value)
     }
   }
 
-  if (sortKeys) {
-    sortYamlMappings(document.contents)
+  const ordered = sortKeys
+    ? findOrderedOverrides(document, aliasValues)
+    : undefined
+  if (ordered) {
+    sortYamlMappings(document.contents, ordered)
   }
 
   // Keep valid aliases, but materialize the original value if their target was
@@ -147,8 +212,8 @@ export function updateYamlDocument(
         (target && replacedNodes.has(target))
       ) {
         const value = aliasValues.get(node)
-        if (value && sortKeys) {
-          sortYamlMappings(value)
+        if (value && ordered) {
+          sortYamlMappings(value, ordered)
         }
         return value
       }

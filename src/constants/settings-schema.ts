@@ -11,6 +11,13 @@ import {
 import { PNPM_PROJECT_REFUSED_SETTINGS } from './settings-fields'
 
 /**
+ * Names accepted by the 12.17 override parser, including legacy npm name
+ * characters and wildcards in either half of a scoped name.
+ */
+export const OVERRIDE_PACKAGE_NAME_PATTERN =
+  /^(?:@[A-Za-z0-9.!~*'()_-]+\/(?!\.)|(?![._-]))[A-Za-z0-9.!~*'()_-]+$/u
+
+/**
  * Legacy npmrc fields plus manifest-only fields accepted by the v10 selector.
  */
 export const PNPM_V10_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [

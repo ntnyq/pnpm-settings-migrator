@@ -18,6 +18,7 @@ import type {
   NpmRC,
 } from '../../types'
 import { fsReadFile, fsRemoveFile, fsWriteFileIfChanged } from '../../utils/fs'
+import { hasIncompatibleOverrides } from '../settings/overrides'
 import { createSettingsIssues, selectPnpmSettings } from '../settings/schema'
 
 /**
@@ -231,6 +232,13 @@ export async function readMigratableNpmrc(
     )
     const keys = Object.keys(raw).filter(key => {
       const canonicalKey = Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
+      if (
+        canonicalKey === 'overrides' &&
+        hasIncompatibleOverrides(canonicalKey, raw[key], target)
+      ) {
+        issues.incompatible.push(key)
+        return false
+      }
       if (
         PROXY_SETTINGS.has(canonicalKey) &&
         isString(raw[key]) &&

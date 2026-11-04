@@ -1,4 +1,3 @@
-import { isDeepStrictEqual } from 'node:util'
 import { isPlainObject } from '@ntnyq/utils'
 import type {
   IncludedWorkspace,
@@ -8,10 +7,12 @@ import type {
   WorkspaceFileWrite,
   WorkspaceSettingsFile,
 } from '../../../types'
+import { isSameSetting } from '../../../utils/setting-value'
 import {
   formatRootSpacing,
   updateYamlDocument,
 } from '../../../utils/yaml-document'
+import { collectSettingsChanges } from '../../settings/changes'
 import { assertCompatibleWorkspaceSettings } from '../../settings/schema'
 import {
   defineIncludedSettings,
@@ -116,7 +117,7 @@ function localSettings(
   for (const [key, value] of Object.entries(settings)) {
     if (
       Object.hasOwn(original, key) &&
-      isDeepStrictEqual(Reflect.get(effective, key), value)
+      isSameSetting(key, Reflect.get(effective, key), value)
     ) {
       Reflect.set(rebased, key, Reflect.get(original, key))
     }
@@ -194,7 +195,7 @@ export function renderIncludedWorkspace(
     .map(file => {
       const parsed = file.parsed!
       const after = destinations.get(file)!
-      const unchanged = isDeepStrictEqual(after, parsed.value)
+      const unchanged = collectSettingsChanges(parsed.value, after).length === 0
       if (!unchanged) {
         updateYamlDocument(parsed.document, {
           before: parsed.value,

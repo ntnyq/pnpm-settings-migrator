@@ -15,6 +15,7 @@ import {
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
+import { hasIncompatibleOverrides } from './overrides'
 import { hasInvalidPermissionSettings } from './permissions'
 import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
 import { hasInvalidRemoteCacheValue } from './remote-cache'
@@ -128,6 +129,9 @@ function hasInvalidScalarValue(
     return !isNumber(value) || !Number.isSafeInteger(value) || value < 0
   }
   if (target.compatibility === 'v12') {
+    if (key === 'publishBranch') {
+      return value !== null && !isString(value)
+    }
     if (key === 'reporter') {
       return (
         !isString(value) ||
@@ -135,7 +139,7 @@ function hasInvalidScalarValue(
           !['default', 'append-only', 'ndjson', 'silent'].includes(value))
       )
     }
-    if (key === 'provenance' || key === 'addMissingPeerTypes') {
+    if (['provenance', 'addMissingPeerTypes', 'gitTagVersion'].includes(key)) {
       return value !== null && !isBoolean(value)
     }
     if (key === 'progress') {
@@ -246,6 +250,7 @@ export function hasIncompatibleSettingValue(
   target: ResolvedPnpmTarget,
 ): boolean {
   if (
+    hasIncompatibleOverrides(key, value, target) ||
     hasInvalidPermissionSettings(key, value) ||
     hasInvalidRemoteCacheValue(key, value) ||
     hasInvalidReleaseValue(key, value, target) ||
@@ -285,7 +290,7 @@ export function hasIncompatibleSettingValue(
       )
     })
   }
-  if (key === 'python' || key === 'cargo') {
+  if (['python', 'cargo'].includes(key)) {
     if (supportsV12_5 && Object.hasOwn(value, 'indexUrl')) {
       return true
     }

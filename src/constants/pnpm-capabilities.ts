@@ -144,6 +144,12 @@ export const PNPM_V11_28_9_MINIMUM_VERSION = [11, 28, 9] as const
 export const PNPM_V12_16_MINIMUM_VERSION = [12, 16, 0] as const
 
 /**
+ * Release consuming version/publish settings and grouped or wildcard overrides.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_17_MINIMUM_VERSION = [12, 17, 0] as const
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.16.0.
  */
 export const PNPM_V12_16_WORKSPACE_SETTINGS: readonly string[] = [
@@ -185,6 +191,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_17_MINIMUM_VERSION,
+    workspaceFields: ['gitTagVersion', 'publishBranch'],
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V12_16_MINIMUM_VERSION,
     workspaceFields: PNPM_V12_16_WORKSPACE_SETTINGS,
