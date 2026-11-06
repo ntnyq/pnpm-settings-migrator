@@ -5,6 +5,11 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { stringify } from 'yaml'
 import { migratePnpmSettings } from '../src'
+import { PNPM_V12_18_MINIMUM_VERSION } from '../src/constants'
+import {
+  parsePnpmVersion,
+  supportsMinimumVersion,
+} from '../src/features/compatibility/version'
 import { verifyRegistryConversions } from './verify-pnpm-registry-conversion'
 import { verifyRegistryValues } from './verify-pnpm-registry-values'
 
@@ -227,4 +232,25 @@ export async function verifyRegistryRoutes(
   } finally {
     await rm(cwd, { recursive: true, force: true })
   }
+}
+
+/**
+ * Locate a default-registry package before and after prefix-key normalization.
+ *
+ * @param version - Release producing the lockfile
+ * @param packageName - Registry fixture package name
+ *
+ * @returns Expected key for the fixture's explicitly prefixed dependency
+ */
+export function getRegistryFixturePackageKey(
+  version: string,
+  packageName: string,
+): string {
+  const parsed = parsePnpmVersion(version)
+  // eslint-disable-next-line no-magic-numbers -- Exact v11 lockfile boundary.
+  const v11Minimum = [11, 28, 11] as const
+  const plainKeys =
+    supportsMinimumVersion(parsed, v11Minimum) ||
+    supportsMinimumVersion(parsed, PNPM_V12_18_MINIMUM_VERSION)
+  return `${packageName}@${plainKeys ? '' : 'fixture:'}1.0.0`
 }
