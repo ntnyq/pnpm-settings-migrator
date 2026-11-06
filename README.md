@@ -92,7 +92,9 @@ Current working directory.
 - **Type**: `boolean`
 - **Default**: `false`
 
-Sort keys in written workspace and local include YAML documents.
+Sort keys in written workspace and local include YAML documents. Override maps
+with potentially overlapping selectors keep their declaration order so the same
+dependency wins when two selectors are equally specific.
 
 ### `--compatibility`
 
@@ -343,6 +345,26 @@ String placeholders are preserved without expansion. Invalid types keep the
 complete setting in its source. For example, `required-scripts[]=build` becomes
 `requiredScripts: [build]` at 12.16.0 and stays in `.npmrc` at 12.15.0.
 
+From pnpm 12.17.0, `git-tag-version=false` in the root `.npmrc` migrates to
+`gitTagVersion: false`, and `publish-branch=release` to `publishBranch: release`.
+The first setting accepts a boolean, the second a string, and either can be
+null. Earlier or unconfirmed v12 targets keep both in their sources. v11
+already accepts them.
+
+12.17.0 also accepts `:prod`, `:optional`, and `:peer` on the target of an
+`overrides` selector, and `*` in parent and target package names. For example,
+`"@esbuild/*:optional": "-"` removes matching optional dependencies. Older
+targets keep the whole override map when it uses the new syntax. A version
+range such as `foo@*` still works on older releases. 12.17 rejects selectors
+with a protocol in the version part, such as `foo@link:./old`. A v12 target
+without a confirmed release accepts only syntax shared by both versions. Replacement
+values such as `link:./new` and `npm:alias@1` remain valid. These checks also
+apply to per-project overrides in `packageConfigs`.
+
+pnpm 12.17 deprecates `ignoredOptionalDependencies` and `peerDependencyRules`
+and still consumes both. The migrator preserves them. Converting a peer warning
+policy to a `:peer` override would change which dependencies pnpm resolves.
+
 From pnpm 11.28.9, v11 registry declarations also accept `serverType: pnpr`.
 Earlier or unconfirmed v11 targets retain the complete registry map. The setting
 does not enable v12-only registry fields such as `networkConcurrency` or `ecosystem`.
@@ -467,22 +489,22 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.9 and 12.16.1, including 11.28.0,
+- Compatibility checks cover pnpm 11.28.10 and 12.17.0, including 11.28.0,
   11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
   12.8.1, 12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1,
   12.11.2, 12.12.0, 12.12.1, 12.13.0, 12.14.0, 11.28.7, 11.28.8,
-  12.15.0, and 12.16.0.
+  11.28.9, 12.15.0, 12.16.0, and 12.16.1.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  As [audited on 2026-10-29](docs/research/pnpm-settings-bump-2026-10-29.md),
-  npm `latest` and the highest confirmed stable release are 12.16.1, also on
-  `latest-12` and `next-12`. The highest stable v11 release, 11.28.9, is on
-  `latest-11` and `next-11`. GitHub marks both targets as non-prereleases.
-  The project is pinned to 12.16.1. These checks verify the
-  documented fixtures, not every setting in every release. Local and config
-  dependency `include` consumption is verified on 12.15.0, with 12.14.0 as the
-  preceding boundary. v10 has unit regressions and source review
-  through 10.34.9; real v10 consumption remains unverified. The 12.16 fixtures
+  On 2026-11-04, npm `latest` and `latest-12` pointed to the project's
+  development pin, 12.16.1. The highest stable releases were 12.17.0 on
+  `next-12` and 11.28.10 on `next-11`. The 12.17 fixtures check release
+  commands in a temporary Git repository and override matching in real installs.
+  See the [November 4 compatibility audit](docs/research/pnpm-settings-bump-2026-11-04.md).
+  Local and config dependency `include` consumption is verified on 12.15.0,
+  with 12.14.0 as the preceding boundary. On 10.34.9, CLI migration and frozen
+  installs verify plain and wildcard override cases. The full migration harness
+  covers v11 and v12. The 12.16 fixtures
   verify TLS certificate handling against a temporary HTTPS registry, dist-tag
   selection, runtime suppression, required script enforcement, and frozen
   installs. They use OpenSSL to create a disposable certificate.
@@ -582,6 +604,8 @@ selectors are translated: `**/foo` becomes `foo`, and `**/@scope/foo` becomes
 `@scope/foo`. Path-specific selectors such as `parent/child` and
 `parent/**/child` remain in `resolutions` with a warning. Conflicting selectors
 that translate to the same pnpm key also remain for manual resolution.
+If an invalid pnpm override map stays in the source, a Yarn resolution for the
+same explicit selector stays there as well.
 Only individual resolutions whose values reach the final workspace are removed.
 
 For example, an unsupported selector is now reported and retained instead of

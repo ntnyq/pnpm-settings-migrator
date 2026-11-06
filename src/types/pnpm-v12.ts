@@ -197,6 +197,14 @@ export interface PnpmSkillsSettings {
  */
 export interface PnpmSettingsV12 {
   /**
+   * Create a commit and tag for a version bump (consumed by v12 from 12.17).
+   */
+  gitTagVersion?: boolean | null
+  /**
+   * Branch allowed by publish git checks (consumed by v12 from 12.17).
+   */
+  publishBranch?: string | null
+  /**
    * Verify registry TLS certificates (consumed by v12 from 12.16).
    * Null leaves the upstream default effective.
    */

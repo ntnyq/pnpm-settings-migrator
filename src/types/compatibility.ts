@@ -97,6 +97,11 @@ export type LegacyBuildDependencyList =
   | 'onlyBuiltDependencies'
 
 /**
+ * Override selector syntax supported before 12.17, since 12.17, or by both.
+ */
+export type OverrideGrammar = 'legacy' | 'grouped' | 'common'
+
+/**
  * Parsed exact pnpm version used only for capability evaluation.
  */
 export interface PnpmVersion {

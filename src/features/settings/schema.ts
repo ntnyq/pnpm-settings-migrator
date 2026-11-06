@@ -388,11 +388,13 @@ export function assertCompatibleWorkspaceSettings(
 ): void {
   const { compatibility } = target
   if (compatibility === 'v10') {
-    const { issues } = selectPnpmSettings(
-      Object.fromEntries(Object.entries(settings)),
-      target,
-    )
+    const { issues } = selectPnpmSettings({ ...settings }, target)
     const unsafeProxies = issues.unsafe.filter(key => PROXY_SETTINGS.has(key))
+    if (issues.incompatible.includes('overrides')) {
+      throw new TypeError(
+        'pnpm-workspace.yaml contains incompatible overrides for pnpm v10.',
+      )
+    }
     if (unsafeProxies.length) {
       throw new TypeError(
         `pnpm-workspace.yaml contains dynamic proxy settings: ${formatIssueList(unsafeProxies)}. Move them to trusted global configuration or environment variables.`,

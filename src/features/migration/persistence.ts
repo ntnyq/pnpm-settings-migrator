@@ -167,6 +167,7 @@ function selectAppliedRootKeys({
     return containsMigratedValue(
       Reflect.get(finalSettings, targetKey),
       Reflect.get(normalizedSettings, targetKey),
+      targetKey,
     )
   })
 }
@@ -226,6 +227,7 @@ function selectAppliedProjectKeys(
     return containsMigratedValue(
       finalProjectConfig[targetKey],
       project.migratable.settings[targetKey],
+      targetKey,
     )
   })
 }

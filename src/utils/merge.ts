@@ -9,6 +9,7 @@ import {
 import { defu } from 'defu'
 import { ORDERED_FILTER_SETTINGS } from '../constants'
 import type { PnpmWorkspace, MergeStrategy } from '../types'
+import { keepsOverrideOrder, isSameSetting } from './setting-value'
 
 /**
  * Merge objects with priority to the first argument.
@@ -105,14 +106,19 @@ function mergeWithArrayDedupe(
  *
  * @param existing - Matchers already in the workspace
  * @param incoming - Matchers to append in source order
+ * @param key - Workspace setting controlling matcher equality
  *
  * @returns Combined matchers with the incoming sequence at the end
  */
-function mergeOrderedSequence<T>(existing: T[], incoming: T[]): T[] {
+function mergeOrderedSequence<T>(
+  existing: T[],
+  incoming: T[],
+  key: string,
+): T[] {
   let overlap = Math.min(existing.length, incoming.length)
   while (
     overlap > 0 &&
-    !isDeepStrictEqual(existing.slice(-overlap), incoming.slice(0, overlap))
+    !isSameSetting(key, existing.slice(-overlap), incoming.slice(0, overlap))
   ) {
     overlap--
   }
@@ -163,7 +169,7 @@ export function mergeByStrategy(
           Reflect.set(
             result,
             key,
-            mergeOrderedSequence(existingValue, incomingValue),
+            mergeOrderedSequence(existingValue, incomingValue, key),
           )
         }
       }
@@ -187,12 +193,14 @@ export function mergeByStrategy(
  *
  * @param actual - Value stored in the final destination
  * @param expected - Incoming value that must be preserved
+ * @param key - Setting name when checking an override map's selector order
  *
  * @returns Whether the destination recursively contains the expected value
  */
 export function containsMigratedValue(
   actual: unknown,
   expected: unknown,
+  key?: string,
 ): boolean {
   if (isArray(actual) && isArray(expected)) {
     return expected.every(expectedItem =>
@@ -208,11 +216,15 @@ export function containsMigratedValue(
     typeof actual === 'object' &&
     typeof expected === 'object'
   ) {
-    return Object.entries(expected).every(([key, expectedValue]) =>
-      containsMigratedValue(
-        (actual as Record<string, unknown>)[key],
-        expectedValue,
-      ),
+    return (
+      (key !== 'overrides' || keepsOverrideOrder(actual, expected)) &&
+      Object.entries(expected).every(([field, expectedValue]) =>
+        containsMigratedValue(
+          (actual as Record<string, unknown>)[field],
+          expectedValue,
+          field,
+        ),
+      )
     )
   }
 
