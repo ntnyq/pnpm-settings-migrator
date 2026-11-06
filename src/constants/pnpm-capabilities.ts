@@ -150,6 +150,23 @@ export const PNPM_V12_16_MINIMUM_VERSION = [12, 16, 0] as const
 export const PNPM_V12_17_MINIMUM_VERSION = [12, 17, 0] as const
 
 /**
+ * Release introducing chosen skill lists and extended platform tags.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_18_MINIMUM_VERSION = [12, 18, 0] as const
+
+/**
+ * Non-optional Python arrays that no longer deserialize null from pnpm 12.18.
+ */
+export const PNPM_PYTHON_ARRAY_SETTINGS: readonly string[] = [
+  'extras',
+  'groups',
+  'versions',
+  'overrides',
+  'constraints',
+]
+
+/**
  * Workspace settings first consumed by pnpm v12 in 12.16.0.
  */
 export const PNPM_V12_16_WORKSPACE_SETTINGS: readonly string[] = [

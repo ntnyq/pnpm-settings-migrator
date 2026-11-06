@@ -12,7 +12,10 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { parse, stringify } from 'yaml'
 import { migratePnpmSettings } from '../src'
-import { PNPM_V12_11_MINIMUM_VERSION } from '../src/constants'
+import {
+  PNPM_V12_11_MINIMUM_VERSION,
+  PNPM_V12_18_MINIMUM_VERSION,
+} from '../src/constants'
 import {
   parsePnpmVersion,
   supportsMinimumVersion,
@@ -42,10 +45,14 @@ async function verifyPermissionShapes(
   runPnpm: PnpmRunner,
 ): Promise<void> {
   const workspacePath = join(fixtureDir, 'pnpm-workspace.yaml')
+  const rejectsNullEntry = supportsMinimumVersion(
+    parsePnpmVersion(version),
+    PNPM_V12_18_MINIMUM_VERSION,
+  )
   for (const valid of [
     { permissions: null, skills: null, provenance: null },
     { permissions: { example: {} }, skills: {} },
-    { permissions: { example: null } },
+    ...(rejectsNullEntry ? [] : [{ permissions: { example: null } }]),
     {
       permissions: { example: { build: null, skills: null } },
       skills: { dirs: null },
@@ -55,6 +62,7 @@ async function verifyPermissionShapes(
     await runPnpm(version, fixtureDir, ['config', 'list', '--json'])
   }
   for (const invalid of [
+    ...(rejectsNullEntry ? [{ permissions: { example: null } }] : []),
     { permissions: { example: { build: 1 } } },
     { skills: { dirs: [{}] } },
     { provenance: {} },
@@ -169,6 +177,13 @@ export async function verifyPermissions(
     parsedVersion,
     PNPM_V12_11_MINIMUM_VERSION,
   )
+  const supportsChosenSkills = supportsMinimumVersion(
+    parsedVersion,
+    PNPM_V12_18_MINIMUM_VERSION,
+  )
+  const allowedSkillPath = supportsChosenSkills
+    ? '.fixture-skills/fixture-allowed/SKILL.md'
+    : '.fixture-skills/pnpm-fixture-allowed-fixture-allowed/SKILL.md'
   const fixtureDir = await mkdtemp(join(tmpdir(), 'pnpm-settings-permissions-'))
   const manifestPath = join(fixtureDir, 'package.json')
   const workspacePath = join(fixtureDir, 'pnpm-workspace.yaml')
@@ -184,7 +199,7 @@ export async function verifyPermissions(
       },
       'fixture-undecided@file:fixture-undecided-1.0.0.tgz': {
         build: 'review this',
-        skills: '',
+        skills: supportsChosenSkills ? false : '',
       },
     },
     skills: { dirs: ['.fixture-skills'] },
@@ -275,20 +290,16 @@ export async function verifyPermissions(
       { code: 'ENOENT' },
     )
     assert.equal(
-      await readFile(
-        join(
-          fixtureDir,
-          '.fixture-skills/pnpm-fixture-allowed-fixture-allowed/SKILL.md',
-        ),
-        'utf8',
-      ),
+      await readFile(join(fixtureDir, allowedSkillPath), 'utf8'),
       skillText,
     )
     await assert.rejects(
       access(
         join(
           fixtureDir,
-          '.fixture-skills/pnpm-fixture-denied-fixture-denied/SKILL.md',
+          supportsChosenSkills
+            ? '.fixture-skills/fixture-denied/SKILL.md'
+            : '.fixture-skills/pnpm-fixture-denied-fixture-denied/SKILL.md',
         ),
       ),
       { code: 'ENOENT' },
@@ -298,13 +309,7 @@ export async function verifyPermissions(
     await runPnpm(version, fixtureDir, ['install', '--frozen-lockfile'])
     assert.equal(await readFile(lockfilePath, 'utf8'), lockfile)
     assert.equal(
-      await readFile(
-        join(
-          fixtureDir,
-          '.fixture-skills/pnpm-fixture-allowed-fixture-allowed/SKILL.md',
-        ),
-        'utf8',
-      ),
+      await readFile(join(fixtureDir, allowedSkillPath), 'utf8'),
       skillText,
     )
 
@@ -313,15 +318,9 @@ export async function verifyPermissions(
       stringify({ ...settings, allowBuilds, skills: { dirs: [] } }),
     )
     await runPnpm(version, fixtureDir, ['install', '--frozen-lockfile'])
-    await assert.rejects(
-      access(
-        join(
-          fixtureDir,
-          '.fixture-skills/pnpm-fixture-allowed-fixture-allowed/SKILL.md',
-        ),
-      ),
-      { code: 'ENOENT' },
-    )
+    await assert.rejects(access(join(fixtureDir, allowedSkillPath)), {
+      code: 'ENOENT',
+    })
     assert.equal(await readFile(lockfilePath, 'utf8'), lockfile)
 
     await verifyPermissionShapes(version, fixtureDir, runPnpm)

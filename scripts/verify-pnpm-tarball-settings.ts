@@ -15,7 +15,10 @@ import {
   parsePnpmVersion,
   supportsMinimumVersion,
 } from '../src/features/compatibility/version'
-import { verifyInvalidRegistrySiblings } from './verify-pnpm-registry-declarations'
+import {
+  getRegistryFixturePackageKey,
+  verifyInvalidRegistrySiblings,
+} from './verify-pnpm-registry-declarations'
 
 /**
  * HTTP response for fixture routes that do not exist.
@@ -152,7 +155,8 @@ async function verifyV11Pnpr(options: {
   const pnprLockfileText = await readFile(lockPath, 'utf8')
   const pnprLockfile = parseAllDocuments(pnprLockfileText)[0]!.toJSON()
   assert.equal(
-    pnprLockfile.packages[`${packageName}@fixture:1.0.0`].resolution.tarball,
+    pnprLockfile.packages[getRegistryFixturePackageKey(version, packageName)]
+      .resolution.tarball,
     undefined,
   )
   await resetInstall(cwd)
@@ -344,13 +348,10 @@ export async function verifyTarballConsumption(
       const lockfile = parseAllDocuments(
         await readFile(lockPath, 'utf8'),
       )[0]!.toJSON()
-      assert.equal(
-        lockfile.packages[`${packageName}@fixture:1.0.0`].resolution.integrity,
-        hash(tar),
-      )
-      assert.equal(
-        lockfile.packages[`${packageName}@fixture:1.0.0`].resolution.tarball,
-        undefined,
+      assert.deepEqual(
+        lockfile.packages[getRegistryFixturePackageKey(version, packageName)]
+          .resolution,
+        { integrity: hash(tar) },
       )
       await resetInstall(cwd)
       await runPnpm(version, cwd, ['install', '--frozen-lockfile'])

@@ -17,8 +17,10 @@ import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasIncompatibleOverrides } from './overrides'
 import { hasInvalidPermissionSettings } from './permissions'
+import { hasInvalidV12MappingEntries } from './pnpm-v12-mappings'
 import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
 import { hasInvalidRemoteCacheValue } from './remote-cache'
+import { hasIncompatiblePlatformList } from './supported-architectures'
 
 /**
  * Bounds of the signed 32-bit integer used by pnpm's task priority.
@@ -251,7 +253,9 @@ export function hasIncompatibleSettingValue(
 ): boolean {
   if (
     hasIncompatibleOverrides(key, value, target) ||
-    hasInvalidPermissionSettings(key, value) ||
+    hasInvalidPermissionSettings(key, value, target) ||
+    hasInvalidV12MappingEntries(key, value, target) ||
+    hasIncompatiblePlatformList(key, value, target) ||
     hasInvalidRemoteCacheValue(key, value) ||
     hasInvalidReleaseValue(key, value, target) ||
     hasInvalidV11PatchValue(key, value, target) ||
@@ -266,9 +270,6 @@ export function hasIncompatibleSettingValue(
     target.version,
     PNPM_V12_5_MINIMUM_VERSION,
   )
-  if (key === 'supportedArchitectures' && isArray(value)) {
-    return !supportsV12_5
-  }
   if (!value || typeof value !== 'object') {
     return false
   }

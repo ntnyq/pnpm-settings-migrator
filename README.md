@@ -223,7 +223,8 @@ intact in their source; the migrator does not add pnpm's defaults.
 For pnpm 12.11.0 and later stable v12 releases, `permissions` maps dependency
 names or package IDs to `build` and `skills` decisions. Boolean `build`
 decisions override matching `allowBuilds` entries; strings are undecided prompts
-and null leaves a capability unset. Both settings are preserved for pnpm to
+and null leaves a capability unset. Before 12.18, `skills` also accepts string
+prompts. Both settings are preserved for pnpm to
 apply its precedence. Unknown capabilities or invalid nested values keep the
 entire source object intact.
 
@@ -234,6 +235,35 @@ For example, targeting 12.11.0 migrates
 `{ "pnpm": { "permissions": { "example": { "build": false, "skills": true } }, "skills": { "dirs": [".agents/skills"] } } }`
 to equivalent workspace YAML. Targeting 12.10.1 retains these settings with
 diagnostics.
+
+From pnpm 12.18.0, `permissions.<package>.skills` accepts booleans or chosen
+skill-name arrays, such as `['guide', 'migrate']`. An empty array denies all
+skills; null leaves the capability unset. String skill prompts and null package
+permission entries are no longer accepted. Unsupported values keep the entire
+`permissions` object in its source. When a merge keeps an existing nonempty
+skill list, an incoming empty list stays in its source because its denial was
+not applied.
+
+12.18 also extends `supportedArchitectures` lists with additional Node.js
+platforms, such as `freebsd-x64`, OS floors such as
+`darwin-arm64-macos_14_0`, and ABI tags such as `linux-x64-napi8` or
+`linux-x64-node127`. These entries require an exact stable target of 12.18.0 or
+later. Legacy platforms, Rust triples, and Linux libc baselines retain their
+12.5.0 boundary. A malformed or unsupported entry keeps the whole list intact.
+The 12.18 YAML reader also rejects null task, pipeline and package-extension
+entries, including nested `peerDependenciesMeta` entries; these stay in their
+source rather than becoming invalid workspace YAML. Null named catalogs were
+already retained by the migrator. Optional section and capability nulls still
+work.
+
+The same 12.18 boundary applies to null Python arrays (`extras`, `groups`,
+`versions`, `overrides`, `constraints`), `auditConfig.ignoreGhsas`, versioning
+collections and their nested lists, and `remoteSideEffectsCache.packages`.
+For v12 targets, these legacy null values migrate only when the target is
+confirmed stable and older than 12.18. Unknown, imprecise, or prerelease v12
+targets retain them in their
+source; invalid existing workspace values are rejected before writes. Empty
+arrays continue to work.
 
 For pnpm 12.12.0 and later stable v12 releases, `addMissingPeerTypes` accepts
 boolean or null values and `remoteCache` accepts the project organization:
@@ -489,18 +519,24 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.10 and 12.17.0, including 11.28.0,
+- Compatibility checks cover pnpm 11.28.11 and 12.18.0, including 11.28.0,
   11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
   12.8.1, 12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1,
   12.11.2, 12.12.0, 12.12.1, 12.13.0, 12.14.0, 11.28.7, 11.28.8,
-  11.28.9, 12.15.0, 12.16.0, and 12.16.1.
+  11.28.9, 11.28.10, 12.15.0, 12.16.0, 12.16.1, and 12.17.0.
   Earlier regressions remain at 11.25.0,
   11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  On 2026-11-04, npm `latest` and `latest-12` pointed to the project's
-  development pin, 12.16.1. The highest stable releases were 12.17.0 on
-  `next-12` and 11.28.10 on `next-11`. The 12.17 fixtures check release
+  On 2026-11-06, npm `latest`, `latest-12`, and `next-12` pointed to the
+  project's development pin and highest stable release, 12.18.0. The highest
+  stable v11 release was 11.28.11 on `next-11`; `latest-11` remained 11.28.9.
+  The 12.18 fixtures check chosen nested skill linking, platform-specific
+  optional dependencies, YAML null boundaries, and frozen installs.
+  The 12.17 fixtures check release
   commands in a temporary Git repository and override matching in real installs.
-  See the [November 4 compatibility audit](docs/research/pnpm-settings-bump-2026-11-04.md).
+  The complete 42-release matrix passed locally on 2026-11-06, covering 15 v11
+  releases and 27 v12 releases with every applicable fixture.
+  See the [November 6 compatibility audit](docs/research/pnpm-settings-bump-2026-11-06.md)
+  for the exact releases executed in this update and historical verification.
   Local and config dependency `include` consumption is verified on 12.15.0,
   with 12.14.0 as the preceding boundary. On 10.34.9, CLI migration and frozen
   installs verify plain and wildcard override cases. The full migration harness

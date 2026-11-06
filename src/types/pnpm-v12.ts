@@ -166,8 +166,8 @@ export interface PnpmLockfileSettings {
 }
 
 /**
- * Dependency capabilities introduced in pnpm 12.11.0. Strings are undecided
- * prompts; null leaves a capability unset.
+ * Dependency capabilities introduced in pnpm 12.11.0. Null leaves a capability
+ * unset; accepted skill decisions depend on the target release.
  */
 export interface PnpmPackagePermissions {
   /**
@@ -176,9 +176,10 @@ export interface PnpmPackagePermissions {
    */
   build?: boolean | string | null
   /**
-   * Whether pnpm may link the agent skills shipped by the dependency.
+   * Whether pnpm may link all agent skills, or the chosen skill names (12.18+).
+   * String prompts are accepted only before 12.18; an empty list denies all.
    */
-  skills?: boolean | string | null
+  skills?: boolean | string | string[] | null
 }
 
 /**
@@ -263,6 +264,7 @@ export interface PnpmSettingsV12 {
   remoteCache?: PnpmRemoteCacheSettings | null
   /**
    * Per-dependency build and agent skill permissions (pnpm 12.11+).
+   * A null package entry is accepted only before 12.18.
    */
   permissions?: Record<string, PnpmPackagePermissions | null> | null
   /**
@@ -316,6 +318,7 @@ export interface PnpmSettingsV12 {
   concurrencyGroups?: Record<string, number>
   /**
    * Legacy OS/CPU/libc axes, or platform names and Rust triples (pnpm 12.5+).
+   * Additional Node.js platforms and floor/ABI tags require pnpm 12.18+.
    */
   supportedArchitectures?: PnpmSettings['supportedArchitectures'] | string[]
   /**

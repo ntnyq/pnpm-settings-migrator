@@ -203,6 +203,10 @@ export function containsMigratedValue(
   key?: string,
 ): boolean {
   if (isArray(actual) && isArray(expected)) {
+    // An empty chosen-skill list denies every skill, rather than adding none.
+    if (key === 'skills' && expected.length === 0) {
+      return actual.length === 0
+    }
     return expected.every(expectedItem =>
       actual.some(actualItem =>
         containsMigratedValue(actualItem, expectedItem),
