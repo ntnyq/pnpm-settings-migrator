@@ -78,6 +78,14 @@ returned changes and warnings themselves.
 
 </details>
 
+## Version field differences
+
+See the [version notes](docs/versions/README.md) for field changes grouped by
+[v10](docs/versions/README.md#v10),
+[v11](docs/versions/README.md#v11), and
+[v12](docs/versions/README.md#v12). Each minor file records differences
+from the preceding minor, including exact patch boundaries and migration effects.
+
 ## CLI Options
 
 ### `--cwd`
@@ -107,9 +115,8 @@ Compatibility major for migrated settings:
   `devEngines.packageManager` (`pnpm@12+` => `v12`, `pnpm@11` => `v11`,
   otherwise `v10`).
 - `v10`: keep legacy settings and migrate schema-aligned pnpm config keys from `.npmrc`.
-- `v11`: normalize to v11-compatible settings (`allowBuilds`, `allowUnusedPatches`, etc.).
-- `v12`: use the v12 schema, including `globalShims`, and enable additional
-  fields according to the confirmed target version.
+- `v11`: normalize legacy settings to the v11 schema.
+- `v12`: use the v12 schema and enable fields according to the confirmed target version.
 
 <details>
 <summary>Compatibility resolution and validation</summary>
@@ -153,293 +160,6 @@ there are no minor-specific compatibility options.
 </details>
 
 <details>
-<summary>Version-specific settings and requirements</summary>
-
-For pnpm 12.4.0 and later stable v12 releases, the migrator additionally accepts
-`trustPolicyExcludePrune`, `python`, `cargo`, `pipelines`, `pipelineBase`, and
-`packageConfigs`, plus task fields `outputs`, `inputs`, `env`, `cache`, and
-`cargoTargetDir`. On older or unconfirmed targets, a `tasks` object containing
-these fields stays in its source as a whole.
-
-For pnpm 12.5.0 and later stable v12 releases, the migrator also accepts
-`concurrencyGroups`, task `concurrencyGroup`, platform lists in
-`supportedArchitectures`, Python `versions` / `overrides` / `constraints`, and
-`registries` declarations with `ecosystem`. Python registry `packages` routes
-require 12.5.1. Unsupported nested settings stay in their source as a whole.
-The legacy OS/CPU/libc architecture mapping continues to work.
-
-pnpm 12.5 removes `python.indexUrl` and `cargo.indexUrl`. Settings containing
-these fields are retained with an incompatibility warning; existing workspaces
-containing them fail validation before any files are written. Replace them with
-URL-keyed `registries` entries using `ecosystem: pypi` or `ecosystem: cargo`.
-The registry prefix `pkg` is reserved from 12.5 onward. Tool download mirrors
-under `tools` belong in global `config.yaml` or `PNPM_CONFIG_TOOLS` and are
-never migrated into the project workspace.
-
-On the v11 line, `trustPolicyExcludePrune` requires a confirmed stable version
-from 11.27.0 onward; v12 support still starts at 12.4.0.
-
-For pnpm 12.6.0 and later stable v12 releases, the migrator accepts `autoDedupe`,
-`saveTypes`, `tagVersionPrefix`, and signed 32-bit `tasks.*.priority` values.
-`progress` and `loglevel` also require 12.6.0 for v12 targets, when pnpm first
-consumes them from workspace configuration; their v11 support is unchanged.
-Invalid values and fields unsupported by the target remain in their sources.
-The global-only `macosBackup` setting is preserved with a project-refused warning.
-
-`forceIgnoresPlatform` requires pnpm 11.28.0+ or 12.7.0+. pnpm's defaults differ
-between those majors; the migrator only moves explicit values. For v12,
-`publishWaitTimeout` and `reporter` require 12.7.0+. The timeout is a nonnegative
-safe integer in milliseconds (zero disables waiting); numeric `.npmrc` values
-are converted to YAML numbers. Reporter values are `default`, `append-only`,
-`ndjson`, and `silent`, or preserved environment placeholders.
-
-From 11.28.0 / 12.7.0, dynamic `userAgent` values remain in their sources because
-pnpm ignores project values containing environment placeholders. From 11.28.1,
-invalid `patchedDependencies` maps and non-array `packages` values are retained
-with diagnostics. From 12.8.2, `globalShims` belongs in trusted global
-configuration and is retained with an incompatibility warning. Existing
-workspaces containing these incompatible values fail validation before writes.
-
-From 11.28.3, non-null `allowBuilds` values must be maps of booleans or strings.
-From 11.28.4, non-null `allowUnusedPatches` must be boolean, and non-null
-`ignoredOptionalDependencies` / `requiredScripts` must be string arrays.
-From 11.28.5, `httpProxy` and `httpsProxy` must be strings, including when empty;
-null is incompatible in 11.28.5. From 11.28.6, null is accepted again and leaves
-the proxy unset. Invalid values remain in their sources with diagnostics.
-
-For pnpm 12.9.0 and later stable v12 releases, URL-keyed `registries` entries
-can set `networkConcurrency` to a positive safe integer, or null to leave it
-unset. On older or unconfirmed targets, the entire registry setting stays in
-its source when it contains this field.
-
-For pnpm 12.10.0 and later stable v12 releases, `nodeLinker` additionally accepts
-`loaded` or `{ type: 'loaded', excluded: ['package-name'] }`, and `lockfile`
-accepts `{ includeResolutionSettings: true }` to record resolution settings in
-the lockfile. Existing linker strings and boolean `lockfile` values still work.
-`failIfNoMatch` also requires 12.10.0 for v12 targets, when pnpm first consumes
-it from workspace configuration. Unsupported or invalid nested settings stay
-intact in their source; the migrator does not add pnpm's defaults.
-
-For pnpm 12.11.0 and later stable v12 releases, `permissions` maps dependency
-names or package IDs to `build` and `skills` decisions. Boolean `build`
-decisions override matching `allowBuilds` entries; strings are undecided prompts
-and null leaves a capability unset. Before 12.18, `skills` also accepts string
-prompts. Both settings are preserved for pnpm to
-apply its precedence. Unknown capabilities or invalid nested values keep the
-entire source object intact.
-
-`skills.dirs` accepts an array of workspace-relative agent skill directories;
-an empty array disables linking. Workspace `provenance` also requires 12.11.0
-for v12 targets and accepts boolean or null values. Its v11 support is unchanged.
-For example, targeting 12.11.0 migrates
-`{ "pnpm": { "permissions": { "example": { "build": false, "skills": true } }, "skills": { "dirs": [".agents/skills"] } } }`
-to equivalent workspace YAML. Targeting 12.10.1 retains these settings with
-diagnostics.
-
-From pnpm 12.18.0, `permissions.<package>.skills` accepts booleans or chosen
-skill-name arrays, such as `['guide', 'migrate']`. An empty array denies all
-skills; null leaves the capability unset. String skill prompts and null package
-permission entries are no longer accepted. Unsupported values keep the entire
-`permissions` object in its source. When a merge keeps an existing nonempty
-skill list, an incoming empty list stays in its source because its denial was
-not applied.
-
-12.18 also extends `supportedArchitectures` lists with additional Node.js
-platforms, such as `freebsd-x64`, OS floors such as
-`darwin-arm64-macos_14_0`, and ABI tags such as `linux-x64-napi8` or
-`linux-x64-node127`. These entries require an exact stable target of 12.18.0 or
-later. Legacy platforms, Rust triples, and Linux libc baselines retain their
-12.5.0 boundary. A malformed or unsupported entry keeps the whole list intact.
-The 12.18 YAML reader also rejects null task, pipeline and package-extension
-entries, including nested `peerDependenciesMeta` entries; these stay in their
-source rather than becoming invalid workspace YAML. Null named catalogs were
-already retained by the migrator. Optional section and capability nulls still
-work.
-
-The same 12.18 boundary applies to null Python arrays (`extras`, `groups`,
-`versions`, `overrides`, `constraints`), `auditConfig.ignoreGhsas`, versioning
-collections and their nested lists, and `remoteSideEffectsCache.packages`.
-For v12 targets, these legacy null values migrate only when the target is
-confirmed stable and older than 12.18. Unknown, imprecise, or prerelease v12
-targets retain them in their
-source; invalid existing workspace values are rejected before writes. Empty
-arrays continue to work.
-
-For pnpm 12.12.0 and later stable v12 releases, `addMissingPeerTypes` accepts
-boolean or null values and `remoteCache` accepts the project organization:
-`{ org: 'acme' }`. Empty and null remote-cache sections are preserved. Server,
-team, signing, and publication fields belong in trusted global configuration
-or environment variables. Objects containing those fields, unknown fields,
-or invalid values remain intact in their source with diagnostics; existing
-incompatible workspace values block migration before writes.
-
-`remoteCache` and legacy `sideEffectsCache.remote` are kept independently so
-pnpm applies its field-level precedence. The migrator does not insert defaults
-or rewrite `allowBuilds`: pnpm 12.12 itself now honors explicit build denials
-when `dangerouslyAllowAllBuilds` is true.
-
-From 12.12.1, the registry prefix `tool` is reserved. Both `namedRegistries`
-and URL-keyed `registries` using that exact prefix remain in their sources;
-existing workspace declarations block migration. This restriction is
-case-sensitive (`ToOl` remains valid), unlike the existing `pkg` restriction.
-
-For pnpm 12.13.0 and later stable v12 releases, `nodePackageMap` accepts
-`mode: off | write-only | load` and `type: standard | loose`. The section and
-its fields may be null to leave them unset. New and legacy
-`nodeExperimentalPackageMap` / `nodePackageMapType` values are preserved so pnpm
-applies the new section's field-level precedence. `storeIndexFormat` accepts
-`sqlite`, `files`, or null; `files` supports stores shared over network filesystems.
-Enum values may use environment placeholders, which are preserved without expansion.
-Older or unconfirmed targets retain these settings in their source.
-
-For pnpm 12.14.0 and later stable v12 releases, `sideEffectsCache.exclude`
-accepts package patterns such as `['java', '@native/*', 'example@1']`, an empty
-array, or null. Excluded builds are neither restored nor saved in local or remote
-caches. Cache `read` and `write` values may also use preserved environment
-placeholders. On older targets, the complete cache section stays in its source.
-Invalid nested values and unknown fields also preserve the complete source
-section; existing incompatible workspace values block writes.
-
-For pnpm 12.15.0 and later stable v12 releases, `bootConfig` accepts bootstrap
-release-age and trust-policy settings: `minimumReleaseAge`,
-`minimumReleaseAgeExclude`, `minimumReleaseAgeStrict`,
-`minimumReleaseAgeIgnoreMissingTime`, `trustPolicy`, `trustPolicyExclude`, and
-`trustPolicyIgnoreAfter`. The section and individual fields may be null.
-Bootstrap policy stays separate from normal install policy; neither is copied
-into the other. Unknown nested keys or invalid values preserve the entire section.
-
-`maxTarballUnpackedSize` requires 11.28.7+ or 12.15.0+ and accepts a nonnegative
-safe integer in bytes, or null to leave pnpm's default effective. Numeric
-`.npmrc` values become YAML numbers. The migrator does not add pnpm's 4 GiB
-default. From 11.28.7, v11 also accepts `autoInstallPeersFromHighestMatch`
-(boolean or null) and `externalDependencies` (string array or null).
-
-From 12.15.0, `lockfile.integrityTarget` accepts `resource`, `tar`, or null,
-and npm `registries` declarations accept `serverType: pnpr` for tar registries.
-Unsupported nested fields keep the complete lockfile or registry section in its
-source. For example, `lockfile: { integrityTarget: tar }` migrates at 12.15.0
-and remains in the source at 12.14.0.
-
-pnpm 12.15's `include` delegates settings to local YAML files or declared
-config dependencies. The migrator reads the effective workspace and writes
-settings to their physical owners, preserving the include index, YAML comments,
-and unchanged files. Explicit lists reserve settings even when absent;
-`'*'` is allowed only for local files and owns the settings they already define.
-`catalog` / `catalogs.default` refer to the default catalog, `catalogs.name`
-selects one named catalog, and `catalogs` reserves every catalog.
-
-```yaml
-include:
-  ./config/layout.yaml: [modulesDir, packages]
-  ./config/catalogs.yaml: [catalogs.frontend]
-  '@acme/policy': [minimumReleaseAge, trustPolicy]
-configDependencies:
-  '@acme/policy': 1.0.0
-```
-
-A legacy `modulesDir: ./node_modules` value is written as
-`modulesDir: ../node_modules` in `config/layout.yaml`, keeping the same location.
-Path settings, package globs, pnpmfiles, patch paths, and local catalog/override
-specifiers use the owning file's directory. New settings without an owner stay
-in the root. `discard`, `merge`, and `overwrite` apply inside local owners.
-YAML merge keys participate in ownership checks and are expanded when removing
-an inherited legacy key is necessary.
-
-Config dependencies remain read-only. The migrator reads each installed
-package's `pnpm.config` entry under `node_modules/.pnpm-config`. A source value
-already represented by that policy can be cleaned; conflicting values remain
-with diagnostics under every strategy. If a policy package is not installed or
-its installed version differs from the proposed declaration, its delegated
-source values remain until the matching version is installed and migration is
-run again. Legacy workspace settings are also retained when conversion would
-lose their values behind a read-only replacement. The migrator does not install
-packages. Nested includes, overlapping
-owners, undelegated fields, invalid entries, and paths escaping a config
-dependency's package stop migration before writes. Included local files must
-already exist; installed policy files cannot also be writable destinations,
-including through symlinks or hard links. A merge that would define both
-`catalog` and `catalogs.default` stops before writes; consolidate them into one
-form first. All destinations are
-validated and rendered before writing, and legacy sources are retained if any
-destination write fails. Credentials and trusted global settings keep their
-existing protections. Earlier or unconfirmed targets retain incoming include
-indexes with diagnostics and reject existing included workspaces.
-
-From pnpm 12.16.0, `strictSsl` and `runtime` accept booleans or null,
-`localAddress` and `tag` accept strings or null, and `requiredScripts` accepts
-string arrays or null. These settings remain in their sources for earlier or
-unconfirmed v12 targets. `runtime: false` disables installing declared runtimes;
-`tag: next` selects that distribution tag when adding a package without a version.
-Invalid IP address strings stay unchanged because pnpm treats them as unset.
-String placeholders are preserved without expansion. Invalid types keep the
-complete setting in its source. For example, `required-scripts[]=build` becomes
-`requiredScripts: [build]` at 12.16.0 and stays in `.npmrc` at 12.15.0.
-
-From pnpm 12.17.0, `git-tag-version=false` in the root `.npmrc` migrates to
-`gitTagVersion: false`, and `publish-branch=release` to `publishBranch: release`.
-The first setting accepts a boolean, the second a string, and either can be
-null. Earlier or unconfirmed v12 targets keep both in their sources. v11
-already accepts them.
-
-12.17.0 also accepts `:prod`, `:optional`, and `:peer` on the target of an
-`overrides` selector, and `*` in parent and target package names. For example,
-`"@esbuild/*:optional": "-"` removes matching optional dependencies. Older
-targets keep the whole override map when it uses the new syntax. A version
-range such as `foo@*` still works on older releases. 12.17 rejects selectors
-with a protocol in the version part, such as `foo@link:./old`. A v12 target
-without a confirmed release accepts only syntax shared by both versions. Replacement
-values such as `link:./new` and `npm:alias@1` remain valid. These checks also
-apply to per-project overrides in `packageConfigs`.
-
-pnpm 12.17 deprecates `ignoredOptionalDependencies` and `peerDependencyRules`
-and still consumes both. The migrator preserves them. Converting a peer warning
-policy to a `:peer` override would change which dependencies pnpm resolves.
-
-From pnpm 11.28.9, v11 registry declarations also accept `serverType: pnpr`.
-Earlier or unconfirmed v11 targets retain the complete registry map. The setting
-does not enable v12-only registry fields such as `networkConcurrency` or `ecosystem`.
-
-pnpm 12.16 no longer consumes `scriptsPrependNodePath`, so the migrator keeps
-incoming values in their sources and rejects existing workspace values before
-writes. Project `ci` values and the global-only `symlinkedLockfileTargetDirs`
-also stay in their sources. Configure the latter in trusted global configuration
-or through `PNPM_CONFIG_SYMLINKED_LOCKFILE_TARGET_DIRS`.
-
-pnpm v12 reads `filter` and `filterProd` from CLI arguments or `updateConfig`
-hooks, not workspace YAML. These settings remain in their source with
-diagnostics for v12 targets; existing YAML containing them blocks migration.
-The 12.11.2 hook fix does not add workspace support.
-
-Other legacy fields ignored by the v12 workspace reader also stay in their
-sources with diagnostics. These include `production`, `dev`, `recursive`,
-`lockfileOnly`, `force`, `depth`, `saveDev`, `fetchingConcurrency`,
-`requiredScripts`, `extraBinPaths`, `extraEnv`, and `workspacePackagePatterns`.
-Existing YAML containing ignored fields blocks migration before writes.
-For example, `production=true` cannot be moved into v12 YAML; use
-`pnpm install --prod` to select production dependencies.
-
-</details>
-
-<details>
-<summary>Automated v10 to v11 conversions</summary>
-
-Automated v10 to v11 conversions include:
-
-- `managePackageManagerVersions`, `packageManagerStrict`, and
-  `packageManagerStrictVersion` -> `pmOnFail`
-- `onlyBuiltDependencies`, `onlyBuiltDependenciesFile`,
-  `neverBuiltDependencies`, and `ignoredBuiltDependencies` -> `allowBuilds`
-- `allowNonAppliedPatches` -> `allowUnusedPatches`
-- `auditConfig.ignoreCves` -> `auditConfig.ignoreGhsas`
-- `useNodeVersion` and root `executionEnv.nodeVersion` ->
-  `package.json#devEngines.runtime`
-- `.npmrc` entries such as `node-mirror:release` -> `nodeDownloadMirrors`
-- removal of `ignoreDepScripts` and `ignorePatchFailures`, which have no v11
-  equivalent
-
-</details>
-
-<details>
 <summary>Migration rules, limitations, and compatibility coverage</summary>
 
 Notes:
@@ -469,9 +189,8 @@ Notes:
   including when `replaceDeprecated` introduces the mixture. The structure is
   checked independently of versioned registry fields.
 - Registry prefixes must be unique. A scope may be repeated only when it routes
-  to the same registry after the target pnpm version's URL normalization. From
-  12.11.1, the exact HTTPS and protocol-relative npm `.com` registry roots are
-  equivalent to `.org`; earlier or unconfirmed v12 targets compare them literally.
+  to the same registry after the target pnpm version's URL normalization.
+  See the [registry normalization boundary](docs/versions/v12/12.11.md).
   Routing conflicts introduced by merging or deprecated-setting conversion stop
   migration before any destination writes
   or source cleanup, including when registries belong to an included YAML file.
@@ -480,16 +199,9 @@ Notes:
   these placeholders; configure them globally in trusted configuration or use
   environment variables. Existing dynamic proxy settings in YAML block migration.
   The migrator never expands and writes these values.
-- pnpm v11 and confirmed stable v12 targets from 12.4.0 accept `packageConfigs`
-  as package-name maps or matcher arrays, with `hoist`, `modulesDir`,
-  `overrides`, `saveExact`, and `savePrefix`. Supported subproject `.npmrc`
-  fields are moved there by package name. pnpm 12.0–12.3 does not support
-  `packageConfigs`.
-- For v11 targets and v12 targets from 12.4.0, migrating `packageConfigs` or
-  subproject settings requires `sharedWorkspaceLockfile: false` in the merged
-  workspace. Otherwise source settings remain with a warning; existing
-  `packageConfigs` blocks migration until the effective lockfile mode is
-  compatible. The migrator does not change this mode automatically.
+- Supported subproject settings can migrate to `packageConfigs` when the target
+  version and effective lockfile mode allow it. See the
+  [v11 baseline](docs/versions/v11/11.0.md) and [v12 support boundary](docs/versions/v12/12.4.md).
 - Cleanup removes only source keys represented in the final workspace after
   applying the selected merge strategy.
   Each source is checked against its own values, including deprecated-key
@@ -519,60 +231,8 @@ Notes:
 - The migrator does not update the `packageManager` version, CI environment variables,
   shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
   pass `--compatibility v11` explicitly and update the pin separately.
-- Compatibility checks cover pnpm 11.28.11 and 12.18.0, including 11.28.0,
-  11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
-  12.8.1, 12.8.2, 12.9.0, 12.9.1, 12.10.0, 12.10.1, 12.11.0, 12.11.1,
-  12.11.2, 12.12.0, 12.12.1, 12.13.0, 12.14.0, 11.28.7, 11.28.8,
-  11.28.9, 11.28.10, 12.15.0, 12.16.0, 12.16.1, and 12.17.0.
-  Earlier regressions remain at 11.25.0,
-  11.26.0, 11.27.1, 12.2.1, 12.3.4, 12.4.0, 12.4.2, 12.5.0, 12.5.1, and 12.6.0.
-  On 2026-11-06, npm `latest`, `latest-12`, and `next-12` pointed to the
-  project's development pin and highest stable release, 12.18.0. The highest
-  stable v11 release was 11.28.11 on `next-11`; `latest-11` remained 11.28.9.
-  The 12.18 fixtures check chosen nested skill linking, platform-specific
-  optional dependencies, YAML null boundaries, and frozen installs.
-  The 12.17 fixtures check release
-  commands in a temporary Git repository and override matching in real installs.
-  The complete 42-release matrix passed locally on 2026-11-06, covering 15 v11
-  releases and 27 v12 releases with every applicable fixture.
-  See the [November 6 compatibility audit](docs/research/pnpm-settings-bump-2026-11-06.md)
-  for the exact releases executed in this update and historical verification.
-  Local and config dependency `include` consumption is verified on 12.15.0,
-  with 12.14.0 as the preceding boundary. On 10.34.9, CLI migration and frozen
-  installs verify plain and wildcard override cases. The full migration harness
-  covers v11 and v12. The 12.16 fixtures
-  verify TLS certificate handling against a temporary HTTPS registry, dist-tag
-  selection, runtime suppression, required script enforcement, and frozen
-  installs. They use OpenSSL to create a disposable certificate.
-  Routing fixtures at 11.28.8, 11.28.9, 12.9.0, 12.10.0, 12.11.0, 12.11.1,
-  12.11.2, 12.15.0, and 12.16.1 verify prefix/scope conflicts, mixed registry
-  representations after conversion, and rejection before writes under all three
-  strategies. They compare native URL normalization across the 12.11.1 boundary.
-  The removed `pnpm install --resolution-only` CLI flag is outside this settings
-  migrator's scope; replace it with `pnpm peers check` in scripts before upgrading.
-
-</details>
-
-<details>
-<summary>Target version migration example</summary>
-
-For example, `--target-version 12.4.0` migrates this legacy configuration:
-
-```json
-{ "pnpm": { "pipelines": { "ci": ["build", "test"] }, "pipelineBase": "main" } }
-```
-
-into `pnpm-workspace.yaml` and removes the applied `pnpm` keys:
-
-```yaml
-pipelines:
-  ci: [build, test]
-pipelineBase: main
-```
-
-With `--target-version 12.3.4`, these settings remain in `package.json` with an
-incompatibility warning. See the [version audit](docs/research/pnpm-recent-settings-audit-2026-09-10.md)
-for the upstream release and schema references.
+- See the [version notes](docs/versions/README.md) for field differences and
+  historical verification coverage.
 
 </details>
 
@@ -583,11 +243,9 @@ for the upstream release and schema references.
 
 Force replacing deprecated pnpm settings with new keys and remove old keys during migration.
 
-For v10, replacing legacy build permissions with `allowBuilds` requires a
-confirmed stable target of 10.26.0 or later. Older or unconfirmed targets keep
-the legacy setting names and report a warning. Canonical `update` sections
-and registry prefixes take precedence over their deprecated aliases, including
-when they come from different configuration sources.
+See the [version notes](docs/versions/README.md) for target-specific conversion
+requirements. Canonical `update` sections and registry prefixes take precedence
+over their deprecated aliases, including when they come from different sources.
 
 <details>
 <summary>Deprecated setting conversion examples</summary>

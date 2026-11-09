@@ -15,8 +15,8 @@ reports are not sources of current version information.
 Locate the Git root from the current working directory. Read applicable
 `AGENTS.md` files and their references. Confirm that `package.json#name` is
 `pnpm-settings-migrator`; otherwise, ask the user to identify the repository
-before applying this specialized workflow. Follow repository command wrappers,
-including RTK where required.
+before applying this specialized workflow. Follow applicable local execution
+instructions; keep documented project commands portable.
 
 Inspect Git status and existing diffs, preserving uncommitted work. Read the
 current working tree and compare it with HEAD when useful. Do not count existing
@@ -30,8 +30,10 @@ Extract the following versions separately, recording their paths and evidence:
 | Implemented compatibility | `src/constants/pnpm-v*.ts`, `pnpm-capabilities.ts`, version resolution, schema, and value shape validation |
 | Verified compatibility    | Tests, `scripts/verify-pnpm-compatibility.ts`, CI, and audit records with explicit results                 |
 
-Check `README.md` and `docs/research/` for differences between documentation and
-implementation. A capability's `minimumVersion` marks its introduction, not the
+Check `README.md`, `docs/versions/`, and `docs/research/` for differences between
+documentation and implementation. Use the minor notes to locate earlier field
+boundaries and the dated audits for their original evidence and verification.
+A capability's `minimumVersion` marks its introduction, not the
 upper limit of overall support. A version in a test matrix does not prove that
 the test passed. Without clear evidence, report partial implementation or
 unverified support instead of inventing a single latest supported version.
@@ -141,13 +143,13 @@ strategies for merge changes. Version resolution changes should also cover
 imprecise versions, prereleases, precedence, and conflicts between explicit
 targets and project declarations.
 
-Use the repository's declared pnpm and applicable RTK wrappers. Replace the
-version placeholder below with the exact releases to verify:
+Use the repository's declared pnpm and applicable local execution instructions.
+Replace the version placeholder below with the exact releases to verify:
 
 ```sh
-rtk pnpm run release:check
-rtk pnpm run build
-rtk pnpm run test:compatibility -- <exact-versions-to-verify>
+pnpm run release:check
+pnpm run build
+pnpm run test:compatibility -- <exact-versions-to-verify>
 ```
 
 Inspect the compatibility script's supported majors and conditional branches
@@ -169,8 +171,27 @@ Save the audit to `docs/research/pnpm-settings-bump-YYYY-MM-DD.md`. Runs on the
 same day may update the same report, recording the new query time. Include
 baselines, channels, targets, individual differences, sources, implementation
 files, and verification results. Preserve the dated context of historical audits.
-Update current README compatibility claims, verification matrices, and affected
-examples without presenting historical `latest` values as current facts.
+Maintain field differences in `docs/versions/v10/`, `v11/`, and `v12/`, using
+one `<major>.<minor>.md` file per minor, for example `v12/12.18.md`:
+
+- Compare with the preceding minor on the same major line; the `.0` minor
+  records the transition from the previous major. State the exact tags reviewed
+  and identify incomplete baseline coverage rather than inventing a full delta.
+- Record added, renamed, deprecated, removed, or newly consumed workspace
+  fields, nested value shapes, defaults, precedence, and project/global scope
+  changes, together with the migrator's behavior and source/audit links.
+- Put patch changes in the same minor file, marking exact first-supported or
+  first-rejected releases. Do not create one file per patch or describe a patch
+  capability as available throughout its minor.
+- When a reviewed minor has no relevant field differences, state that result
+  and its evidence. An absent note or missing baseline is not proof of no changes.
+- Update `docs/versions/README.md` navigation and historical verification coverage,
+  keeping verification claims tied to executed checks and their dated audits.
+
+Keep README focused on usage, options, general migration rules, and links to the
+version notes. Do not append per-release field lists or version update narratives
+there. Update affected examples and verification matrices without presenting
+historical `latest` values as current facts.
 
 Report in the user's language:
 

@@ -16,7 +16,10 @@
     "name": "ntnyq",
     "email": "ntnyq13@gmail.com"
   },
-  "repository": "ntnyq/pnpm-settings-migrator",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ntnyq/pnpm-settings-migrator"
+  },
   "bin": "./bin.mjs",
   "files": [
     "bin.mjs",

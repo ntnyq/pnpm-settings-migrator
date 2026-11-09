@@ -5,9 +5,11 @@
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit",
     "source.format.oxc": "explicit"
   },
   "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "node_modules/typescript",
   "eslint.validate": [
     "vue",
     "yaml",
@@ -34,6 +36,7 @@
     "Ghsas",
     "lcov",
     "libc",
+    "napi",
     "noproxy",
     "Npmrcs",
     "oxfmt",
@@ -46,6 +49,8 @@
     "pypi",
     "tsdown",
     "tsgo",
+    "undelegated",
+    "unmigrated",
     "unrs",
     "vite",
     "vitepress",
