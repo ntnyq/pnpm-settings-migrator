@@ -22,6 +22,8 @@ import { verifyPnpm12_15 } from './verify-pnpm-12.15'
 import { verifyPnpm12_16 } from './verify-pnpm-12.16'
 import { verifyPnpm12_17 } from './verify-pnpm-12.17'
 import { verifyPnpm12_18 } from './verify-pnpm-12.18'
+import { verifyPnpm12_19 } from './verify-pnpm-12.19'
+import { verifyPnpm12_20 } from './verify-pnpm-12.20'
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
 import { verifyIgnoredWorkspaceSettings } from './verify-pnpm-ignored-settings'
 import { verifyWorkspaceIncludes } from './verify-pnpm-includes'
@@ -299,6 +301,8 @@ await Promise.all(
     await verifyPnpm12_16(version, runPnpm)
     await verifyPnpm12_17(version, runPnpm)
     await verifyPnpm12_18(version, runPnpm)
+    await verifyPnpm12_19(version, runPnpm)
+    await verifyPnpm12_20(version, runPnpm)
     await verifyWorkspaceIncludes(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||

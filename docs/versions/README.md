@@ -60,8 +60,21 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [12.16](v12/12.16.md)
 - [12.17](v12/12.17.md)
 - [12.18](v12/12.18.md)
+- [12.19](v12/12.19.md)
+- [12.20](v12/12.20.md)
 
 ## Historical compatibility verification
+
+On 2026-11-13, the full applicable harness passed locally on **11.28.11,
+12.18.0, 12.19.0 and 12.20.0**. The new fixtures verify project-scoped optional
+peer bindings with real local packages, v9/v13 output and frozen installs, and
+the v13 local-directory specifier boundary between 12.19.0 and 12.20.0.
+At that query, npm `latest` and the development pin remained 12.18.0; the highest
+confirmed stable release was 12.20.0 on `next-12`. A follow-up `pnpm run test:compatibility` completed the full **44-release**
+default matrix (15 v11 and 29 v12) with exit code 0 and every applicable fixture
+awaited. The default and CI version lists were checked to match exactly.
+See the [November 13 audit](../research/pnpm-settings-bump-2026-11-13.md) for
+source evidence, commands and verification limits.
 
 Compatibility checks cover pnpm 11.28.11 and 12.18.0, including 11.28.0,
 11.28.1, 11.28.2, 11.28.3, 11.28.4, 11.28.5, 11.28.6, 12.7.0, 12.8.0,
