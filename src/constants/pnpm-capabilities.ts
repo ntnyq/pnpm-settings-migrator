@@ -156,6 +156,12 @@ export const PNPM_V12_17_MINIMUM_VERSION = [12, 17, 0] as const
 export const PNPM_V12_18_MINIMUM_VERSION = [12, 18, 0] as const
 
 /**
+ * Release introducing project-scoped optional peers and lockfile format options.
+ */
+// eslint-disable-next-line no-magic-numbers -- Exact release components are capability data.
+export const PNPM_V12_19_MINIMUM_VERSION = [12, 19, 0] as const
+
+/**
  * Non-optional Python arrays that no longer deserialize null from pnpm 12.18.
  */
 export const PNPM_PYTHON_ARRAY_SETTINGS: readonly string[] = [
@@ -208,6 +214,11 @@ export const PNPM_V12_7_WORKSPACE_SETTINGS: readonly string[] = [
  * @see https://github.com/pnpm/pnpm/blob/v12.4.0/pnpm/crates/config/src/workspace_yaml.rs
  */
 export const PNPM_SETTINGS_CAPABILITIES: readonly PnpmSettingsCapability[] = [
+  {
+    minimumVersion: PNPM_V12_19_MINIMUM_VERSION,
+    workspaceFields: ['projectScopedOptionalPeers'],
+    taskFields: [],
+  },
   {
     minimumVersion: PNPM_V12_17_MINIMUM_VERSION,
     workspaceFields: ['gitTagVersion', 'publishBranch'],

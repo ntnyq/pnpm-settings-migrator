@@ -154,6 +154,10 @@ export interface PnpmLoadedNodeLinkerSettings {
  */
 export interface PnpmLockfileSettings {
   /**
+   * Lockfile output format (pnpm 12.19+). v13 is experimental; null uses v9.
+   */
+  format?: 'v9' | 'v13' | null
+  /**
    * Include resolution-affecting configuration in the lockfile. Null uses pnpm's
    * default; an empty options object also enables the lockfile.
    */
@@ -329,6 +333,12 @@ export interface PnpmSettingsV12 {
    * Peer auto-installation policy (v12 or confirmed v11 from 11.28.7).
    */
   autoInstallPeersFromHighestMatch?: boolean | null
+  /**
+   * Keep missing optional peers scoped to each project's dependencies, including
+   * root dependencies when resolvePeersFromWorkspaceRoot is enabled (12.19+).
+   * Null uses pnpm's default; dedupePeerDependents: false already implies it.
+   */
+  projectScopedOptionalPeers?: boolean | null
   /**
    * External dependency names (v12 or confirmed v11 from 11.28.7).
    */

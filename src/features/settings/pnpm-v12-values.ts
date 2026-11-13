@@ -4,6 +4,7 @@ import {
   PNPM_V12_13_MINIMUM_VERSION,
   PNPM_V12_14_MINIMUM_VERSION,
   PNPM_V12_15_MINIMUM_VERSION,
+  PNPM_V12_19_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
@@ -184,10 +185,23 @@ function hasInvalidLockfileOptions(
     isArray(value) ||
     Object.keys(value).some(
       field =>
-        !['includeResolutionSettings', 'integrityTarget'].includes(field),
+        !['includeResolutionSettings', 'integrityTarget', 'format'].includes(
+          field,
+        ),
     )
   ) {
     return true
+  }
+  if (Object.hasOwn(value, 'format')) {
+    const format: unknown = Reflect.get(value, 'format')
+    if (
+      !supportsMinimumVersion(target.version, PNPM_V12_19_MINIMUM_VERSION) ||
+      (format !== null &&
+        (!isString(format) ||
+          (!format.includes('${') && !['v9', 'v13'].includes(format))))
+    ) {
+      return true
+    }
   }
   if (Object.hasOwn(value, 'integrityTarget')) {
     const integrityTarget: unknown = Reflect.get(value, 'integrityTarget')
@@ -243,6 +257,9 @@ export function hasIncompatibleV12SettingValue(
     return !supportsV12_10
   }
   if (key === 'failIfNoMatch' && target.compatibility === 'v12') {
+    return value !== null && !isBoolean(value)
+  }
+  if (key === 'projectScopedOptionalPeers') {
     return value !== null && !isBoolean(value)
   }
   if (supportsV12_10 && hasInvalidLinkerOrLockfileScalarValue(key, value)) {
