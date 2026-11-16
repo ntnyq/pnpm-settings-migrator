@@ -24,6 +24,7 @@ import { verifyPnpm12_17 } from './verify-pnpm-12.17'
 import { verifyPnpm12_18 } from './verify-pnpm-12.18'
 import { verifyPnpm12_19 } from './verify-pnpm-12.19'
 import { verifyPnpm12_20 } from './verify-pnpm-12.20'
+import { verifyPnpm12_21 } from './verify-pnpm-12.21'
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
 import { verifyIgnoredWorkspaceSettings } from './verify-pnpm-ignored-settings'
 import { verifyWorkspaceIncludes } from './verify-pnpm-includes'
@@ -31,6 +32,7 @@ import { verifyInstallSettings } from './verify-pnpm-install-settings'
 import { verifyMinorCapabilities } from './verify-pnpm-minor-compatibility'
 import { verifyPermissions } from './verify-pnpm-permissions'
 import { verifyRegistryRoutes } from './verify-pnpm-registry-declarations'
+import { verifyRegistryEnv } from './verify-pnpm-registry-env'
 import { verifyReleaseSettings } from './verify-pnpm-release-settings'
 import { DEFAULT_PNPM_VERSIONS } from './verify-pnpm-versions'
 
@@ -294,6 +296,7 @@ await Promise.all(
     const parsedVersion = parsePnpmVersion(version)
     await verifyConfigShapes(version, runPnpm)
     await verifyRegistryRoutes(version, runPnpm)
+    await verifyRegistryEnv(version, runPnpm)
     await verifyPermissions(version, runPnpm)
     await verifyPnpm12_12(version, runPnpm)
     await verifyPnpm12_13(version, runPnpm)
@@ -303,6 +306,7 @@ await Promise.all(
     await verifyPnpm12_18(version, runPnpm)
     await verifyPnpm12_19(version, runPnpm)
     await verifyPnpm12_20(version, runPnpm)
+    await verifyPnpm12_21(version, runPnpm)
     await verifyWorkspaceIncludes(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||
