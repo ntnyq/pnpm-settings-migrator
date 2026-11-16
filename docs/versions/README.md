@@ -62,8 +62,20 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [12.18](v12/12.18.md)
 - [12.19](v12/12.19.md)
 - [12.20](v12/12.20.md)
+- [12.21](v12/12.21.md)
 
 ## Historical compatibility verification
+
+The [November 16 audit](../research/pnpm-settings-bump-2026-11-16.md) reviews
+11.28.11 → 11.28.12 and 12.20.0 → 12.21.0. No new migration rules are needed.
+The development pin advances from 12.18.0 to npm `latest` 12.21.0. New native
+fixtures cover registry placeholder rejection at 11.28.12/12.19.0 and default
+lockfile directory consumption at 12.21.0, retaining preceding controls.
+The complete applicable harness passed locally on **11.28.11, 11.28.12,
+12.18.0, 12.19.0, 12.20.0 and 12.21.0**. The default and CI matrices now
+contain 46 releases; the full 46-release matrix was not rerun in this update.
+v10 retains its previous partial verification. See the dated audit for the
+commands, results and coverage limitations.
 
 On 2026-11-13, the full applicable harness passed locally on **11.28.11,
 12.18.0, 12.19.0 and 12.20.0**. The new fixtures verify project-scoped optional

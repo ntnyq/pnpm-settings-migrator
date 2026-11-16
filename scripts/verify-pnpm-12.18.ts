@@ -226,7 +226,8 @@ export async function verifyPnpm12_18(
   runPnpm: PnpmRunner,
 ): Promise<void> {
   if (
-    version !== '11.28.11' &&
+    // eslint-disable-next-line no-magic-numbers -- Retain the v11 control on later patches.
+    !supportsMinimumVersion(parsePnpmVersion(version), [11, 28, 11]) &&
     !supportsMinimumVersion(
       parsePnpmVersion(version),
       PNPM_V12_17_MINIMUM_VERSION,
