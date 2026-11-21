@@ -63,8 +63,19 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [12.19](v12/12.19.md)
 - [12.20](v12/12.20.md)
 - [12.21](v12/12.21.md)
+- [12.22](v12/12.22.md)
 
 ## Historical compatibility verification
+
+The [November 21 audit](../research/pnpm-settings-bump-2026-11-21.md) reviews
+11.28.12 → 11.28.13 and 12.21.0 → 12.22.0. At that query the development pin
+followed npm `latest` at 12.21.0, while the highest stable release was 12.22.0
+on `next-12`. The audit records the project-refused settings and native checks
+for global package scope, v11 override precedence, and v13 lockfile changes.
+The applicable harness passed locally on **11.28.12, 11.28.13, 12.19.0,
+12.20.0, 12.21.0 and 12.22.0**. The other entries in the 48-release matrix
+retain their prior results. v10 retains its separately recorded partial
+verification.
 
 The [November 16 audit](../research/pnpm-settings-bump-2026-11-16.md) reviews
 11.28.11 → 11.28.12 and 12.20.0 → 12.21.0. No new migration rules are needed.
