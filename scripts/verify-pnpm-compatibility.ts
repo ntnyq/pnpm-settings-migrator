@@ -26,6 +26,7 @@ import { verifyPnpm12_19 } from './verify-pnpm-12.19'
 import { verifyPnpm12_20 } from './verify-pnpm-12.20'
 import { verifyPnpm12_21 } from './verify-pnpm-12.21'
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
+import { verifyGlobalPackagesConfig } from './verify-pnpm-global-packages'
 import { verifyIgnoredWorkspaceSettings } from './verify-pnpm-ignored-settings'
 import { verifyWorkspaceIncludes } from './verify-pnpm-includes'
 import { verifyInstallSettings } from './verify-pnpm-install-settings'
@@ -34,6 +35,7 @@ import { verifyPermissions } from './verify-pnpm-permissions'
 import { verifyRegistryRoutes } from './verify-pnpm-registry-declarations'
 import { verifyRegistryEnv } from './verify-pnpm-registry-env'
 import { verifyReleaseSettings } from './verify-pnpm-release-settings'
+import { verifyV11OverridePrecedence } from './verify-pnpm-v11-overrides'
 import { DEFAULT_PNPM_VERSIONS } from './verify-pnpm-versions'
 
 /**
@@ -84,7 +86,7 @@ const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
  *
  * @param version - pnpm release to run through `pnpm dlx`
  * @param cwd - Absolute fixture workspace path
- * @param args - Arguments passed to the selected pnpm release
+ * @param command - Arguments and optional fixture environment overrides
  *
  * @returns Captured standard output and standard error
  *
@@ -93,8 +95,9 @@ const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 async function runPnpm(
   version: string,
   cwd: string,
-  args: string[],
+  command: string[] | { args: string[]; env: NodeJS.ProcessEnv },
 ): Promise<{ stdout: string; stderr: string }> {
+  const { args, env } = Array.isArray(command) ? { args: command } : command
   return execFileAsync(
     pnpmCommand,
     [
@@ -110,6 +113,7 @@ async function runPnpm(
       cwd,
       env: {
         ...process.env,
+        ...env,
         CI: 'true',
         NO_COLOR: '1',
       },
@@ -307,6 +311,8 @@ await Promise.all(
     await verifyPnpm12_19(version, runPnpm)
     await verifyPnpm12_20(version, runPnpm)
     await verifyPnpm12_21(version, runPnpm)
+    await verifyGlobalPackagesConfig(version, runPnpm)
+    await verifyV11OverridePrecedence(version, runPnpm)
     await verifyWorkspaceIncludes(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||

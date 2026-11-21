@@ -18,6 +18,7 @@ export const DEFAULT_PNPM_VERSIONS: readonly string[] = [
   '11.28.10',
   '11.28.11',
   '11.28.12',
+  '11.28.13',
   '12.2.1',
   '12.3.4',
   '12.4.0',
@@ -48,4 +49,5 @@ export const DEFAULT_PNPM_VERSIONS: readonly string[] = [
   '12.19.0',
   '12.20.0',
   '12.21.0',
+  '12.22.0',
 ]
