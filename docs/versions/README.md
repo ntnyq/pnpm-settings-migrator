@@ -38,6 +38,7 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [11.26](v11/11.26.md)
 - [11.27](v11/11.27.md)
 - [11.28](v11/11.28.md)
+- [11.29](v11/11.29.md)
 
 ## v12
 
@@ -64,8 +65,17 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [12.20](v12/12.20.md)
 - [12.21](v12/12.21.md)
 - [12.22](v12/12.22.md)
+- [12.23](v12/12.23.md)
 
 ## Historical compatibility verification
+
+The [November 24 audit](../research/pnpm-settings-bump-2026-11-24.md) reviews
+11.28.13 → 11.29.0 and 12.22.0 → 12.23.0. npm `latest` and the highest stable
+release both pointed to 12.23.0 at that query. The development pin moved from
+12.21.0 to 12.23.0. The applicable native harness passed on **11.28.13,
+11.29.0, 12.22.0, and 12.23.0**. The standalone **10.34.9** exact and wildcard
+override checks also passed. The other entries in the 50-release matrix
+retain their previous results.
 
 The [November 21 audit](../research/pnpm-settings-bump-2026-11-21.md) reviews
 11.28.12 → 11.28.13 and 12.21.0 → 12.22.0. At that query the development pin

@@ -154,13 +154,27 @@ export function mergeByStrategy(
   incoming: PnpmWorkspace,
   strategy: MergeStrategy,
 ): PnpmWorkspace {
+  const existingLinker = existing.nodeLinker
+  const incomingLinker = incoming.nodeLinker
+  // Linker options belong to their selected type and cannot be combined.
+  const differentLinkerTypes =
+    isPlainObject(existingLinker) &&
+    isPlainObject(incomingLinker) &&
+    existingLinker.type !== incomingLinker.type
+  const fallback = (settings: PnpmWorkspace) => {
+    if (!differentLinkerTypes) {
+      return settings
+    }
+    const { nodeLinker: _, ...remaining } = settings
+    return remaining
+  }
   switch (strategy) {
     case 'discard':
       // Keep existing values, only add new keys from incoming
-      return discardMerge(existing, incoming)
+      return discardMerge(existing, fallback(incoming))
 
     case 'merge': {
-      const result = mergeWithArrayDedupe(existing, incoming)
+      const result = mergeWithArrayDedupe(existing, fallback(incoming))
       // Matchers and filters use last-match precedence rather than set semantics.
       for (const key of ['packageConfigs', ...ORDERED_FILTER_SETTINGS]) {
         const existingValue: unknown = Reflect.get(existing, key)
@@ -178,10 +192,10 @@ export function mergeByStrategy(
 
     case 'overwrite':
       // Use incoming values, only keep keys not in incoming
-      return discardMerge(incoming, existing)
+      return discardMerge(incoming, fallback(existing))
 
     default:
-      return defu(existing, incoming)
+      return defu(existing, fallback(incoming))
   }
 }
 

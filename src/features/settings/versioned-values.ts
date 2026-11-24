@@ -2,10 +2,6 @@ import { isArray, isBoolean, isNumber, isString } from '@ntnyq/utils'
 import {
   PNPM_V11_28_MINIMUM_VERSION,
   PNPM_V11_28_1_MINIMUM_VERSION,
-  PNPM_V11_28_3_MINIMUM_VERSION,
-  PNPM_V11_28_4_MINIMUM_VERSION,
-  PNPM_V11_28_5_MINIMUM_VERSION,
-  PNPM_V11_28_6_MINIMUM_VERSION,
   PNPM_V12_7_MINIMUM_VERSION,
   PNPM_V12_8_2_MINIMUM_VERSION,
   PNPM_V12_5_MINIMUM_VERSION,
@@ -17,6 +13,7 @@ import type { ResolvedPnpmTarget } from '../../types'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasIncompatibleOverrides } from './overrides'
 import { hasInvalidPermissionSettings } from './permissions'
+import { hasIncompatibleV11SettingValue } from './pnpm-v11-values'
 import { hasInvalidV12MappingEntries } from './pnpm-v12-mappings'
 import { hasIncompatibleV12SettingValue } from './pnpm-v12-values'
 import { hasInvalidRemoteCacheValue } from './remote-cache'
@@ -27,56 +24,6 @@ import { hasIncompatiblePlatformList } from './supported-architectures'
  */
 const MIN_TASK_PRIORITY = -2_147_483_648
 const MAX_TASK_PRIORITY = 2_147_483_647
-
-/**
- * Validate values newly checked by pnpm 11.28 patch releases.
- *
- * @param key - Canonical setting or legacy alias that will be normalized
- * @param value - Untrusted source value
- * @param target - Confirmed target version
- *
- * @returns Whether pnpm rejects the value after migration
- */
-function hasInvalidV11PatchValue(
-  key: string,
-  value: unknown,
-  target: ResolvedPnpmTarget,
-): boolean {
-  if (
-    ['httpProxy', 'httpsProxy'].includes(key) &&
-    supportsMinimumVersion(target.version, PNPM_V11_28_5_MINIMUM_VERSION)
-  ) {
-    if (
-      value === null &&
-      supportsMinimumVersion(target.version, PNPM_V11_28_6_MINIMUM_VERSION)
-    ) {
-      return false
-    }
-    return !isString(value)
-  }
-  if (value === null || value === undefined) {
-    return false
-  }
-  if (
-    key === 'allowBuilds' &&
-    supportsMinimumVersion(target.version, PNPM_V11_28_3_MINIMUM_VERSION)
-  ) {
-    return (
-      typeof value !== 'object' ||
-      isArray(value) ||
-      Object.values(value).some(entry => !isBoolean(entry) && !isString(entry))
-    )
-  }
-  if (supportsMinimumVersion(target.version, PNPM_V11_28_4_MINIMUM_VERSION)) {
-    if (['allowUnusedPatches', 'allowNonAppliedPatches'].includes(key)) {
-      return !isBoolean(value)
-    }
-    if (['ignoredOptionalDependencies', 'requiredScripts'].includes(key)) {
-      return !isArray(value) || !value.every(isString)
-    }
-  }
-  return false
-}
 
 /**
  * Validate the fields newly consumed or ignored by pnpm 12.16.
@@ -258,7 +205,7 @@ export function hasIncompatibleSettingValue(
     hasIncompatiblePlatformList(key, value, target) ||
     hasInvalidRemoteCacheValue(key, value) ||
     hasInvalidReleaseValue(key, value, target) ||
-    hasInvalidV11PatchValue(key, value, target) ||
+    hasIncompatibleV11SettingValue(key, value, target) ||
     hasIncompatibleV12SettingValue(key, value, target)
   ) {
     return true
