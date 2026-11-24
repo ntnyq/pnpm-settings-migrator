@@ -176,6 +176,31 @@ describe('cli output', () => {
     })
   })
 
+  it.each([
+    { args: [], error: 'Detected pnpm 10' },
+    { args: ['--compatibility', 'v10'], error: 'Invalid compatibility: v10' },
+    {
+      args: ['--target-version', '10.34.9'],
+      error: 'Unsupported targetVersion: 10.34.9',
+    },
+  ])(
+    'rejects a pnpm 10 target through the CLI with $args',
+    async ({ args, error }) => {
+      await writePackageJson({
+        packageManager: 'pnpm@10.34.9',
+        pnpm: { saveExact: true },
+      })
+      const manifest = await readWorkspaceFile('package.json')
+
+      const result = await runCli(...args)
+
+      expect(result.code).toBe(1)
+      expect(result.stderr).toContain(error)
+      await expect(readWorkspaceFile('package.json')).resolves.toBe(manifest)
+      await expect(readWorkspaceYaml()).rejects.toHaveProperty('code', 'ENOENT')
+    },
+  )
+
   it('reports target-version conflicts without changing sources', async () => {
     await writeNpmrc('node-linker=isolated\n')
     const result = await runCli(

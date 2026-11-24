@@ -20,7 +20,7 @@ describe('migratePnpmSettings/dynamic proxy values', () => {
     noproxy: '$' + '{no_proxy}',
   }
 
-  it.each(['10.34.5', '11.26.0', '12.3.4', '12.4.0'] as const)(
+  it.each(['11.26.0', '12.3.4', '12.4.0'] as const)(
     'retains proxy placeholders from both source types in %s',
     async targetVersion => {
       await writePackageJson({ pnpm: { ...proxies, nodeLinker: 'isolated' } })
@@ -50,7 +50,7 @@ describe('migratePnpmSettings/dynamic proxy values', () => {
     },
   )
 
-  it.each(['10.34.5', '11.26.0', '12.3.4', '12.4.0'] as const)(
+  it.each(['11.26.0', '12.3.4', '12.4.0'] as const)(
     'rejects existing dynamic proxies without writes in %s',
     async targetVersion => {
       const original = stringify(proxies)
@@ -64,7 +64,7 @@ describe('migratePnpmSettings/dynamic proxy values', () => {
     },
   )
 
-  it.each(['10.34.5', '11.26.0', '12.3.4', '12.4.0'] as const)(
+  it.each(['11.26.0', '12.3.4', '12.4.0'] as const)(
     'preserves literal proxy values in %s',
     async targetVersion => {
       const literals = {

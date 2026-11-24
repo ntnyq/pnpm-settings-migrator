@@ -145,10 +145,6 @@ export async function readProjectNpmrcMigrations(
   options: ReadProjectNpmrcOptions,
 ): Promise<ProjectNpmrcMigrations> {
   const { target, sharedWorkspaceLockfile } = options
-  const { compatibility } = target
-  if (compatibility === 'v10') {
-    return { packageConfigs: {}, projects: [], warnings: [] }
-  }
 
   const { candidates, warnings } = await readProjectManifestCandidates(
     cwd,

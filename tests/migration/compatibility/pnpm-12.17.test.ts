@@ -164,7 +164,7 @@ describe('pnpm 12.17 workspace settings and overrides', () => {
     },
   )
 
-  it.each([preceding, '11.28.10', '10.34.9'])(
+  it.each([preceding, '11.28.10'])(
     'distinguishes package name globs from existing range and protocol selectors at %s',
     async version => {
       await writePackageJson({
@@ -193,7 +193,7 @@ describe('pnpm 12.17 workspace settings and overrides', () => {
     },
   )
 
-  it.each([preceding, '11.28.10', '10.34.9'])(
+  it.each([preceding, '11.28.10'])(
     'preserves unsupported npmrc overrides at %s',
     async version => {
       const section = '[overrides]\n# keep siblings\nlib-*=1.0.0\nvalid=2.0.0\n'
@@ -239,7 +239,6 @@ describe('pnpm 12.17 workspace settings and overrides', () => {
     { version: preceding, pnpm: settings },
     { version: targetVersion, pnpm: { publishBranch: [] } },
     { version: targetVersion, pnpm: { overrides: { 'pkg:dev': '-' } } },
-    { version: '10.34.9', pnpm: { overrides: { 'p*>dep': '-' } } },
   ])(
     'rejects incompatible existing settings before writes at $version',
     async ({ version, pnpm }) => {

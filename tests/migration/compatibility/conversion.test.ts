@@ -109,97 +109,23 @@ describe('migratePnpmSettings/compatibility', () => {
     expect(npmrc).not.toContain('node-linker=hoisted')
   })
 
-  it('keeps legacy npmrc whitelist behavior in v10 mode', async () => {
-    await writeNpmrc(
-      'node-linker=hoisted\nignored-optional-dependencies[]=fsevents',
-    )
-
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-
-    expect(workspace.ignoredOptionalDependencies).toStrictEqual(['fsevents'])
-    expect(workspace.nodeLinker).toBe('hoisted')
-  })
-
-  it('keeps package-manager strictness settings in v10 mode', async () => {
-    await writeNpmrc(
-      'package-manager-strict=false\npackage-manager-strict-version=true',
-    )
-
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-
-    expect(workspace.packageManagerStrict).toBe(false)
-    expect(workspace.packageManagerStrictVersion).toBe(true)
-    expect(workspace.pmOnFail).toBeUndefined()
-  })
-
-  it('migrates additional schema-aligned .npmrc settings in v10', async () => {
+  it('migrates additional schema-aligned .npmrc settings in v11', async () => {
     await writeNpmrc(
       [
         'network-concurrency=24',
         'package-import-method=clone-or-copy',
-        'store-dir=.pnpm-store',
         'verify-store-integrity=false',
       ].join('\n'),
     )
 
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
     const workspace = await readWorkspaceYaml()
 
     expect(workspace).toMatchObject({
       networkConcurrency: '24',
       packageImportMethod: 'clone-or-copy',
-      storeDir: '.pnpm-store',
       verifyStoreIntegrity: false,
     })
-  })
-
-  it('migrates documented pnpm v10 settings from .npmrc', async () => {
-    await writeNpmrc(
-      [
-        'audit-level=high',
-        'catalog-mode=strict',
-        'cleanup-unused-catalogs=true',
-        'state-dir=.pnpm-state',
-      ].join('\n'),
-    )
-
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-
-    expect(workspace).toMatchObject({
-      auditLevel: 'high',
-      catalogMode: 'strict',
-      cleanupUnusedCatalogs: true,
-      stateDir: '.pnpm-state',
-    })
-  })
-
-  it('keeps non-v10 settings in .npmrc when using v10 compatibility', async () => {
-    await writeNpmrc(
-      [
-        'audit=false',
-        'fetch-retry-timeout=1000',
-        'node-linker=hoisted',
-        'pm-on-fail=warn',
-        'virtual-store-only=true',
-      ].join('\n'),
-    )
-
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
-    const npmrc = await readWorkspaceFile('.npmrc')
-
-    expect(workspace).toMatchObject({ nodeLinker: 'hoisted' })
-    expect(workspace).not.toHaveProperty('audit')
-    expect(workspace).not.toHaveProperty('fetchRetryTimeout')
-    expect(workspace).not.toHaveProperty('pmOnFail')
-    expect(workspace).not.toHaveProperty('virtualStoreOnly')
-    expect(npmrc).toContain('audit=false')
-    expect(npmrc).toContain('fetch-retry-timeout=1000')
-    expect(npmrc).toContain('pm-on-fail=warn')
-    expect(npmrc).toContain('virtual-store-only=true')
   })
 
   it('normalizes legacy build settings to allowBuilds in v11', async () => {
@@ -421,41 +347,17 @@ describe('migratePnpmSettings/compatibility', () => {
     await expect(fsExists(`${testDir}/.npmrc`)).resolves.toBe(false)
   })
 
-  it('auto mode defaults to v10 behavior when packageManager is missing', async () => {
-    await writeNpmrc('node-linker=hoisted\nsave-exact=true')
+  it('defaults to the v11 schema when the project has no pnpm declaration', async () => {
+    await writeNpmrc(
+      'only-built-dependencies[]=esbuild\npackage-manager-strict=false',
+    )
 
-    await migratePnpmSettings({ compatibility: 'auto', cwd: testDir })
-    const workspace = await readWorkspaceYaml()
+    await migratePnpmSettings({ cwd: testDir })
 
-    expect(workspace.nodeLinker).toBe('hoisted')
-    expect(workspace.saveExact).toBe(true)
-  })
-
-  it('replaces deprecated settings when replaceDeprecated is true in v10 mode', async () => {
-    await writePackageJson({
-      name: 'test-workspace',
-      packageManager: 'pnpm@10.26.0',
-      pnpm: {
-        allowNonAppliedPatches: true,
-        ignoredBuiltDependencies: ['core-js'],
-        onlyBuiltDependencies: ['esbuild'],
-      },
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      allowBuilds: { esbuild: true },
+      pmOnFail: 'warn',
     })
-
-    await migratePnpmSettings({
-      compatibility: 'v10',
-      cwd: testDir,
-      replaceDeprecated: true,
-    })
-    const workspace = await readWorkspaceYaml()
-
-    expect(workspace.allowUnusedPatches).toBe(true)
-    expect(workspace.allowBuilds).toStrictEqual({
-      'core-js': false,
-      esbuild: true,
-    })
-    expect(workspace.allowNonAppliedPatches).toBeUndefined()
-    expect(workspace.ignoredBuiltDependencies).toBeUndefined()
-    expect(workspace.onlyBuiltDependencies).toBeUndefined()
+    await expect(fsExists(`${testDir}/.npmrc`)).resolves.toBe(false)
   })
 })

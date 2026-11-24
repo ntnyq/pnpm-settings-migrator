@@ -21,9 +21,6 @@ export function isRefusedProjectSetting(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
-  if (target.compatibility === 'v10') {
-    return false
-  }
   if (PROJECT_REFUSED_SETTINGS.has(key)) {
     return true
   }

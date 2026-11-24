@@ -30,7 +30,6 @@ export const VALID_STRATEGIES: MergeStrategy[] = [
  */
 export const VALID_COMPATIBILITIES: CompatibilityTarget[] = [
   'auto',
-  'v10',
   'v11',
   'v12',
 ]

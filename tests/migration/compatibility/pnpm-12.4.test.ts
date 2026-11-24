@@ -155,7 +155,7 @@ describe('migratePnpmSettings/pnpm 12.4 settings', () => {
     },
   )
 
-  it.each(['v10', 'v11', 'v12'] as const)(
+  it.each(['v11', 'v12'] as const)(
     'retains new source fields for %s',
     async compatibility => {
       await writePackageJson({

@@ -1,7 +1,7 @@
 /**
  * Compatibility target used by the migrator.
  */
-export type CompatibilityTarget = 'auto' | 'v10' | 'v11' | 'v12'
+export type CompatibilityTarget = 'auto' | 'v11' | 'v12'
 
 /**
  * Merge strategy for combining pnpm settings.
@@ -28,8 +28,8 @@ export interface Options {
 
   /**
    * pnpm compatibility target.
-   * - `auto`: detect from package manager declarations (fallback to `v10`).
-   * - `v10`: keep legacy v10 settings
+   * - `auto`: detect from package manager declarations (fallback to `v11`).
+   *   Detected majors below 11 require an explicit supported target.
    * - `v11`: normalize to v11-compatible settings
    * - `v12`: normalize to v12 settings, using the detected minor capabilities
    *
@@ -39,8 +39,8 @@ export interface Options {
 
   /**
    * Exact target pnpm version, overriding package manager declarations.
-   * Must agree with an explicit compatibility major. Ranges are not accepted.
-   * Prereleases retain the base major schema conservatively.
+   * The major must be 11 or later and agree with any explicit compatibility.
+   * Supply a full version. Prereleases use the base major schema.
    */
   targetVersion?: string
 

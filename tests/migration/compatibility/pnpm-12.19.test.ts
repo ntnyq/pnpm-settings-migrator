@@ -55,7 +55,7 @@ describe('pnpm 12.19 optional peers and lockfile formats', () => {
     )
   })
 
-  it.each(['12.18.0', '11.28.11', '10.34.9'])(
+  it.each(['12.18.0', '11.28.11'])(
     'retains whole objects and migrates unrelated settings before the boundary %s',
     async version => {
       await writePackageJson({ pnpm: { ...settings, saveExact: true } })

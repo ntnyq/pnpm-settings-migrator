@@ -48,7 +48,6 @@ const readonlyCases = (['discard', 'merge', 'overwrite'] as const).flatMap(
 )
 
 const incompatiblePinCases = [
-  '10.34.7',
   '11.28.7',
   '12.14.0',
   '12.15.0-rc.1',

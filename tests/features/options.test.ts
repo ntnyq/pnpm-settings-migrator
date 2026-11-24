@@ -48,18 +48,27 @@ describe('explicit target version options', () => {
     },
   )
 
-  it.each(['v10', 'v11'] as const)(
-    'rejects an explicit major conflict with %s',
-    compatibility => {
-      expect(() =>
-        resolveOptions({ compatibility, targetVersion: '12.4.0' }),
-      ).toThrow('conflicts with compatibility')
+  it.each(['9.15.9', '10.34.9', '10.26.0-rc.0', '10.34.9+sha512.abc'])(
+    'rejects unsupported exact version %s',
+    targetVersion => {
+      expect(() => resolveOptions({ targetVersion })).toThrow(
+        'Unsupported targetVersion',
+      )
     },
   )
 
-  it('rejects the removed minor compatibility enum', () => {
+  it('rejects an explicit major conflict', () => {
     expect(() =>
-      resolveOptions(JSON.parse('{"compatibility":"v12.4"}')),
-    ).toThrow('Invalid compatibility')
+      resolveOptions({ compatibility: 'v11', targetVersion: '12.4.0' }),
+    ).toThrow('conflicts with compatibility')
   })
+
+  it.each(['v10', 'v12.4'])(
+    'rejects the removed compatibility value %s',
+    compatibility => {
+      expect(() =>
+        resolveOptions(JSON.parse(JSON.stringify({ compatibility }))),
+      ).toThrow('Invalid compatibility')
+    },
+  )
 })
