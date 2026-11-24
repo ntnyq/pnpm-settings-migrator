@@ -66,7 +66,7 @@ describe('migratePnpmSettings/result', () => {
     },
   )
 
-  it.each(['v10', 'v11'] as const)(
+  it.each(['v11', 'v12'] as const)(
     'tracks npmrc cleanup for %s',
     async compatibility => {
       await writeWorkspaceYaml('saveExact: true\n')
@@ -77,9 +77,7 @@ describe('migratePnpmSettings/result', () => {
         settingsChanges: [],
         sourceSettingsCleaned: true,
       })
-      await expect(fsExists(join(testDir, '.npmrc'))).resolves.toBe(
-        compatibility === 'v10',
-      )
+      await expect(fsExists(join(testDir, '.npmrc'))).resolves.toBe(false)
     },
   )
 

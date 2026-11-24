@@ -1,24 +1,19 @@
-import { isString, pick } from '@ntnyq/utils'
+import { isString } from '@ntnyq/utils'
 import camelcaseKeys from 'camelcase-keys'
 import { readIniFile } from 'read-ini-file'
-import { kebabCase } from 'uncase'
 import {
   NPMRC_AUTH_OR_REGISTRY_KEYS,
-  PNPM_V10_NPMRC_SETTINGS_FIELDS,
   NODE_MIRROR_KEY_PATTERN,
-  PROXY_SETTINGS,
   NPMRC_STRING_ARRAY_SETTINGS,
 } from '../../constants'
 import type {
   SettingsIssues,
-  CompatibilityTarget,
   ResolvedPnpmTarget,
   ReadMigratableNpmrcOptions,
   MigratableNpmrc,
   NpmRC,
 } from '../../types'
 import { fsReadFile, fsRemoveFile, fsWriteFileIfChanged } from '../../utils/fs'
-import { hasIncompatibleOverrides } from '../settings/overrides'
 import { createSettingsIssues, selectPnpmSettings } from '../settings/schema'
 
 /**
@@ -147,7 +142,6 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  * INI sections are retained because their child keys are not root settings.
  *
  * @param path - Absolute path to the `.npmrc` file
- * @param compatibility - Concrete pnpm compatibility target
  * @param migratedKeys - Original `.npmrc` keys that were migrated
  *
  * @returns Whether the file was changed or removed
@@ -156,12 +150,11 @@ function isNpmrcAuthOrRegistryKey(key: string): boolean {
  *
  * @example
  * ```ts
- * await pruneNpmrc('/path/to/.npmrc', 'v10', ['node-linker'])
+ * await pruneNpmrc('/path/to/.npmrc', ['node-linker'])
  * ```
  */
 export async function pruneNpmrc(
   path: string,
-  compatibility: Exclude<CompatibilityTarget, 'auto'>,
   migratedKeys: string[],
 ): Promise<boolean> {
   const migratedKeySet = new Set(migratedKeys.map(normalizeNpmrcKey))
@@ -192,7 +185,7 @@ export async function pruneNpmrc(
     return false
   }
   const updatedContent = lines.join('\n').trimEnd()
-  if (compatibility !== 'v10' && !updatedContent.trim()) {
+  if (!updatedContent) {
     await fsRemoveFile(path)
     return true
   }
@@ -203,9 +196,8 @@ export async function pruneNpmrc(
 /**
  * Read `.npmrc` and return settings that should be migrated into workspace config.
  *
- * - `v10`: returns settings from the legacy whitelist.
- * - `v11+`: selects target-schema settings and retains auth, registry,
- *   refused, incompatible, and unknown keys.
+ * Selects target-schema settings and retains auth, registry, refused,
+ * incompatible, and unknown keys.
  *
  * @param path - Absolute path to the `.npmrc` file
  * @param target - Resolved pnpm version and field capabilities
@@ -220,43 +212,8 @@ export async function readMigratableNpmrc(
   target: ResolvedPnpmTarget,
   options: ReadMigratableNpmrcOptions = {},
 ): Promise<MigratableNpmrc> {
-  const { compatibility } = target
   const raw = (await readIniFile(path)) as NpmRC
   const issues = createSettingsIssues()
-
-  if (compatibility === 'v10') {
-    const pnpmSettingsFields = new Set(
-      PNPM_V10_NPMRC_SETTINGS_FIELDS.map(field =>
-        normalizeNpmrcKey(kebabCase(field)),
-      ),
-    )
-    const keys = Object.keys(raw).filter(key => {
-      const canonicalKey = Object.keys(camelcaseKeys({ [key]: true }))[0] ?? key
-      if (
-        canonicalKey === 'overrides' &&
-        hasIncompatibleOverrides(canonicalKey, raw[key], target)
-      ) {
-        issues.incompatible.push(key)
-        return false
-      }
-      if (
-        PROXY_SETTINGS.has(canonicalKey) &&
-        isString(raw[key]) &&
-        raw[key].includes('${')
-      ) {
-        issues.unsafe.push(key)
-        return false
-      }
-      return pnpmSettingsFields.has(normalizeNpmrcKey(key))
-    })
-    const migratable = pick(raw, keys)
-
-    return {
-      issues,
-      keys,
-      settings: normalizeNpmrcSettings(camelcaseKeys(migratable)),
-    }
-  }
 
   const migratable: NpmRC = {}
   const keys: string[] = []

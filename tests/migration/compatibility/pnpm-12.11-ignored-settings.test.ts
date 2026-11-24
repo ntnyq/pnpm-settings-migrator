@@ -86,14 +86,11 @@ describe('pnpm v12 ignored workspace settings', () => {
     },
   )
 
-  it.each(['v10', 'v11'] as const)(
-    'keeps production migration available for %s',
-    async compatibility => {
-      await writeNpmrc('production=true\n')
-      await migratePnpmSettings({ cwd: testDir, compatibility })
-      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
-        production: true,
-      })
-    },
-  )
+  it('keeps production migration available for v11', async () => {
+    await writeNpmrc('production=true\n')
+    await migratePnpmSettings({ cwd: testDir, compatibility: 'v11' })
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      production: true,
+    })
+  })
 })

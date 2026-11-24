@@ -2,7 +2,6 @@ import { isArray } from '@ntnyq/utils'
 import {
   PNPM_V12_MAJOR,
   PNPM_V11_MAJOR,
-  PNPM_V10_SETTINGS,
   PNPM_V11_SETTINGS,
   PNPM_V12_SETTINGS,
   PNPM_SETTINGS_CAPABILITIES,
@@ -58,6 +57,8 @@ function normalizePackageManagers(
  * @param devPackageManager - Package manager declaration from `devEngines`
  *
  * @returns Resolved concrete compatibility target
+ *
+ * @throws {TypeError} When automatic detection selects an unsupported older major
  */
 export function resolveCompatibilityTarget(
   compatibility: CompatibilityTarget,
@@ -80,11 +81,13 @@ export function resolveCompatibilityTarget(
       ? Math.max(...devPackageManagerMajors)
       : undefined)
 
-  if (major !== undefined && major >= PNPM_V12_MAJOR) {
-    return 'v12'
+  if (major !== undefined && major < PNPM_V11_MAJOR) {
+    throw new TypeError(
+      `Detected pnpm ${major}, but migration targets require pnpm 11 or later. Select compatibility v11 or v12 explicitly to migrate for an upgrade.`,
+    )
   }
 
-  return major !== undefined && major >= PNPM_V11_MAJOR ? 'v11' : 'v10'
+  return major !== undefined && major >= PNPM_V12_MAJOR ? 'v12' : 'v11'
 }
 
 /**
@@ -120,7 +123,7 @@ function resolveDeclaredVersion(
  *
  * @returns Major, confirmed version, and accepted workspace/task fields
  *
- * @throws {TypeError} When an explicit version is invalid or conflicts with the major
+ * @throws {TypeError} When the target is invalid, unsupported, or conflicts with the major
  */
 export function resolvePnpmTarget(
   options: ResolvePnpmTargetOptions,
@@ -140,7 +143,6 @@ export function resolvePnpmTarget(
       ? declaredVersion
       : undefined
   const baseSettings = {
-    v10: PNPM_V10_SETTINGS,
     v11: PNPM_V11_SETTINGS,
     v12: PNPM_V12_SETTINGS,
   }

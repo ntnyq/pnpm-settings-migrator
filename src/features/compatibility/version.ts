@@ -1,4 +1,5 @@
 import { isString } from '@ntnyq/utils'
+import { PNPM_V11_MAJOR } from '../../constants'
 import type { CompatibilityTarget, PnpmVersion } from '../../types'
 
 /**
@@ -40,7 +41,7 @@ export function parsePnpmVersion(value: string): PnpmVersion | undefined {
  *
  * @returns Parsed version, or undefined when the option was omitted
  *
- * @throws {TypeError} When the version is malformed or conflicts with the major
+ * @throws {TypeError} When the version is malformed, unsupported, or conflicts with the major
  */
 export function validateTargetVersion(
   value: string | undefined,
@@ -53,6 +54,11 @@ export function validateTargetVersion(
   if (!version) {
     throw new TypeError(
       `Invalid targetVersion: ${value}. Expected an exact pnpm version such as 12.4.0.`,
+    )
+  }
+  if (version.major < PNPM_V11_MAJOR) {
+    throw new TypeError(
+      `Unsupported targetVersion: ${value}. Expected pnpm 11 or later.`,
     )
   }
   if (

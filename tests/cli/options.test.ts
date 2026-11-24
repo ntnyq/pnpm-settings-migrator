@@ -47,6 +47,7 @@ describe('cli options', () => {
         .map(([message]) => String(message))
         .join('\n')
       expect(help).toContain('Options:')
+      expect(help).toContain('Compatibility target (auto, v11, v12)')
       expect(help).not.toContain('Commands:')
       expect(help).not.toContain('For more info')
     } finally {

@@ -14,7 +14,7 @@ export function createCli(): CAC {
     .option('--sort-keys', 'Sort keys when write pnpm-workspace.yaml')
     .option(
       '--compatibility <compatibility>',
-      'Compatibility target (auto, v10, v11, v12)',
+      'Compatibility target (auto, v11, v12)',
     )
     .option(
       '--target-version <version>',

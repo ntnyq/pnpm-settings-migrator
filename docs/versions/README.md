@@ -22,11 +22,6 @@ diagnostics. Incompatible existing workspace settings fail validation before
 writes. Exact stable targets enable known capabilities on their major line;
 unconfirmed targets keep the conservative base schema. Defaults are not inserted.
 
-## v10
-
-- [10.26](v10/10.26.md)
-- [10.34](v10/10.34.md)
-
 ## v11
 
 - [11.0](v11/11.0.md)
@@ -68,6 +63,9 @@ unconfirmed targets keep the conservative base schema. Defaults are not inserted
 - [12.23](v12/12.23.md)
 
 ## Historical compatibility verification
+
+The current migration targets are v11 and v12. The pnpm 10 notes record
+previous behavior for [10.26](v10/10.26.md) and [10.34](v10/10.34.md).
 
 The [November 24 audit](../research/pnpm-settings-bump-2026-11-24.md) reviews
 11.28.13 → 11.29.0 and 12.22.0 → 12.23.0. npm `latest` and the highest stable

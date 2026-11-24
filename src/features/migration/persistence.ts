@@ -245,7 +245,6 @@ export async function persistMigration(
   const {
     cleanNpmrc,
     cleanPackageJson,
-    compatibility,
     finalSettings,
     normalizedPackageJsonSettings,
     normalizedNpmrcSettings,
@@ -341,15 +340,15 @@ export async function persistMigration(
     const appliedKeys = selectAppliedProjectKeys(project, finalSettings)
     return appliedKeys.length
       ? [
-          pruneNpmrc(project.npmrcPath, compatibility, appliedKeys).then(
-            changed => (changed ? project.npmrcPath : undefined),
+          pruneNpmrc(project.npmrcPath, appliedKeys).then(changed =>
+            changed ? project.npmrcPath : undefined,
           ),
         ]
       : []
   })
   if (npmrcExists && appliedNpmrcKeys.length) {
     pruneTasks.push(
-      pruneNpmrc(npmrcPath, compatibility, appliedNpmrcKeys).then(changed =>
+      pruneNpmrc(npmrcPath, appliedNpmrcKeys).then(changed =>
         changed ? npmrcPath : undefined,
       ),
     )

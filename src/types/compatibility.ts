@@ -27,11 +27,6 @@ export interface NormalizedSettingsResult {
  */
 export interface NormalizeSettingsOptions {
   /**
-   * Concrete pnpm version and capabilities used to select replacements.
-   */
-  target: ResolvedPnpmTarget
-
-  /**
    * Canonical sections in the merged destination, used for alias precedence.
    */
   canonicalSettings?: Pick<

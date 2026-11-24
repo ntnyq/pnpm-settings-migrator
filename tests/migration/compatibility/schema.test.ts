@@ -489,7 +489,7 @@ describe('migratePnpmSettings/versioned schema', () => {
     )
   })
 
-  it('migrates documented v10 settings omitted by the old whitelist', async () => {
+  it('migrates shared install settings for v11', async () => {
     await writeNpmrc(
       [
         'block-exotic-subdeps=true',
@@ -501,7 +501,7 @@ describe('migratePnpmSettings/versioned schema', () => {
       ].join('\n'),
     )
 
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
 
     await expect(readWorkspaceYaml()).resolves.toMatchObject({
       blockExoticSubdeps: true,
@@ -511,7 +511,10 @@ describe('migratePnpmSettings/versioned schema', () => {
       minimumReleaseAge: '1440',
       trustPolicy: 'no-downgrade',
     })
-    await expect(readWorkspaceFile('.npmrc')).resolves.toBe('\n')
+    await expect(readWorkspaceFile('.npmrc')).rejects.toHaveProperty(
+      'code',
+      'ENOENT',
+    )
   })
 
   it.each(['v11', 'v12'] as const)(

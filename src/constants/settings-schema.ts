@@ -1,4 +1,3 @@
-import { PNPM_V10_NPMRC_SETTINGS_FIELDS } from './pnpm-v10'
 import {
   PNPM_V11_ONLY_WORKSPACE_SETTINGS,
   PNPM_V11_WORKSPACE_SETTINGS_FIELDS,
@@ -16,16 +15,6 @@ import { PNPM_PROJECT_REFUSED_SETTINGS } from './settings-fields'
  */
 export const OVERRIDE_PACKAGE_NAME_PATTERN =
   /^(?:@[A-Za-z0-9.!~*'()_-]+\/(?!\.)|(?![._-]))[A-Za-z0-9.!~*'()_-]+$/u
-
-/**
- * Legacy npmrc fields plus manifest-only fields accepted by the v10 selector.
- */
-export const PNPM_V10_WORKSPACE_SETTINGS_FIELDS: readonly string[] = [
-  ...PNPM_V10_NPMRC_SETTINGS_FIELDS,
-  'catalog',
-  'catalogs',
-  'packages',
-]
 
 /**
  * Fields rejected from project manifests for v11 and newer targets.
@@ -65,11 +54,6 @@ export const PROXY_SETTINGS = new Set([
   'proxy',
   'noproxy',
 ])
-
-/**
- * Allowed workspace fields for the v10 target.
- */
-export const PNPM_V10_SETTINGS = new Set(PNPM_V10_WORKSPACE_SETTINGS_FIELDS)
 
 /**
  * Registry settings inspected for credentials and dynamic URL interpolation.

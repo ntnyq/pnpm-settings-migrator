@@ -14,7 +14,7 @@ describe('migratePnpmSettings/source cleanup', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('source-cleanup')
 
-  describe.each(['v10', 'v11', 'v12'] as const)(
+  describe.each(['v11', 'v12'] as const)(
     '%s INI key spellings',
     compatibility => {
       it.each([
@@ -58,13 +58,13 @@ describe('migratePnpmSettings/source cleanup', () => {
   it('leaves unmatched INI text byte-for-byte unchanged', async () => {
     const original = '# comment\r\ncustom=value\r\n\r\n'
     await writeNpmrc(original)
-    await expect(
-      pruneNpmrc(`${testDir}/.npmrc`, 'v11', ['save-exact']),
-    ).resolves.toBe(false)
+    await expect(pruneNpmrc(`${testDir}/.npmrc`, ['save-exact'])).resolves.toBe(
+      false,
+    )
     await expect(readWorkspaceFile('.npmrc')).resolves.toBe(original)
   })
 
-  describe.each(['v10', 'v11', 'v12'] as const)(
+  describe.each(['v11', 'v12'] as const)(
     '%s npmrc line endings',
     compatibility => {
       it.each(['\r', '\r\n', '\n'])(
@@ -216,10 +216,10 @@ describe('migratePnpmSettings/source cleanup', () => {
     },
   )
 
-  it('cleans exact v10 keys without deleting prefix matches', async () => {
+  it('cleans exact keys without deleting prefix matches', async () => {
     await writeNpmrc('tag-version-prefix=v\nnode-linker=hoisted')
 
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
 
     await expect(readWorkspaceFile('.npmrc')).resolves.toBe(
       'tag-version-prefix=v\n',

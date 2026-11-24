@@ -142,3 +142,25 @@ checks cover the reported boundaries and representative installs. Publishing
 precedence was reviewed in tagged source and workspace access was checked in
 config reporting. No registry publication or Linux and Windows CI run was
 part of this update.
+
+## Follow-up removal of the pnpm 10 target
+
+A second [npm registry query](https://registry.npmjs.org/pnpm) at **11:54:17
+Asia/Shanghai (UTC+08:00)** confirmed that `latest` and the highest stable
+release were still **12.23.0**. The `latest-*` and `next-*` tags for v10, v11,
+and v12 still matched the table above. The development pin stays at 12.23.0.
+
+- **v10** previously had partial native verification at 10.34.9. The CLI and
+  library now reject the v10 selector, explicit versions below 11, and detected
+  majors below 11 in auto mode. Projects pinned to pnpm 10 can select an
+  explicit supported target to migrate legacy settings for an upgrade.
+- **v11 and v12** retain their base setting names and exact-version capability
+  gates. With no detected major, auto mode uses the base v11 schema.
+
+`pnpm install --frozen-lockfile`, `pnpm run release:check` (2,621 tests in 54
+files), and `pnpm run build` passed. The native harness passed for **11.25.0,
+11.29.0, 12.2.1, and 12.23.0** with `XDG_CONFIG_HOME` set to a temporary
+directory. The first native run picked up the host's `globalPackagesConfig`,
+which pnpm 11 warned it could not read. The 50-release default and CI matrices
+retain their existing entries. This follow-up ran the four releases listed
+above and their applicable fixtures.

@@ -2,7 +2,7 @@ import type { ResolvedPnpmTarget } from './compatibility'
 import type { ResolvedPackageJsonSettings, ParsedPackageJson } from './config'
 import type { WorkspaceFileWrite } from './includes'
 import type { MigratableNpmrc, ProjectNpmrcMigrations } from './npmrc'
-import type { CompatibilityTarget, MergeStrategy } from './options'
+import type { MergeStrategy } from './options'
 import type { PackageJson } from './package-json'
 import type { SettingsChange } from './settings'
 import type { PnpmWorkspace } from './workspace'
@@ -87,10 +87,6 @@ export interface PersistMigrationOptions {
    * Whether to remove applied legacy settings from the package manifest.
    */
   cleanPackageJson: boolean
-  /**
-   * Concrete target controlling cleanup of empty `.npmrc` files.
-   */
-  compatibility: Exclude<CompatibilityTarget, 'auto'>
   /**
    * Merged destination settings used to verify source values were preserved.
    */

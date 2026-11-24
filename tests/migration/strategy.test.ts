@@ -269,13 +269,14 @@ describe('migratePnpmSettings/strategy', () => {
     })
     await writeNpmrc('hoist-pattern[]=*eslint*')
 
-    await migratePnpmSettings({ compatibility: 'v10', cwd: testDir })
+    await migratePnpmSettings({ compatibility: 'v11', cwd: testDir })
 
     await expect(readWorkspaceYaml()).resolves.toMatchObject({
       hoistPattern: ['*types*', '*eslint*'],
     })
-    await expect(readWorkspaceFile('.npmrc')).resolves.not.toContain(
-      'hoist-pattern',
+    await expect(readWorkspaceFile('.npmrc')).rejects.toHaveProperty(
+      'code',
+      'ENOENT',
     )
   })
 

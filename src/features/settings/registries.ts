@@ -71,11 +71,7 @@ export function hasConflictingRegistryRoutes(
   value: unknown,
   target: ResolvedPnpmTarget,
 ): boolean {
-  if (
-    key !== 'registries' ||
-    target.compatibility === 'v10' ||
-    !isPlainObject(value)
-  ) {
+  if (key !== 'registries' || !isPlainObject(value)) {
     return false
   }
   const prefixes = new Set<string>()

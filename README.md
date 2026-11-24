@@ -15,6 +15,10 @@ Run in your workspace root:
 pnpm dlx pnpm-settings-migrator
 ```
 
+The migrator targets pnpm 11 and 12. To migrate a project pinned to pnpm 10
+for an upgrade, select `--compatibility v11` or `--compatibility v12` and
+update the project's pnpm pin separately.
+
 <details>
 <summary>CLI output and migration outcomes</summary>
 
@@ -81,8 +85,7 @@ returned changes and warnings themselves.
 ## Version field differences
 
 See the [version notes](docs/versions/README.md) for field changes grouped by
-[v10](docs/versions/README.md#v10),
-[v11](docs/versions/README.md#v11), and
+[v11](docs/versions/README.md#v11) and
 [v12](docs/versions/README.md#v12). Each minor file records differences
 from the preceding minor, including exact patch boundaries and migration effects.
 
@@ -106,15 +109,15 @@ dependency wins when two selectors are equally specific.
 
 ### `--compatibility`
 
-- **Type**: `'auto' | 'v10' | 'v11' | 'v12'`
+- **Type**: `'auto' | 'v11' | 'v12'`
 - **Default**: `'auto'`
 
 Compatibility major for migrated settings:
 
 - `auto`: infer from `targetVersion`, `packageManager`, or
-  `devEngines.packageManager` (`pnpm@12+` => `v12`, `pnpm@11` => `v11`,
-  otherwise `v10`).
-- `v10`: keep legacy settings and migrate schema-aligned pnpm config keys from `.npmrc`.
+  `devEngines.packageManager`. Use the v12 schema for pnpm 12 or later and
+  the v11 schema for pnpm 11 or when no major can be detected. A detected
+  major below 11 stops migration before any files are written.
 - `v11`: normalize legacy settings to the v11 schema.
 - `v12`: use the v12 schema and enable fields according to the confirmed target version.
 
@@ -126,9 +129,9 @@ For example, `--compatibility v12` with `packageManager: "pnpm@12.4.0"` enables
 12.4 capabilities. A pin to another major supplies no minor capabilities for
 the selected major; use `--target-version` to state the intended release.
 
-In `v11` and `v12` modes, the migrator validates existing workspace keys,
-filters incoming settings against the resolved capabilities, and applies
-required normalization to legacy files and `pnpm-workspace.yaml`.
+The migrator validates existing workspace keys, filters incoming settings
+against the resolved capabilities, and applies required normalization to
+legacy files and `pnpm-workspace.yaml`.
 
 </details>
 
@@ -137,10 +140,11 @@ required normalization to legacy files and `pnpm-workspace.yaml`.
 - **Type**: `string` (an exact version such as `'12.4.0'`)
 - **Default**: inferred from the project when possible
 
-Override the target pnpm version without changing the project's package manager
-pin. Resolution order is explicit `targetVersion`, then `packageManager`, then
-`devEngines.packageManager`. An explicit `compatibility` major must agree with
-`targetVersion`; conflicts fail before any files are written.
+Supply an exact pnpm version with major 11 or later. The project's package
+manager pin stays in place. Resolution order is explicit `targetVersion`, then
+`packageManager`, then `devEngines.packageManager`. An explicit `compatibility`
+major must agree with `targetVersion`. Conflicts fail before any files are
+written.
 
 ```ts
 await migratePnpmSettings() // Infer the target from the project
@@ -224,13 +228,11 @@ Notes:
 - YAML aliases remain when their anchors are unchanged and precede them.
   If replacement, removal, or sorting would invalidate an alias, its original
   value is written explicitly so unrelated settings keep their values.
-- If no auth/registry lines remain after a v11 or v12 migration, the empty
-  `.npmrc` is removed.
+- The migrator removes `.npmrc` when cleanup leaves the file empty.
 - Values moved from `auditConfig.ignoreCves` still contain CVE IDs. Replace them
   manually with the corresponding GHSA IDs after migration.
-- The migrator does not update the `packageManager` version, CI environment variables,
-  shell setup, or pnpm commands in scripts. When `packageManager` still pins pnpm 10,
-  pass `--compatibility v11` explicitly and update the pin separately.
+- Update the `packageManager` version, CI environment variables, shell setup,
+  and pnpm commands in scripts separately when upgrading pnpm.
 - See the [version notes](docs/versions/README.md) for field differences and
   historical verification coverage.
 

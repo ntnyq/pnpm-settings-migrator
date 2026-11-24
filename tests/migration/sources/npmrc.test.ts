@@ -11,7 +11,7 @@ describe('migratePnpmSettings/npmrc values', () => {
     writeWorkspaceYaml,
   } = createTestWorkspace('npmrc-values')
 
-  describe.each(['v10', 'v11', 'v12'] as const)('%s', compatibility => {
+  describe.each(['v11', 'v12'] as const)('%s', compatibility => {
     it.each([
       ['git-shallow-hosts', 'gitShallowHosts', 'github.com'],
       [
@@ -98,16 +98,13 @@ describe('migratePnpmSettings/npmrc values', () => {
     })
   })
 
-  it.each(['v10', 'v11'] as const)(
-    'converts required-scripts for %s',
-    async compatibility => {
-      await writeNpmrc('required-scripts=build\n')
-      await migratePnpmSettings({ cwd: testDir, compatibility })
-      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
-        requiredScripts: ['build'],
-      })
-    },
-  )
+  it('converts required-scripts for v11', async () => {
+    await writeNpmrc('required-scripts=build\n')
+    await migratePnpmSettings({ cwd: testDir, compatibility: 'v11' })
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      requiredScripts: ['build'],
+    })
+  })
 
   it.each([
     'required-scripts=build',
