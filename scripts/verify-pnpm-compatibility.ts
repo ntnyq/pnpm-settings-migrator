@@ -16,6 +16,7 @@ import {
   parsePnpmVersion,
   supportsMinimumVersion,
 } from '../src/features/compatibility/version'
+import { verifyPnpm11_29 } from './verify-pnpm-11.29'
 import { verifyPnpm12_12 } from './verify-pnpm-12.12'
 import { verifyPnpm12_13 } from './verify-pnpm-12.13'
 import { verifyPnpm12_15 } from './verify-pnpm-12.15'
@@ -25,6 +26,7 @@ import { verifyPnpm12_18 } from './verify-pnpm-12.18'
 import { verifyPnpm12_19 } from './verify-pnpm-12.19'
 import { verifyPnpm12_20 } from './verify-pnpm-12.20'
 import { verifyPnpm12_21 } from './verify-pnpm-12.21'
+import { verifyPnpm12_23 } from './verify-pnpm-12.23'
 import { verifyConfigShapes } from './verify-pnpm-config-shapes'
 import { verifyGlobalPackagesConfig } from './verify-pnpm-global-packages'
 import { verifyIgnoredWorkspaceSettings } from './verify-pnpm-ignored-settings'
@@ -314,6 +316,8 @@ await Promise.all(
     await verifyGlobalPackagesConfig(version, runPnpm)
     await verifyV11OverridePrecedence(version, runPnpm)
     await verifyWorkspaceIncludes(version, runPnpm)
+    await verifyPnpm11_29(version, runPnpm)
+    await verifyPnpm12_23(version, runPnpm)
     if (
       supportsMinimumVersion(parsedVersion, PNPM_V11_28_MINIMUM_VERSION) ||
       supportsMinimumVersion(parsedVersion, PNPM_V12_7_MINIMUM_VERSION)

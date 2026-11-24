@@ -2,6 +2,7 @@ import type {
   PnpmSettings,
   RegistryDeclaration,
   SideEffectsCacheSettings,
+  VersioningSettings,
 } from '@pnpm/types'
 
 /**
@@ -150,6 +151,58 @@ export interface PnpmLoadedNodeLinkerSettings {
 }
 
 /**
+ * Isolated linker options introduced in pnpm 12.23.0.
+ */
+export interface PnpmIsolatedNodeLinkerSettings {
+  /**
+   * Select the isolated linker.
+   */
+  type: 'isolated'
+  /**
+   * Toggle hoisting or set either hoist pattern list. Null leaves it unset.
+   */
+  hoist?: boolean | PnpmNodeLinkerHoistPatterns | null
+}
+
+/**
+ * Hoisting patterns accepted by the isolated linker.
+ */
+export interface PnpmNodeLinkerHoistPatterns {
+  /**
+   * Patterns hoisted into the project modules directory.
+   */
+  public?: string[] | null
+  /**
+   * Patterns hoisted into the virtual store modules directory.
+   */
+  private?: string[] | null
+}
+
+/**
+ * Hoisted linker options introduced in pnpm 12.23.0.
+ */
+export interface PnpmHoistedNodeLinkerSettings {
+  /**
+   * Select the hoisted linker.
+   */
+  type: 'hoisted'
+  /**
+   * Limit where dependencies can be hoisted. Null leaves the limit unset.
+   */
+  hoistingLimits?: 'none' | 'workspaces' | 'dependencies' | null
+}
+
+/**
+ * Release management settings with the pnpm 12.23 addition.
+ */
+export interface PnpmVersioningSettings extends VersioningSettings {
+  /**
+   * Include private packages in `pnpm change` (12.23+). Defaults to true.
+   */
+  includePrivatePackages?: boolean | null
+}
+
+/**
  * Lockfile object options introduced in pnpm 12.10.0.
  */
 export interface PnpmLockfileSettings {
@@ -201,6 +254,26 @@ export interface PnpmSkillsSettings {
  * Settings supported by pnpm v12, subject to the resolved version capabilities.
  */
 export interface PnpmSettingsV12 {
+  /**
+   * Publish access consumed from workspace YAML starting with 12.23.
+   */
+  access?: string | null
+  /**
+   * Explicitly clear the inherited editor in pnpm 12.23+.
+   */
+  editor?: null
+  /**
+   * RFC 3339 time used as the release-age and trust-policy reference (12.23+).
+   */
+  referenceTime?: string | null
+  /**
+   * Warn when workspace overrides match no dependency (12.23+).
+   */
+  warnUnusedOverrides?: boolean | null
+  /**
+   * Release management options.
+   */
+  versioning?: PnpmVersioningSettings | null
   /**
    * Create a commit and tag for a version bump (consumed by v12 from 12.17).
    */
@@ -276,7 +349,8 @@ export interface PnpmSettingsV12 {
    */
   skills?: PnpmSkillsSettings | null
   /**
-   * Dependency linking mode. Loaded linking and its options require pnpm 12.10+.
+   * Dependency linking mode. Loaded linking requires pnpm 12.10+.
+   * Other linker objects require pnpm 12.23+.
    */
   nodeLinker?:
     | 'isolated'
@@ -284,6 +358,9 @@ export interface PnpmSettingsV12 {
     | 'pnp'
     | 'loaded'
     | PnpmLoadedNodeLinkerSettings
+    | PnpmIsolatedNodeLinkerSettings
+    | PnpmHoistedNodeLinkerSettings
+    | { type: 'pnp'; _marker?: null }
   /**
    * Enable the lockfile, optionally configuring what it records (pnpm 12.10+).
    */

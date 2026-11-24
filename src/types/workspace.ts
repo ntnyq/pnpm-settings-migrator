@@ -130,6 +130,10 @@ export interface PnpmSettingsV11 {
    */
   httpsProxy?: string | null
   /**
+   * Proxy bypass setting. Null leaves it unset.
+   */
+  noProxy?: string | boolean | null
+  /**
    * Publish provenance preference. Consumed from workspace configuration by
    * pnpm v11 and pnpm v12 starting with 12.11. Null leaves it unset.
    */
@@ -183,11 +187,13 @@ export interface PnpmSettingsV11 {
  */
 export type PnpmWorkspace = Omit<
   PnpmSettings,
+  | 'access'
   | 'autoInstallPeersFromHighestMatch'
   | 'externalDependencies'
   | 'httpProxy'
   | 'httpsProxy'
   | 'lockfile'
+  | 'noProxy'
   | 'nodeLinker'
   | 'provenance'
   | 'registries'
@@ -195,6 +201,7 @@ export type PnpmWorkspace = Omit<
   | 'sideEffectsCache'
   | 'supportedArchitectures'
   | 'tasks'
+  | 'versioning'
 > &
   PnpmSettingsDeprecated &
   PnpmSettingsV11 &

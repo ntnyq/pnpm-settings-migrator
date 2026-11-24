@@ -1,14 +1,17 @@
-import { isArray, isBoolean, isString } from '@ntnyq/utils'
+import { isArray, isBoolean, isPlainObject, isString } from '@ntnyq/utils'
 import {
   PNPM_V12_10_MINIMUM_VERSION,
   PNPM_V12_13_MINIMUM_VERSION,
   PNPM_V12_14_MINIMUM_VERSION,
   PNPM_V12_15_MINIMUM_VERSION,
   PNPM_V12_19_MINIMUM_VERSION,
+  PNPM_V12_23_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
+import { isIsolatedHoistPlaceholder } from '../../utils/setting-value'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasIncompatibleBootSetting } from './boot-config'
+import { hasInvalidReferenceTime } from './reference-time'
 import { hasIncompatibleRegistryValue } from './registries'
 
 /**
@@ -123,24 +126,69 @@ function hasIncompatiblePackageMapOrCache(
 }
 
 /**
- * Check a loaded linker object without discarding unsupported options.
+ * Check linker objects without discarding unsupported options.
  *
  * @param value - Untrusted nodeLinker object
+ * @param target - Exact release controlling available linker types
  *
- * @returns Whether the object cannot be read by pnpm 12.10
+ * @returns Whether the object cannot be read by the target
  */
-function hasInvalidNodeLinkerOptions(value: object): boolean {
-  if (isArray(value) || Reflect.get(value, 'type') !== 'loaded') {
+function hasInvalidNodeLinkerOptions(
+  value: object,
+  target: ResolvedPnpmTarget,
+): boolean {
+  if (!isPlainObject(value)) {
     return true
   }
-  if (Object.keys(value).some(key => !['type', 'excluded'].includes(key))) {
+  const { type, ...options } = value
+  if (type === 'loaded') {
+    return Object.entries(options).some(
+      ([key, entry]) =>
+        key !== 'excluded' || !isArray(entry) || !entry.every(isString),
+    )
+  }
+  if (!supportsMinimumVersion(target.version, PNPM_V12_23_MINIMUM_VERSION)) {
     return true
   }
-  const excluded: unknown = Reflect.get(value, 'excluded')
-  return (
-    Object.hasOwn(value, 'excluded') &&
-    (!isArray(excluded) || !excluded.every(isString))
-  )
+  switch (type) {
+    case 'isolated':
+      return Object.entries(options).some(([key, entry]) => {
+        if (key !== 'hoist') {
+          return true
+        }
+        if (
+          entry === null ||
+          isBoolean(entry) ||
+          isIsolatedHoistPlaceholder(entry)
+        ) {
+          return false
+        }
+        return (
+          !isPlainObject(entry) ||
+          Object.entries(entry).some(
+            ([scope, patterns]) =>
+              !['private', 'public'].includes(scope) ||
+              (patterns !== null &&
+                (!isArray(patterns) || !patterns.every(isString))),
+          )
+        )
+      })
+    case 'hoisted':
+      return Object.entries(options).some(
+        ([key, entry]) =>
+          key !== 'hoistingLimits' ||
+          (entry !== null &&
+            (!isString(entry) ||
+              (!entry.includes('${') &&
+                !['none', 'workspaces', 'dependencies'].includes(entry)))),
+      )
+    case 'pnp':
+      return Object.entries(options).some(
+        ([key, entry]) => key !== '_marker' || entry !== null,
+      )
+    default:
+      return true
+  }
 }
 
 /**
@@ -166,6 +214,34 @@ function hasInvalidLinkerOrLockfileScalarValue(
     )
   }
   return key === 'lockfile' && !isBoolean(value)
+}
+
+/**
+ * Check new workspace scalars after the 12.23 capability is confirmed.
+ *
+ * @param key - Canonical setting name
+ * @param value - Untrusted workspace value
+ *
+ * @returns Whether the workspace reader would reject the value
+ */
+function hasInvalidV12_23ScalarValue(key: string, value: unknown): boolean {
+  if (value === null) {
+    return false
+  }
+  switch (key) {
+    case 'access':
+      return !isString(value)
+    case 'editor':
+      return true
+    case 'noProxy':
+      return !isString(value) && !isBoolean(value)
+    case 'referenceTime':
+      return hasInvalidReferenceTime(value)
+    case 'warnUnusedOverrides':
+      return !isBoolean(value) && !(isString(value) && value.includes('${'))
+    default:
+      return false
+  }
 }
 
 /**
@@ -245,7 +321,9 @@ export function hasIncompatibleV12SettingValue(
 ): boolean {
   if (
     hasIncompatibleBootSetting(key, value, target) ||
-    hasIncompatiblePackageMapOrCache(key, value, target)
+    hasIncompatiblePackageMapOrCache(key, value, target) ||
+    (supportsMinimumVersion(target.version, PNPM_V12_23_MINIMUM_VERSION) &&
+      hasInvalidV12_23ScalarValue(key, value))
   ) {
     return true
   }
@@ -269,7 +347,7 @@ export function hasIncompatibleV12SettingValue(
     return false
   }
   if (key === 'nodeLinker') {
-    return !supportsV12_10 || hasInvalidNodeLinkerOptions(value)
+    return !supportsV12_10 || hasInvalidNodeLinkerOptions(value, target)
   }
   if (key === 'lockfile') {
     return hasInvalidLockfileOptions(value, target)

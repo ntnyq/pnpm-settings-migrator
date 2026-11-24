@@ -6,7 +6,6 @@ import {
   PNPM_V12_SETTINGS,
   PNPM_V12_ONLY_SETTINGS,
   PNPM_V11_ONLY_SETTINGS,
-  PROJECT_REFUSED_SETTINGS,
   REGISTRY_SETTINGS,
   PNPM_V11_PACKAGE_CONFIG_FIELDS,
   WORKSPACE_SCHEMA_DIRECTIVE,
@@ -22,6 +21,7 @@ import type {
   SelectedPnpmSettings,
   PnpmWorkspace,
 } from '../../types'
+import { isRefusedProjectSetting } from './project-scope'
 import {
   hasConflictingRegistryRoutes,
   hasInvalidRegistryLocations,
@@ -219,7 +219,7 @@ function resolveSettingIssue({
   if (!npmrc && key !== resolveCamelCaseKey(key)) {
     return 'nonCamelCase'
   }
-  if (compatibility !== 'v10' && PROJECT_REFUSED_SETTINGS.has(key)) {
+  if (isRefusedProjectSetting(key, value, target)) {
     return 'refused'
   }
   if (REGISTRY_SETTINGS.has(key) && containsUnsafeRegistryValue(value)) {
