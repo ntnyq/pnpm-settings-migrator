@@ -92,6 +92,32 @@ async function verifyNewConsumers(
     run(['config', 'list', '--json']),
     /noProxy.*boolean or string/u,
   )
+
+  const manifest = join(cwd, 'package.json')
+  const packageJson = JSON.parse(await readFile(manifest, 'utf8'))
+  const hoistVariable = 'PNPM_MIGRATOR_TEST_HOIST'
+  const hoist = `\${${hoistVariable}:-false}`
+  await writeFile(workspace, '{}\n')
+  await writeFile(
+    manifest,
+    JSON.stringify({
+      ...packageJson,
+      pnpm: { nodeLinker: { type: 'isolated', hoist } },
+    }),
+  )
+  assert.deepEqual((await migratePnpmSettings({ cwd })).warnings, [])
+  assert.equal(JSON.parse(await readFile(manifest, 'utf8')).pnpm, undefined)
+  assert.ok((await readFile(workspace, 'utf8')).includes(`hoist: ${hoist}\n`))
+  for (const [value, expected] of [
+    ['', false],
+    ['true', true],
+  ] as const) {
+    const config = await run({
+      args: ['config', 'list', '--json'],
+      env: { [hoistVariable]: value },
+    })
+    assert.equal(JSON.parse(config.stdout).nodeLinker.hoist, expected)
+  }
 }
 
 /**

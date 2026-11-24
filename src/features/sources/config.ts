@@ -1,7 +1,7 @@
 import { isPlainObject } from '@ntnyq/utils'
 import detectIndent from 'detect-indent'
-import { Document, parseDocument, isMap } from 'yaml'
-import { DEFAULT_INDENT } from '../../constants'
+import { Document, parseDocument, isAlias, isMap, isScalar, Scalar } from 'yaml'
+import { DEFAULT_INDENT, PNPM_V12_23_MINIMUM_VERSION } from '../../constants'
 import type {
   ParsedPackageJson,
   PackageJson,
@@ -13,7 +13,12 @@ import type {
 } from '../../types'
 import { fsReadFile } from '../../utils/fs'
 import { mergeByStrategy } from '../../utils/merge'
-import { selectPnpmSettings } from '../settings/schema'
+import { isIsolatedHoistPlaceholder } from '../../utils/setting-value'
+import { supportsMinimumVersion } from '../compatibility/version'
+import {
+  assertCompatibleWorkspaceSettings,
+  selectPnpmSettings,
+} from '../settings/schema'
 import { resolveYarnResolutions } from './yarn-resolutions'
 
 /**
@@ -104,6 +109,40 @@ export async function readPnpmWorkspace(
     content,
     indent: resolveYamlIndent(content),
     value: (parsedValue as PnpmWorkspace | null) ?? {},
+  }
+}
+
+/**
+ * Validate an existing workspace, including syntax-sensitive settings.
+ *
+ * @param workspace - Parsed workspace settings and their source document
+ * @param target - Resolved pnpm version and field capabilities
+ *
+ * @returns Nothing when the workspace matches the target
+ *
+ * @throws {TypeError} When workspace settings or scalar styling are incompatible
+ */
+export function assertCompatibleWorkspaceDocument(
+  workspace: ParsedPnpmWorkspace,
+  target: ResolvedPnpmTarget,
+): void {
+  assertCompatibleWorkspaceSettings(workspace.value, target)
+  if (!supportsMinimumVersion(target.version, PNPM_V12_23_MINIMUM_VERSION)) {
+    return
+  }
+  const { document } = workspace
+  const linkerNode = document.get('nodeLinker', true)
+  const linker = isAlias(linkerNode) ? linkerNode.resolve(document) : linkerNode
+  const hoistNode = isMap(linker) ? linker.get('hoist', true) : undefined
+  const hoist = isAlias(hoistNode) ? hoistNode.resolve(document) : hoistNode
+  if (
+    isScalar(hoist) &&
+    hoist.type !== Scalar.PLAIN &&
+    isIsolatedHoistPlaceholder(hoist.value)
+  ) {
+    throw new TypeError(
+      'pnpm-workspace.yaml requires an unquoted nodeLinker.hoist placeholder.',
+    )
   }
 }
 

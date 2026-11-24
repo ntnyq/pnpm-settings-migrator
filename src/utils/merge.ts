@@ -12,6 +12,23 @@ import type { PnpmWorkspace, MergeStrategy } from '../types'
 import { keepsOverrideOrder, isSameSetting } from './setting-value'
 
 /**
+ * Identify arrays where a later private or public hoist pattern can win.
+ *
+ * @param path - Setting name and containing keys from the workspace root
+ *
+ * @returns Whether repetition and order must survive merging and cleanup
+ */
+function isOrderedHoistPattern(path: readonly string[]): boolean {
+  const [setting, option, scope, extra] = path
+  return (
+    extra === undefined &&
+    setting === 'nodeLinker' &&
+    option === 'hoist' &&
+    (scope === 'private' || scope === 'public')
+  )
+}
+
+/**
  * Merge objects with priority to the first argument.
  * Only adds keys from second argument that don't exist in first.
  * For nested objects, recursively merges them.
@@ -53,54 +70,6 @@ function discardMerge(
 }
 
 /**
- * Deep merge two objects with array deduplication.
- *
- * For arrays, this function takes the union of both arrays and removes duplicates.
- * For objects, it recursively merges them.
- * For primitives, it prefers existing values.
- *
- * @param existing - Existing values
- * @param incoming - New values
- *
- * @returns Merged result with deduplicated arrays
- */
-function mergeWithArrayDedupe(
-  existing: PnpmWorkspace,
-  incoming: PnpmWorkspace,
-): PnpmWorkspace {
-  const result: Record<string, unknown> = { ...existing }
-
-  for (const [key, incomingValue] of Object.entries(incoming)) {
-    const existingValue = Object.hasOwn(result, key) ? result[key] : undefined
-
-    if (isUndefined(existingValue)) {
-      // Key doesn't exist in existing, use incoming value
-      Object.defineProperty(result, key, {
-        configurable: true,
-        enumerable: true,
-        value: incomingValue,
-        writable: true,
-      })
-    } else if (isArray(existingValue) && isArray(incomingValue)) {
-      // Both are arrays - merge and deduplicate
-      result[key] = uniqueWith(
-        unique<unknown>([...existingValue, ...incomingValue]),
-        isDeepStrictEqual,
-      )
-    } else if (isPlainObject(existingValue) && isPlainObject(incomingValue)) {
-      // Both are objects - recursively merge
-      result[key] = mergeWithArrayDedupe(
-        existingValue as PnpmWorkspace,
-        incomingValue as PnpmWorkspace,
-      )
-    }
-    // For other cases (primitives, mismatched types), keep existing value
-  }
-
-  return result as PnpmWorkspace
-}
-
-/**
  * Append ordered matchers without removing entries that restore precedence.
  * An overlapping suffix/prefix is already in place, including on repeated runs.
  *
@@ -123,6 +92,58 @@ function mergeOrderedSequence<T>(
     overlap--
   }
   return [...existing, ...incoming.slice(overlap)]
+}
+
+/**
+ * Deep merge two objects with array deduplication.
+ *
+ * For arrays, this function takes the union of both arrays and removes duplicates.
+ * For objects, it recursively merges them.
+ * For primitives, it prefers existing values.
+ *
+ * @param existing - Existing values
+ * @param incoming - New values
+ * @param path - Containing keys for settings whose arrays are ordered
+ *
+ * @returns Merged result with deduplicated arrays
+ */
+function mergeWithArrayDedupe(
+  existing: PnpmWorkspace,
+  incoming: PnpmWorkspace,
+  path: readonly string[] = [],
+): PnpmWorkspace {
+  const result: Record<string, unknown> = { ...existing }
+
+  for (const [key, incomingValue] of Object.entries(incoming)) {
+    const existingValue = Object.hasOwn(result, key) ? result[key] : undefined
+
+    if (isUndefined(existingValue)) {
+      // Key doesn't exist in existing, use incoming value
+      Object.defineProperty(result, key, {
+        configurable: true,
+        enumerable: true,
+        value: incomingValue,
+        writable: true,
+      })
+    } else if (isArray(existingValue) && isArray(incomingValue)) {
+      result[key] = isOrderedHoistPattern([...path, key])
+        ? mergeOrderedSequence(existingValue, incomingValue, key)
+        : uniqueWith(
+            unique<unknown>([...existingValue, ...incomingValue]),
+            isDeepStrictEqual,
+          )
+    } else if (isPlainObject(existingValue) && isPlainObject(incomingValue)) {
+      // Both are objects - recursively merge
+      result[key] = mergeWithArrayDedupe(
+        existingValue as PnpmWorkspace,
+        incomingValue as PnpmWorkspace,
+        [...path, key],
+      )
+    }
+    // For other cases (primitives, mismatched types), keep existing value
+  }
+
+  return result as PnpmWorkspace
 }
 
 /**
@@ -200,31 +221,33 @@ export function mergeByStrategy(
 }
 
 /**
- * Check that a destination contains the selected value after merging.
- *
- * Objects may have extra properties and arrays may have extra items; every
- * expected value must still be present before its source can be removed.
+ * Check migrated values while retaining context for nested hoist patterns.
  *
  * @param actual - Value stored in the final destination
  * @param expected - Incoming value that must be preserved
- * @param key - Setting name when checking an override map's selector order
+ * @param path - Workspace setting path used by order-sensitive fields
  *
- * @returns Whether the destination recursively contains the expected value
+ * @returns Whether cleanup can remove the original source value
  */
-export function containsMigratedValue(
+function containsValue(
   actual: unknown,
   expected: unknown,
-  key?: string,
+  path: readonly string[],
 ): boolean {
+  const key = path.at(-1)
   if (isArray(actual) && isArray(expected)) {
+    if (isOrderedHoistPattern(path)) {
+      return (
+        expected.length === 0 ||
+        isDeepStrictEqual(actual.slice(-expected.length), expected)
+      )
+    }
     // An empty chosen-skill list denies every skill, rather than adding none.
     if (key === 'skills' && expected.length === 0) {
       return actual.length === 0
     }
     return expected.every(expectedItem =>
-      actual.some(actualItem =>
-        containsMigratedValue(actualItem, expectedItem),
-      ),
+      actual.some(actualItem => containsValue(actualItem, expectedItem, [])),
     )
   }
 
@@ -237,14 +260,34 @@ export function containsMigratedValue(
     return (
       (key !== 'overrides' || keepsOverrideOrder(actual, expected)) &&
       Object.entries(expected).every(([field, expectedValue]) =>
-        containsMigratedValue(
+        containsValue(
           (actual as Record<string, unknown>)[field],
           expectedValue,
-          field,
+          [...path, field],
         ),
       )
     )
   }
 
   return Object.is(actual, expected)
+}
+
+/**
+ * Check that a destination contains the selected value after merging.
+ *
+ * Objects may have extra properties and arrays may have extra items; every
+ * expected value must still be present before its source can be removed.
+ *
+ * @param actual - Value stored in the final destination
+ * @param expected - Incoming value that must be preserved
+ * @param key - Workspace setting name for order-sensitive comparisons
+ *
+ * @returns Whether the destination recursively contains the expected value
+ */
+export function containsMigratedValue(
+  actual: unknown,
+  expected: unknown,
+  key?: string,
+): boolean {
+  return containsValue(actual, expected, key === undefined ? [] : [key])
 }

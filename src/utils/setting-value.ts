@@ -1,6 +1,20 @@
 import { isDeepStrictEqual } from 'node:util'
-import { isPlainObject } from '@ntnyq/utils'
+import { isPlainObject, isString } from '@ntnyq/utils'
 import { YARN_PACKAGE_SELECTOR_PATTERN } from '../constants/yarn'
+
+/**
+ * Recognize a full placeholder for an isolated linker's boolean hoist option.
+ *
+ * @param value - Untrusted hoist value
+ *
+ * @returns Whether pnpm can substitute a bare token for the placeholder
+ */
+export function isIsolatedHoistPlaceholder(value: unknown): boolean {
+  return (
+    isString(value) &&
+    /^\$\{[\w.]+(?:\?|:?-[-\w.]+)?\}$/u.exec(value)?.[0] === value
+  )
+}
 
 /**
  * Plain package names cannot overlap. Ranges, globs and group selectors can

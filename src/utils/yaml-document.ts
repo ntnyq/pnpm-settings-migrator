@@ -1,7 +1,12 @@
+import { isPlainObject } from '@ntnyq/utils'
 import type { Alias, Node, Document } from 'yaml'
 import { isAlias, isMap, isScalar, isNode, isSeq, visit } from 'yaml'
 import type { UpdateYamlDocumentOptions } from '../types'
-import { hasOrderedSelectors, isSameSetting } from './setting-value'
+import {
+  hasOrderedSelectors,
+  isIsolatedHoistPlaceholder,
+  isSameSetting,
+} from './setting-value'
 
 /**
  * Identify a YAML merge directive, including the distinction from a quoted key.
@@ -99,6 +104,33 @@ function sortYamlMappings(node: Node | null, ordered: ReadonlySet<Node>): void {
 }
 
 /**
+ * Write a setting while preserving pnpm's syntax for typed placeholders.
+ *
+ * @param document - Workspace YAML document being updated
+ * @param key - Workspace setting name
+ * @param value - Setting value to write
+ *
+ * @returns Nothing; the document is updated in place
+ */
+function setWorkspaceValue(
+  document: Document,
+  key: string,
+  value: unknown,
+): void {
+  document.set(key, value)
+  if (
+    key === 'nodeLinker' &&
+    isMap(document.contents) &&
+    isPlainObject(value) &&
+    value.type === 'isolated' &&
+    isIsolatedHoistPlaceholder(value.hoist)
+  ) {
+    // Flow mappings quote the placeholder, which prevents typed expansion.
+    document.contents.flow = false
+  }
+}
+
+/**
  * Apply semantic root changes to the parsed document while retaining untouched
  * YAML nodes and their source metadata.
  *
@@ -174,7 +206,7 @@ export function updateYamlDocument(
     )
     for (const [key, value] of Object.entries(before)) {
       if (!document.has(key)) {
-        document.set(key, value)
+        setWorkspaceValue(document, key, value)
       }
     }
   }
@@ -190,7 +222,7 @@ export function updateYamlDocument(
       !Object.hasOwn(before, key) ||
       !isSameSetting(key, Reflect.get(before, key), value)
     ) {
-      document.set(key, value)
+      setWorkspaceValue(document, key, value)
     }
   }
 

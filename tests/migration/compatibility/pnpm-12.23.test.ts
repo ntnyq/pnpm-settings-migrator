@@ -6,6 +6,7 @@ import { createTestWorkspace } from '../../helpers'
 
 const targetVersion = '12.23.0'
 const previousVersion = '12.22.0'
+const hoistPlaceholder = '$' + '{PNPM_MIGRATOR_TEST_HOIST:-false}'
 const settings = {
   access: 'restricted',
   editor: null,
@@ -95,6 +96,7 @@ describe('pnpm 12.23 workspace fields', () => {
 
   it.each([
     { nodeLinker: { type: 'isolated', hoist: false } },
+    { nodeLinker: { type: 'isolated', hoist: hoistPlaceholder } },
     { nodeLinker: { type: 'isolated', hoist: null } },
     { nodeLinker: { type: 'isolated', hoist: { private: null } } },
     { nodeLinker: { type: 'pnp' } },
@@ -128,6 +130,7 @@ describe('pnpm 12.23 workspace fields', () => {
     { access: false },
     { editor: 'configured-editor' },
     { noProxy: ['localhost'] },
+    { nodeLinker: { type: 'isolated', hoist: `prefix-${hoistPlaceholder}` } },
     { nodeLinker: { type: 'isolated', hoist: { public: [42], private: [] } } },
     { nodeLinker: { type: 'isolated', hoist: { publc: ['*'] } } },
     { nodeLinker: { type: 'hoisted', hoistingLimits: 'global' } },
@@ -140,6 +143,12 @@ describe('pnpm 12.23 workspace fields', () => {
     { referenceTime: '2999-01-01T00:00:00Z' },
     { referenceTime: '$' + '{REFERENCE_TIME}' },
     { versioning: { ignore: ['internal'], includePrivatePackages: 'no' } },
+    {
+      versioning: {
+        ignore: '$' + '{PNPM_MIGRATOR_TEST_IGNORED:-[]}',
+        includePrivatePackages: false,
+      },
+    },
     {
       versioning: {
         includePrivatePackages: false,
@@ -158,6 +167,60 @@ describe('pnpm 12.23 workspace fields', () => {
     await expect(readWorkspaceYaml()).resolves.toStrictEqual({
       saveExact: true,
     })
+  })
+
+  it('keeps a plain hoist placeholder when updating other workspace settings', async () => {
+    const hoistLine = `  hoist: ${hoistPlaceholder}\n`
+    await writeWorkspaceYaml(`nodeLinker:\n  type: isolated\n${hoistLine}`)
+    await writeNpmrc('save-exact=true\n')
+
+    const result = await migratePnpmSettings({ cwd: testDir, targetVersion })
+
+    expect(result.warnings).toStrictEqual([])
+    await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toContain(
+      hoistLine,
+    )
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      nodeLinker: { type: 'isolated', hoist: hoistPlaceholder },
+      saveExact: true,
+    })
+    await expect(readWorkspaceFile('.npmrc')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('writes a plain hoist placeholder when merging into a flow workspace', async () => {
+    await writeWorkspaceYaml('{ saveExact: true }\n')
+    await writePackageJson({
+      pnpm: { nodeLinker: { type: 'isolated', hoist: hoistPlaceholder } },
+    })
+
+    await migratePnpmSettings({ cwd: testDir, targetVersion })
+
+    await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toContain(
+      `  hoist: ${hoistPlaceholder}\n`,
+    )
+    await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+      saveExact: true,
+      nodeLinker: { type: 'isolated', hoist: hoistPlaceholder },
+    })
+    expect(JSON.parse(await readWorkspaceFile('package.json'))).toStrictEqual(
+      {},
+    )
+  })
+
+  it('rejects a quoted hoist placeholder before writing', async () => {
+    const workspace = `nodeLinker:\n  type: isolated\n  hoist: '${hoistPlaceholder}'\n`
+    await writeWorkspaceYaml(workspace)
+    await writeNpmrc('save-exact=true\n')
+
+    await expect(
+      migratePnpmSettings({ cwd: testDir, targetVersion }),
+    ).rejects.toThrow('unquoted nodeLinker.hoist')
+    await expect(readWorkspaceFile('pnpm-workspace.yaml')).resolves.toBe(
+      workspace,
+    )
+    await expect(readWorkspaceFile('.npmrc')).resolves.toBe('save-exact=true\n')
   })
 
   it.each([
@@ -243,6 +306,48 @@ describe('pnpm 12.23 workspace fields', () => {
       expect(
         JSON.parse(await readWorkspaceFile('package.json')).pnpm,
       ).toStrictEqual(retained)
+    },
+  )
+
+  const orderedHoist = {
+    private: ['a', '!a', 'a'],
+    public: ['z', '!z', 'z'],
+  }
+  const laterHoist = { private: [], public: ['!z', 'z', '!z'] }
+  const orderedIncoming = {
+    type: 'isolated',
+    hoist: laterHoist,
+  }
+
+  it.each([
+    { strategy: 'discard', hoist: orderedHoist, retained: orderedIncoming },
+    {
+      strategy: 'merge',
+      hoist: { ...orderedHoist, public: ['z', '!z', 'z', '!z'] },
+      retained: undefined,
+    },
+    { strategy: 'overwrite', hoist: laterHoist, retained: undefined },
+  ] as const)(
+    'preserves hoist pattern precedence and cleanup with $strategy',
+    async ({ strategy, hoist, retained }) => {
+      await writeWorkspaceYaml(
+        stringify({ nodeLinker: { type: 'isolated', hoist: orderedHoist } }),
+      )
+      await writePackageJson({ pnpm: { nodeLinker: orderedIncoming } })
+      await migratePnpmSettings({ cwd: testDir, strategy, targetVersion })
+
+      await expect(readWorkspaceYaml()).resolves.toStrictEqual({
+        nodeLinker: { type: 'isolated', hoist },
+      })
+      const manifest = JSON.parse(await readWorkspaceFile('package.json'))
+      expect(manifest.pnpm?.nodeLinker).toStrictEqual(retained)
+
+      const repeated = await migratePnpmSettings({
+        cwd: testDir,
+        strategy,
+        targetVersion,
+      })
+      expect(repeated.changedFiles).toStrictEqual([])
     },
   )
 })

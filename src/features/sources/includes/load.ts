@@ -21,7 +21,7 @@ import { fsReadFile } from '../../../utils/fs'
 import { mergeByStrategy } from '../../../utils/merge'
 import { supportsMinimumVersion } from '../../compatibility/version'
 import { assertCompatibleWorkspaceSettings } from '../../settings/schema'
-import { readPnpmWorkspace } from '../config'
+import { assertCompatibleWorkspaceDocument, readPnpmWorkspace } from '../config'
 import { defineIncludedSettings, reserveIncludedSettings } from './ownership'
 import { rebaseIncludedSettings } from './paths'
 import {
@@ -184,16 +184,17 @@ function applyIncludedFile(
   file: WorkspaceSettingsFile,
   target: ResolvedPnpmTarget,
 ): void {
-  const settings = file.parsed?.value
-  if (!settings) {
+  const { parsed } = file
+  if (!parsed) {
     return
   }
+  const settings = parsed.value
   if (Object.hasOwn(settings, 'include')) {
     throw new TypeError(
       'Nested include declarations are not supported by pnpm.',
     )
   }
-  assertCompatibleWorkspaceSettings(settings, target)
+  assertCompatibleWorkspaceDocument(parsed, target)
   defineIncludedSettings(workspace, file)
   const { $schema: _schema, ...values } = settings
   workspace.value = mergeIncludedValues(
@@ -228,7 +229,7 @@ export async function readIncludedWorkspace(options: {
   strategy?: MergeStrategy
 }): Promise<IncludedWorkspace> {
   const { root, cwd, target } = options
-  assertCompatibleWorkspaceSettings(root.value, target)
+  assertCompatibleWorkspaceDocument(root, target)
   const proposed = options.include ?? root.value.include
   if (
     proposed !== undefined &&

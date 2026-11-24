@@ -8,6 +8,7 @@ import {
   PNPM_V12_23_MINIMUM_VERSION,
 } from '../../constants'
 import type { ResolvedPnpmTarget } from '../../types'
+import { isIsolatedHoistPlaceholder } from '../../utils/setting-value'
 import { supportsMinimumVersion } from '../compatibility/version'
 import { hasIncompatibleBootSetting } from './boot-config'
 import { hasInvalidReferenceTime } from './reference-time'
@@ -155,7 +156,11 @@ function hasInvalidNodeLinkerOptions(
         if (key !== 'hoist') {
           return true
         }
-        if (entry === null || isBoolean(entry)) {
+        if (
+          entry === null ||
+          isBoolean(entry) ||
+          isIsolatedHoistPlaceholder(entry)
+        ) {
           return false
         }
         return (
